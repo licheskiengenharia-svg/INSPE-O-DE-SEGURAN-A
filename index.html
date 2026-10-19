@@ -222,6 +222,13 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
 .grid2.even { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 @media (max-width: 760px) { .grid2.even { grid-template-columns: minmax(0, 1fr); } .hrow { grid-template-columns: minmax(0, 1fr) auto; } .hrow .htrack { grid-column: 1 / -1; grid-row: 2; } }
 
+/* Finalização da ação */
+.fin { flex-basis: 100%; display: flex; flex-direction: column; gap: 6px; background: var(--surface); border-radius: 6px; padding: 10px 12px; margin-top: 4px; }
+.fin .m { font-size: 12px; color: var(--muted); }
+.fin-form .fields { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.evid { max-width: 260px; max-height: 200px; border-radius: 6px; object-fit: cover; }
+@media (max-width: 760px) { .fin-form .fields { grid-template-columns: minmax(0, 1fr); } }
+
 /* Assinatura */
 .sig-pad { display: block; width: 100%; max-width: 100%; aspect-ratio: 900 / 240; background: #fff; border: 1px dashed var(--muted); border-radius: 6px; touch-action: none; cursor: crosshair; }
 .sig-img { display: block; max-width: 100%; height: 110px; object-fit: contain; background: #fff; border-radius: 6px; }
@@ -457,7 +464,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
 
   // ---------- Navegação ----------
   function go(view, opts = {}) {
-    state.view = view; state.confirmDelete = false;
+    state.view = view; state.confirmDelete = false; state.closing = null;
     if ("selected" in opts) state.selected = opts.selected;
     document.querySelectorAll("nav.tabs button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.view === (view === "detalhe" ? "historico" : view))));
     render(); window.scrollTo(0, 0);
@@ -861,8 +868,16 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
           <span><span class="label">Ação</span> ${esc(it.acao || "não definida")}</span>
           ${it.respAcao ? `<span><span class="label">Resp.</span> ${esc(it.respAcao)}</span>` : ""}
           <span><span class="label">Prazo</span> ${fmtDate(it.prazo)}</span>
-          ${it.corrigido ? `<span class="chip ok">Corrigido em ${fmtDate(it.corrigidoEm)}</span>${state.canWrite ? `<button class="btn small" data-act="reabrir" data-idx="${idx}">Reabrir</button>` : ""}`
-            : state.canWrite ? `<button class="btn small" data-act="corrigir" data-idx="${idx}">Marcar como corrigido</button>` : `<span class="chip bad">Em aberto</span>`}
+          ${it.corrigido ? `<span class="chip ok">Finalizada em ${fmtDate(it.corrigidoEm)}${it.prazo ? (it.corrigidoEm <= it.prazo ? " · no prazo" : " · fora do prazo") : ""}</span>`
+            : state.canWrite ? (state.closing?.idx === idx ? "" : `<button class="btn small" data-act="finalizar" data-idx="${idx}">Finalizar ação</button>`) : `<span class="chip bad">Em aberto</span>`}
+          ${it.corrigido ? `<div class="fin">
+              <span class="label">Finalização da ação</span>
+              <div>${esc(it.descricaoConclusao || "Sem descrição")}</div>
+              <div class="m">${it.corrigidoPor ? "Executado por " + esc(it.corrigidoPor) + " · " : ""}${fmtDate(it.corrigidoEm)}</div>
+              ${it.fotoConclusao ? `<img class="evid" src="${it.fotoConclusao}" alt="Foto de evidência da ação">` : ""}
+              ${state.canWrite ? `<div><button class="btn small" data-act="reabrir" data-idx="${idx}">Reabrir ação</button></div>` : ""}
+            </div>` : ""}
+          ${!it.corrigido && state.closing?.idx === idx ? finForm(idx) : ""}
         </div>` : ""}</div>`;
     }).join("");
     return `<div class="stack">
@@ -898,13 +913,40 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
     </div>`;
   }
 
+  function finForm(idx) {
+    const c = state.closing;
+    return `<div class="fin fin-form">
+      <span class="label">Finalização da ação</span>
+      <div class="fields">
+        <label class="field"><span class="label">Data de conclusão *</span><input id="fin-data" type="date" value="${esc(c.data)}"></label>
+        <label class="field span2"><span class="label">Executado por *</span><input id="fin-por" value="${esc(c.por)}" placeholder="Quem realizou a ação"></label>
+        <label class="field span3"><span class="label">O que foi feito *</span><textarea id="fin-desc" placeholder="Descreva a correção realizada">${esc(c.desc)}</textarea></label>
+        <label class="field span3"><span class="label">Foto de evidência (opcional)</span><input id="fin-foto" type="file" accept="image/*"></label>
+      </div>
+      ${c.foto ? `<img class="evid" src="${c.foto}" alt="Prévia da foto de evidência">` : ""}
+      <div class="row-actions"><span class="label" id="fin-msg" style="align-self:center"></span>
+        <button class="btn small" data-act="fin-cancelar">Cancelar</button><button class="btn small primary" data-act="fin-salvar" data-idx="${idx}">Salvar finalização</button></div>
+    </div>`;
+  }
+  function shrinkImage(file) {
+    return new Promise((res, rej) => {
+      const url = URL.createObjectURL(file), img = new Image();
+      img.onload = () => { const k = Math.min(1, 720 / Math.max(img.width, img.height)); const c = document.createElement("canvas");
+        c.width = Math.round(img.width * k); c.height = Math.round(img.height * k); c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url); res(c.toDataURL("image/jpeg", 0.6)); };
+      img.onerror = () => { URL.revokeObjectURL(url); rej(); };
+      img.src = url;
+    });
+  }
+
   // ---------- Exportação ----------
   function toCSV(list) {
-    const head = ["Data", "Setor", "Local", "TST", "Registro TST", "Turno", "Liderança", "Cargo liderança", "Seção", "Norma", "Nº", "Pergunta", "Ref.", "Resultado", "Observação", "Ação corretiva", "Responsável ação", "Prazo", "Corrigido"];
+    const head = ["Data", "Setor", "Local", "TST", "Registro TST", "Turno", "Liderança", "Cargo liderança", "Seção", "Norma", "Nº", "Pergunta", "Ref.", "Resultado", "Observação", "Ação corretiva", "Responsável ação", "Prazo", "Situação da ação", "Data de conclusão", "Executado por", "O que foi feito", "No prazo"];
     const qq = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
     const rows = [head.map(qq).join(";")];
     for (const i of list) i.itens.forEach((it, n) => rows.push([fmtDate(i.data), setorLabel(i), i.local, i.responsavel, i.registroTst, i.turno, i.acompanhante, i.cargoLider, it.secao, it.nr || i.nr, n + 1, it.texto, it.ref,
-      { C: "Conforme", NC: "Não conforme", NA: "N/A" }[it.status], it.obs, it.acao, it.respAcao, it.prazo ? fmtDate(it.prazo) : "", it.status === "NC" ? (it.corrigido ? "Sim " + fmtDate(it.corrigidoEm) : "Não") : ""].map(qq).join(";")));
+      { C: "Conforme", NC: "Não conforme", NA: "N/A" }[it.status], it.obs, it.acao, it.respAcao, it.prazo ? fmtDate(it.prazo) : "", it.status === "NC" ? (it.corrigido ? "Finalizada" : "Em aberto") : "", it.corrigido ? fmtDate(it.corrigidoEm) : "", it.corrigidoPor, it.descricaoConclusao,
+      it.corrigido && it.prazo ? (it.corrigidoEm <= it.prazo ? "Sim" : "Não") : ""].map(qq).join(";")));
     return "﻿" + rows.join("\r\n");
   }
   function reportHTML(i) {
@@ -913,7 +955,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
     const rows = i.itens.map((it, n) => {
       const h = it.secao && it.secao !== last ? `<tr><th colspan="5" style="background:#1d211c;color:#fff">${esc(it.secao)}${it.nr ? " · " + esc(it.nr) : ""}</th></tr>` : "";
       last = it.secao || last;
-      return h + `<tr><td>${n + 1}</td><td>${esc(it.texto)}${it.ref ? ` <small>(${esc(it.ref)})</small>` : ""}</td><td class="${it.status}">${lab[it.status]}</td><td>${esc(it.obs)}</td><td>${it.status === "NC" ? `${esc(it.acao)}${it.respAcao ? " / " + esc(it.respAcao) : ""}${it.prazo ? " / " + fmtDate(it.prazo) : ""}${it.corrigido ? " — corrigido em " + fmtDate(it.corrigidoEm) : ""}` : ""}</td></tr>`;
+      return h + `<tr><td>${n + 1}</td><td>${esc(it.texto)}${it.ref ? ` <small>(${esc(it.ref)})</small>` : ""}</td><td class="${it.status}">${lab[it.status]}</td><td>${esc(it.obs)}</td><td>${it.status === "NC" ? `${esc(it.acao)}${it.respAcao ? " / " + esc(it.respAcao) : ""}${it.prazo ? " / " + fmtDate(it.prazo) : ""}${it.corrigido ? `<br><b>Finalizada em ${fmtDate(it.corrigidoEm)}</b>${it.corrigidoPor ? " por " + esc(it.corrigidoPor) : ""}: ${esc(it.descricaoConclusao || "")}${it.fotoConclusao ? `<br><img src="${it.fotoConclusao}" alt="Evidência" style="max-width:220px;margin-top:4px">` : ""}` : ""}` : ""}</td></tr>`;
     }).join("");
     return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Inspeção – ${esc(setorLabel(i))} – ${fmtDate(i.data)}</title>
 <style>body{font-family:Arial,sans-serif;color:#1d211c;max-width:900px;margin:24px auto;padding:0 16px;font-size:13px}h1{font-size:20px;margin:0}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{border:1px solid #bbb;padding:6px;text-align:left;vertical-align:top}th{background:#eee}.C{color:#1f7a3d}.NC{color:#c0281e;font-weight:bold}.meta td{border:0;padding:2px 12px 2px 0}.sig{display:flex;gap:48px;margin-top:96px}.sig div{flex:1;border-top:1px solid #000;padding-top:4px;text-align:center}</style></head><body>
@@ -973,11 +1015,26 @@ ${i.observacoes ? `<p><b>Observações gerais:</b> ${esc(i.observacoes)}</p>` : 
       case "descartar": state.draft = null; render(); break;
       case "sig-clear": { state.draft.assinaturaLider = ""; const pad = document.getElementById("sig-pad"); pad.getContext("2d").clearRect(0, 0, pad.width, pad.height); break; }
       case "sec-c": readHeader(); state.draft.itens.forEach(i => { if (i.secaoId === el.dataset.sec && !i.status) i.status = "C"; }); keepY(); break;
-      case "corrigir": case "reabrir": {
-        const i = structuredClone(cur()); const it = i.itens[+el.dataset.idx];
-        it.corrigido = act === "corrigir"; it.corrigidoEm = it.corrigido ? today() : "";
+      case "finalizar": { const it = cur().itens[+el.dataset.idx]; state.closing = { idx: +el.dataset.idx, data: today(), por: it.respAcao || "", desc: "", foto: "" }; keepY(); document.getElementById("fin-desc")?.focus({ preventScroll: true }); break; }
+      case "fin-cancelar": state.closing = null; keepY(); break;
+      case "fin-salvar": {
+        const c = state.closing, msg = document.getElementById("fin-msg");
+        const bad = (t, id) => { msg.textContent = t; msg.style.color = "var(--bad)"; document.getElementById(id)?.focus(); };
+        if (!c.data) return bad("Informe a data de conclusão.", "fin-data");
+        if (!c.por.trim()) return bad("Informe quem executou.", "fin-por");
+        if (!c.desc.trim()) return bad("Descreva o que foi feito.", "fin-desc");
+        const i = structuredClone(cur()); const it = i.itens[c.idx];
+        Object.assign(it, { corrigido: true, corrigidoEm: c.data, corrigidoPor: c.por.trim(), descricaoConclusao: c.desc.trim(), fotoConclusao: c.foto || "" });
         el.disabled = true;
-        try { await saveInsp(i); toast(it.corrigido ? "Ação marcada como corrigida" : "Pendência reaberta"); } catch { el.disabled = false; toast("Não foi possível atualizar. Tente novamente."); }
+        try { await saveInsp(i); state.closing = null; toast("Ação finalizada"); keepY(); }
+        catch (err) { el.disabled = false; bad(err?.code === "invalid_argument" ? "Não foi possível salvar. Se anexou foto, tente uma imagem menor." : "Não foi possível salvar. Tente novamente."); }
+        break;
+      }
+      case "reabrir": {
+        const i = structuredClone(cur()); const it = i.itens[+el.dataset.idx];
+        Object.assign(it, { corrigido: false, corrigidoEm: "", corrigidoPor: "", descricaoConclusao: "", fotoConclusao: "" });
+        el.disabled = true;
+        try { await saveInsp(i); toast("Ação reaberta"); } catch { el.disabled = false; toast("Não foi possível atualizar. Tente novamente."); }
         break;
       }
       case "excluir": state.confirmDelete = true; render(); break;
@@ -1015,12 +1072,21 @@ ${i.observacoes ? `<p><b>Observações gerais:</b> ${esc(i.observacoes)}</p>` : 
       }
     }
   });
+  document.addEventListener("change", async e => {
+    if (e.target.id !== "fin-foto" || !state.closing) return;
+    const f = e.target.files?.[0]; if (!f) return;
+    try { state.closing.foto = await shrinkImage(f); const y = window.scrollY; render(); window.scrollTo(0, y); }
+    catch { toast("Não foi possível ler a imagem. Tente outra foto."); }
+  });
   document.addEventListener("keydown", e => {
     if (e.key === "Enter" && e.target.matches("tr[data-act]")) e.target.click();
     if (e.key === "Enter" && e.target.id === "q-nova") { e.preventDefault(); document.querySelector('[data-act="q-add"]')?.click(); }
   });
   document.addEventListener("input", e => {
     const t = e.target;
+    if (state.closing && t.id === "fin-data") { state.closing.data = t.value; return; }
+    if (state.closing && t.id === "fin-por") { state.closing.por = t.value; return; }
+    if (state.closing && t.id === "fin-desc") { state.closing.desc = t.value; return; }
     if (t.id === "pf-periodo" || t.id === "pf-setor" || t.id === "pf-tst") {
       state.pf = { periodo: document.getElementById("pf-periodo").value, setor: document.getElementById("pf-setor").value, tst: document.getElementById("pf-tst").value };
       const y = window.scrollY; render(); window.scrollTo(0, y); return;
