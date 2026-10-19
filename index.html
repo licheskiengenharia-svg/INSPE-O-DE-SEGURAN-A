@@ -229,6 +229,24 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
 .evid { max-width: 260px; max-height: 200px; border-radius: 6px; object-fit: cover; }
 @media (max-width: 760px) { .fin-form .fields { grid-template-columns: minmax(0, 1fr); } }
 
+/* Foto e análise do Claude */
+.foto-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.foto-empty { width: 120px; height: 84px; border: 1px dashed var(--bad); border-radius: 6px; display: grid; place-items: center; font-size: 12px; color: var(--bad); background: var(--surface); }
+.ai-note { font-size: 13px; color: var(--muted); background: var(--surface); border-radius: 6px; padding: 8px 10px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.ai-note.busy { color: var(--fg); }
+.ai-note.busy::before { content: ""; width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--fg); animation: spin 1s linear infinite; }
+.ai-note.err { color: var(--bad); }
+.ai-text { font-size: 14px; background: var(--surface); border-radius: 6px; padding: 8px 10px; white-space: pre-wrap; }
+.nc-info { display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
+.nc-info .m { color: var(--muted); }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .ai-note.busy::before { animation: none; } }
+.d-item .act { white-space: pre-wrap; }
+
+.extra > .span3 { grid-column: 1 / -1; }
+.perguntas { background: var(--warn-bg); border-radius: 6px; padding: 10px 12px; gap: 8px; }
+.perguntas .field > span { font-size: 14px; }
+
 /* Assinatura */
 .sig-pad { display: block; width: 100%; max-width: 100%; aspect-ratio: 900 / 240; background: #fff; border: 1px dashed var(--muted); border-radius: 6px; touch-action: none; cursor: crosshair; }
 .sig-img { display: block; max-width: 100%; height: 110px; object-fit: contain; background: #fff; border-radius: 6px; }
@@ -383,12 +401,32 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
   // ---------- Estado ----------
   const state = {
     view: "painel", inspecoes: [], loaded: false, store: "db", canWrite: true,
-    selected: null, confirmDelete: false, filtro: { q: "", setor: "" }, draft: null,
+    selected: null, confirmDelete: false, filtro: { q: "", setor: "" }, draft: null, ai: {},
     pf: { periodo: "12", setor: "", tst: "" },
     config: { secoes: structuredClone(DEFAULT_SECOES), setores: structuredClone(DEFAULT_SETORES) },
     cfgDraft: null, cfgSetor: "usinagem", cfgSecao: "epi", cfgDirty: false, cfgConfirmDel: false,
   };
-  let db = null, downloads = null;
+  let db = null, downloads = null, sample = null, sampleImages = false;
+  const fotoCache = {};
+  const dataToBlob = d => { const [h, b64] = d.split(","); const bin = atob(b64); const u = new Uint8Array(bin.length); for (let k = 0; k < bin.length; k++) u[k] = bin.charCodeAt(k); return new Blob([u], { type: h.slice(5, h.indexOf(";")) }); };
+  async function persistFoto(v) {
+    if (!v || !v.startsWith("data:") || state.store !== "db") return v;
+    const ref = db.collection("fotos").doc(); await ref.set({ data: v }); fotoCache[ref.id] = v; return "db:" + ref.id;
+  }
+  async function resolveFoto(v) {
+    if (!v || !v.startsWith("db:")) return v || "";
+    const id = v.slice(3); if (fotoCache[id]) return fotoCache[id];
+    try { const d = await db.collection("fotos").doc(id).get(); fotoCache[id] = d.exists ? d.data().data : ""; } catch { fotoCache[id] = ""; }
+    return fotoCache[id];
+  }
+  function imgTag(v, cls, alt) {
+    if (!v) return "";
+    if (v.startsWith("db:")) { const id = v.slice(3); return `<img class="${cls}" data-foto="${esc(id)}" ${fotoCache[id] ? `src="${fotoCache[id]}"` : ""} alt="${esc(alt)}">`; }
+    return `<img class="${cls}" src="${v}" alt="${esc(alt)}">`;
+  }
+  function hydrateFotos() {
+    document.querySelectorAll("img[data-foto]:not([src])").forEach(async img => { const src = await resolveFoto("db:" + img.dataset.foto); if (src) img.src = src; });
+  }
   const app = document.getElementById("app");
 
   const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -429,7 +467,13 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
     }
   }
   async function deleteInsp(id) {
-    if (state.store === "db") await db.collection("inspecoes").doc(id).delete();
+    if (state.store === "db") {
+      const i = state.inspecoes.find(x => x.id === id);
+      await db.collection("inspecoes").doc(id).delete();
+      const refs = [i?.assinaturaLider, ...(i?.itens || []).flatMap(it => [it.foto, it.fotoConclusao])].filter(v => v && v.startsWith("db:"));
+      for (const r of refs) { try { await db.collection("fotos").doc(r.slice(3)).delete(); } catch {} }
+      return;
+    }
     else { state.inspecoes = state.inspecoes.filter(x => x.id !== id); lsSet(LS_KEY, state.inspecoes); render(); }
   }
   async function saveConfig(cfg) {
@@ -450,6 +494,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
       if (user && user.can) { const w = await user.can("data.write"); if (w === false) state.canWrite = false; }
     } catch { db = null; }
     try { downloads = await claude.use("downloads"); } catch { downloads = null; }
+    try { sample = await claude.use("sample"); const lim = sample ? await sample.limits().catch(() => null) : null; sampleImages = !!lim?.images; } catch { sample = null; }
     if (!db) return useLocal();
     db.doc("config/setup").onSnapshot(snap => {
       const d = snap.exists ? snap.data() : null;
@@ -481,6 +526,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
       ? `<div class="store-note">As inspeções e a configuração dos setores ficam salvas neste navegador. Use Exportar CSV para guardar uma cópia.</div>` : "";
     const v = { painel: viewPainel, nova: viewNova, historico: viewHistorico, detalhe: viewDetalhe, setores: viewSetores }[state.view] || viewPainel;
     app.innerHTML = note + v();
+    hydrateFotos();
     if (state.view === "nova") bindNova();
   }
 
@@ -642,7 +688,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
     const cfg = state.config, st = cfg.setores.find(s => s.id === setorId);
     const itens = [];
     for (const sid of st.secoes) { const sec = secById(cfg, sid); if (!sec) continue;
-      for (const p of sec.perguntas) itens.push({ secaoId: sec.id, secao: sec.nome, nr: sec.nr, texto: p.texto, ref: p.ref, status: "", obs: "", acao: "", prazo: "", respAcao: "" }); }
+      for (const p of sec.perguntas) itens.push({ secaoId: sec.id, secao: sec.nome, nr: sec.nr, texto: p.texto, ref: p.ref, status: "", obs: "", nota: "", foto: "", analiseFoto: "", enquadramento: "", risco: "", acao: "", prazo: "", respAcao: "" }); }
     const tst = lsGet(LS_TST, {});
     return { setorId, setorNome: st.generico ? "" : st.nome, generico: st.generico, local: "", responsavel: tst.nome || "", registroTst: tst.registro || "", data: today(), horaInicio: nowHM(), horaFim: "", turno: "", acompanhante: "", cargoLider: "", assinaturaLider: "", observacoes: "", itens };
   }
@@ -713,16 +759,77 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
 
   function itemRow(it, i, num) {
     const seg = ["C", "NC", "NA"].map(v => `<button type="button" data-v="${v}" data-i="${i}" aria-pressed="${it.status === v}" aria-label="${{ C: "Conforme", NC: "Não conforme", NA: "Não aplicável" }[v]}">${v === "NA" ? "N/A" : v}</button>`).join("");
+    const ai = state.ai[i];
+    const aiBox = !sample ? `<div class="ai-note">A análise automática pelo Claude funciona quando o sistema é aberto dentro do Claude. Aqui, preencha os campos manualmente.</div>`
+      : ai?.status === "loading" ? `<div class="ai-note busy">Claude está analisando a foto e montando o plano de ação…</div>`
+      : ai?.status === "erro" ? `<div class="ai-note err">${esc(ai.msg)} <button type="button" class="btn small" data-act="ai-run" data-i="${i}">Tentar de novo</button></div>`
+      : it.foto ? `<div class="ai-note">${it.analiseFoto ? "Texto gerado pelo Claude. Revise antes de salvar." : "Anexe a foto e, se quiser, escreva o que viu. O Claude completa o resto."} <button type="button" class="btn small" data-act="ai-run" data-i="${i}">${it.analiseFoto ? "Gerar de novo" : "Analisar com Claude"}</button></div>` : "";
     const extra = it.status === "NC" ? `<div class="extra">
-        <label class="field span3"><span class="label">Descrição da não conformidade</span><textarea id="nc-obs-${i}" data-k="obs" data-i="${i}" placeholder="O que foi encontrado">${esc(it.obs)}</textarea></label>
-        <label class="field span3"><span class="label">Ação corretiva</span><input id="nc-acao-${i}" data-k="acao" data-i="${i}" value="${esc(it.acao)}" placeholder="O que deve ser feito"></label>
-        <label class="field"><span class="label">Responsável pela ação</span><input id="nc-resp-${i}" data-k="respAcao" data-i="${i}" value="${esc(it.respAcao)}"></label>
-        <label class="field"><span class="label">Prazo</span><input id="nc-prazo-${i}" type="date" data-k="prazo" data-i="${i}" value="${esc(it.prazo)}"></label>
+        <div class="field span3 foto-field"><span class="label">Foto da não conformidade *</span>
+          <div class="foto-row">${it.foto ? imgTag(it.foto, "evid", "Foto da não conformidade") : `<div class="foto-empty">Sem foto</div>`}
+            <label class="btn small"><input type="file" accept="image/*" capture="environment" data-nc-foto="${i}" hidden>${it.foto ? "Trocar foto" : "Tirar ou anexar foto"}</label></div></div>
+        <label class="field span3"><span class="label">O que o TST observou (rascunho)</span><input id="nc-nota-${i}" data-k="nota" data-i="${i}" value="${esc(it.nota)}" placeholder="Ex.: proteção da correia aberta"></label>
+        <div class="span3">${aiBox}</div>
+        ${it.analiseFoto ? `<div class="field span3"><span class="label">Análise da foto pelo Claude${it.risco ? ` · <span class="chip ${it.risco === "Alto" ? "bad" : it.risco === "Médio" ? "warn" : "ok"}">Risco ${esc(it.risco)}</span>` : ""}</span><div class="ai-text">${esc(it.analiseFoto)}</div></div>` : ""}
+        ${(it.perguntasIA || []).some(x => !x.r?.trim()) || (it.perguntasIA || []).length ? `<div class="field span3 perguntas"><span class="label">Perguntas do Claude para completar o plano</span>
+          ${it.perguntasIA.map((x, k) => `<label class="field"><span>${esc(x.q)}</span><input id="pq-${i}-${k}" data-pq="${i}:${k}" value="${esc(x.r)}" placeholder="Sua resposta"></label>`).join("")}
+          ${sample ? `<div><button type="button" class="btn small primary" data-act="ai-run" data-i="${i}">Responder e atualizar plano</button></div>` : ""}</div>` : ""}
+        <label class="field span3"><span class="label">Descrição técnica da não conformidade *</span><textarea id="nc-obs-${i}" data-k="obs" data-i="${i}" placeholder="Descrição técnica conforme a NR">${esc(it.obs)}</textarea></label>
+        <label class="field span3"><span class="label">Enquadramento legal</span><input id="nc-enq-${i}" data-k="enquadramento" data-i="${i}" value="${esc(it.enquadramento)}" placeholder="Ex.: NR-12, item 12.5.1"></label>
+        <label class="field span3"><span class="label">Plano de ação *</span><textarea id="nc-acao-${i}" data-k="acao" data-i="${i}" placeholder="O que deve ser feito para corrigir">${esc(it.acao)}</textarea></label>
+        <label class="field span2"><span class="label">Responsável pela execução *</span><input id="nc-resp-${i}" data-k="respAcao" data-i="${i}" value="${esc(it.respAcao)}" placeholder="Nome de quem vai executar"></label>
+        <label class="field"><span class="label">Prazo *</span><input id="nc-prazo-${i}" type="date" data-k="prazo" data-i="${i}" value="${esc(it.prazo)}"></label>
       </div>` : (it.status ? `<input class="obs" id="it-obs-${i}" data-k="obs" data-i="${i}" value="${esc(it.obs)}" placeholder="Observação (opcional)">` : "");
     return `<div class="item" id="item-${i}"><span class="n">${num}</span>
       <div class="txt">${esc(it.texto)}${it.ref ? `<div class="ref">${esc(it.ref)}</div>` : ""}</div>
       <div class="seg" role="group" aria-label="Resultado da pergunta ${num}">${seg}</div>${extra}</div>`;
   }
+
+  async function runAI(i) {
+    const d = state.draft, it = d?.itens[i];
+    if (!sample || !it?.foto) return;
+    state.ai[i] = { status: "loading" }; rerenderKeep();
+    const prompt = `Você é um Técnico de Segurança do Trabalho sênior no Brasil, numa fundição. Analise a foto anexada, tirada durante uma inspeção de segurança, e responda em português do Brasil.
+
+Setor: ${d.setorNome || "não informado"}
+Local: ${d.local || "não informado"}
+Seção do checklist: ${it.secao} (${it.nr || "sem norma indicada"})
+Pergunta marcada como NÃO CONFORME: "${it.texto}"${it.ref ? ` (referência ${it.ref})` : ""}
+Descrição/anotação do TST: ${it.nota?.trim() || "nenhuma"}
+${it.obs?.trim() && it.analiseFoto ? `Descrição técnica atual: ${it.obs.trim()}\n` : ""}${(it.perguntasIA || []).filter(x => x.r?.trim()).length ? "Respostas do TST às suas perguntas anteriores:\n" + it.perguntasIA.filter(x => x.r?.trim()).map(x => `- ${x.q} → ${x.r.trim()}`).join("\n") + "\n" : ""}
+Tarefas:
+1. Descreva objetivamente o que a foto mostra em relação a essa pergunta. Se a foto não mostrar a não conformidade, diga isso claramente.
+2. Escreva a descrição técnica da não conformidade, em linguagem formal de relatório de SST, citando a NR e o item aplicável (NRs do MTE vigentes).
+3. Classifique o risco: Alto, Médio ou Baixo.
+4. Monte o plano de ação: medidas objetivas, na ordem de execução (imediata e definitiva), seguindo a hierarquia de controles.
+5. Sugira o prazo em dias corridos: Alto até 7, Médio até 15, Baixo até 30.
+6. Se faltar informação para um plano de ação preciso (por exemplo: se o equipamento está em operação, dimensões, quantidade de trabalhadores expostos, frequência da atividade, se já existe proteção), faça até 3 perguntas curtas e objetivas ao TST. Não repita perguntas já respondidas. Se não faltar nada, devolva a lista vazia.
+
+Responda só com JSON neste formato:
+{"analiseFoto": "...", "fotoMostraNC": true, "descricaoTecnica": "...", "enquadramento": "NR-xx, item x.x.x", "risco": "Alto", "planoAcao": "1. ... 2. ...", "prazoDias": 7, "perguntas": ["..."]}`;
+    try {
+      const r = await sample.json(prompt, { images: [dataToBlob(it.foto)] });
+      const cur = state.draft?.itens[i]; if (!cur) return;
+      cur.analiseFoto = String(r.analiseFoto || "") + (r.fotoMostraNC === false ? " (Atenção: a foto não parece mostrar a não conformidade; confira ou troque a foto.)" : "");
+      if (r.descricaoTecnica) cur.obs = String(r.descricaoTecnica);
+      if (r.enquadramento) cur.enquadramento = String(r.enquadramento);
+      if (r.planoAcao) cur.acao = String(r.planoAcao);
+      if (["Alto", "Médio", "Baixo"].includes(r.risco)) cur.risco = r.risco;
+      const respondidas = (cur.perguntasIA || []).filter(x => x.r?.trim());
+      const novas = Array.isArray(r.perguntas) ? r.perguntas.map(String).filter(q => q.trim() && !respondidas.some(x => x.q === q)).slice(0, 3) : [];
+      cur.perguntasIA = [...respondidas, ...novas.map(q => ({ q, r: "" }))];
+      const dias = Math.max(1, Math.min(90, parseInt(r.prazoDias) || 15));
+      if (!cur.prazo) { const dt = new Date(); dt.setDate(dt.getDate() + dias); cur.prazo = dt.toISOString().slice(0, 10); }
+      state.ai[i] = { status: "ok" };
+    } catch (e) {
+      state.ai[i] = { status: "erro", msg: e?.code === "not_granted" ? "Você não autorizou o Claude nesta página. Preencha manualmente ou autorize e tente de novo."
+        : e?.code === "rate_limited" ? "Muitas análises seguidas. Aguarde um pouco e tente de novo."
+        : e?.code === "images_unavailable" || e?.code === "image_rejected" ? "O Claude não conseguiu ler esta foto. Tente outra imagem."
+        : "Não foi possível analisar agora. Tente de novo ou preencha manualmente." };
+    }
+    if (state.view === "nova") rerenderKeep();
+  }
+  function rerenderKeep() { if (state.view !== "nova") return; const y = window.scrollY; render(); window.scrollTo(0, y); }
 
   function readHeader() {
     const d = state.draft; if (!d) return;
@@ -748,6 +855,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
       pad.addEventListener("pointerup", end); pad.addEventListener("pointercancel", end);
     }
     f.addEventListener("input", e => {
+      if (e.target.dataset.pq) { const [i, k] = e.target.dataset.pq.split(":").map(Number); state.draft.itens[i].perguntasIA[k].r = e.target.value; return; }
       const k = e.target.dataset.k, i = e.target.dataset.i;
       if (k != null && i != null) state.draft.itens[+i][k] = e.target.value;
     });
@@ -761,6 +869,11 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
       if (!d.acompanhante.trim()) return fail("Preencha o nome da liderança que acompanhou.", "f-acomp");
       const faltando = d.itens.findIndex(i => !i.status);
       if (faltando >= 0) { fail(`Responda a pergunta "${d.itens[faltando].texto.slice(0, 50)}…"`); document.getElementById("item-" + faltando).scrollIntoView({ block: "center" }); return; }
+      const semResp = d.itens.findIndex(i => i.status === "NC" && (i.perguntasIA || []).some(x => !x.r?.trim()));
+      if (semResp >= 0) { fail("Responda as perguntas do Claude e clique em Responder e atualizar plano."); document.getElementById("item-" + semResp).scrollIntoView({ block: "center" }); return; }
+      const ncFalta = d.itens.findIndex(i => i.status === "NC" && (!i.foto || !i.obs?.trim() || !i.acao?.trim() || !i.respAcao?.trim() || !i.prazo));
+      if (ncFalta >= 0) { const x = d.itens[ncFalta]; fail(`Não conformidade "${x.texto.slice(0, 40)}…": falta ${!x.foto ? "a foto" : !x.obs?.trim() ? "a descrição técnica" : !x.acao?.trim() ? "o plano de ação" : !x.respAcao?.trim() ? "o responsável pela execução" : "o prazo"}.`); document.getElementById("item-" + ncFalta).scrollIntoView({ block: "center" }); return; }
+      if (Object.values(state.ai).some(a => a?.status === "loading")) return fail("Aguarde o Claude terminar a análise das fotos.");
       if (!d.assinaturaLider) { fail("Colha a assinatura da liderança no quadro de assinatura."); document.getElementById("sig-pad").scrollIntoView({ block: "center" }); return; }
       if (!d.horaFim) d.horaFim = nowHM();
       if (!d.horaInicio) d.horaInicio = d.horaFim;
@@ -768,7 +881,12 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
       delete insp.generico;
       const btn = f.querySelector("button[type=submit]"); btn.disabled = true; btn.textContent = "Salvando…";
       lsSet(LS_TST, { nome: insp.responsavel.trim(), registro: (insp.registroTst || "").trim() });
-      try { await saveInsp(insp); state.draft = null; toast("Inspeção salva"); go("detalhe", { selected: insp.id }); }
+      try {
+        btn.textContent = "Enviando fotos…";
+        for (const it of insp.itens) if (it.foto) it.foto = await persistFoto(it.foto);
+        insp.assinaturaLider = await persistFoto(insp.assinaturaLider);
+        btn.textContent = "Salvando…";
+        await saveInsp(insp); state.draft = null; state.ai = {}; toast("Inspeção salva"); go("detalhe", { selected: insp.id }); }
       catch (err) {
         btn.disabled = false; btn.textContent = "Salvar inspeção";
         fail(err?.code === "invalid_argument" ? "Seu acesso não permite salvar inspeções nesta página." : err?.code === "quota_exceeded" ? "O banco atingiu o limite de registros. Exclua inspeções antigas para continuar." : "Não foi possível salvar agora. Tente novamente em instantes.");
@@ -864,9 +982,10 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
         <div>${esc(it.texto)}${it.ref ? ` <span class="label">${esc(it.ref)}</span>` : ""}</div>
         <span class="chip ${it.status === "C" ? "ok" : it.status === "NC" ? "bad" : "na"}">${{ C: "Conforme", NC: "Não conforme", NA: "N/A" }[it.status]}</span>
         ${it.obs ? `<div class="note">${esc(it.obs)}</div>` : ""}
+        ${it.status === "NC" && (it.foto || it.enquadramento || it.risco) ? `<div class="note nc-info">${imgTag(it.foto, "evid", "Foto da não conformidade")}<div>${it.enquadramento ? `<div><span class="label">Enquadramento</span> ${esc(it.enquadramento)}</div>` : ""}${it.risco ? `<div><span class="label">Risco</span> ${esc(it.risco)}</div>` : ""}${it.analiseFoto ? `<div class="m">${esc(it.analiseFoto)}</div>` : ""}</div></div>` : ""}
         ${it.status === "NC" ? `<div class="act ${it.corrigido ? "done" : ""}">
-          <span><span class="label">Ação</span> ${esc(it.acao || "não definida")}</span>
-          ${it.respAcao ? `<span><span class="label">Resp.</span> ${esc(it.respAcao)}</span>` : ""}
+          <span><span class="label">Plano de ação</span> ${esc(it.acao || "não definido")}</span>
+          ${it.respAcao ? `<span><span class="label">Responsável pela execução</span> ${esc(it.respAcao)}</span>` : ""}
           <span><span class="label">Prazo</span> ${fmtDate(it.prazo)}</span>
           ${it.corrigido ? `<span class="chip ok">Finalizada em ${fmtDate(it.corrigidoEm)}${it.prazo ? (it.corrigidoEm <= it.prazo ? " · no prazo" : " · fora do prazo") : ""}</span>`
             : state.canWrite ? (state.closing?.idx === idx ? "" : `<button class="btn small" data-act="finalizar" data-idx="${idx}">Finalizar ação</button>`) : `<span class="chip bad">Em aberto</span>`}
@@ -874,7 +993,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
               <span class="label">Finalização da ação</span>
               <div>${esc(it.descricaoConclusao || "Sem descrição")}</div>
               <div class="m">${it.corrigidoPor ? "Executado por " + esc(it.corrigidoPor) + " · " : ""}${fmtDate(it.corrigidoEm)}</div>
-              ${it.fotoConclusao ? `<img class="evid" src="${it.fotoConclusao}" alt="Foto de evidência da ação">` : ""}
+              ${imgTag(it.fotoConclusao, "evid", "Foto da ação concluída")}
               ${state.canWrite ? `<div><button class="btn small" data-act="reabrir" data-idx="${idx}">Reabrir ação</button></div>` : ""}
             </div>` : ""}
           ${!it.corrigido && state.closing?.idx === idx ? finForm(idx) : ""}
@@ -900,7 +1019,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
       </section>
       <section class="panel">${itens}</section>
       ${i.assinaturaLider ? `<section class="panel"><div class="panel-head"><h3>Assinatura da liderança</h3><span class="label">${fmtDate(i.data)} ${esc(i.horaFim || "")}</span></div>
-        <img class="sig-img" src="${i.assinaturaLider}" alt="Assinatura de ${esc(i.acompanhante)}"><div class="sig-line"><span>${esc(i.acompanhante)}${i.cargoLider ? " · " + esc(i.cargoLider) : ""}</span></div></section>` : ""}
+        ${imgTag(i.assinaturaLider, "sig-img", "Assinatura de " + i.acompanhante)}<div class="sig-line"><span>${esc(i.acompanhante)}${i.cargoLider ? " · " + esc(i.cargoLider) : ""}</span></div></section>` : ""}
       <div class="row-actions">
         <button class="btn" data-act="relatorio">Baixar relatório (HTML)</button>
         <button class="btn" data-act="csv-one">Exportar CSV</button>
@@ -921,9 +1040,9 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
         <label class="field"><span class="label">Data de conclusão *</span><input id="fin-data" type="date" value="${esc(c.data)}"></label>
         <label class="field span2"><span class="label">Executado por *</span><input id="fin-por" value="${esc(c.por)}" placeholder="Quem realizou a ação"></label>
         <label class="field span3"><span class="label">O que foi feito *</span><textarea id="fin-desc" placeholder="Descreva a correção realizada">${esc(c.desc)}</textarea></label>
-        <label class="field span3"><span class="label">Foto de evidência (opcional)</span><input id="fin-foto" type="file" accept="image/*"></label>
+        <label class="field span3"><span class="label">Foto da ação concluída *</span><input id="fin-foto" type="file" accept="image/*"></label>
       </div>
-      ${c.foto ? `<img class="evid" src="${c.foto}" alt="Prévia da foto de evidência">` : ""}
+      ${c.foto ? imgTag(c.foto, "evid", "Prévia da foto de evidência") : ""}
       <div class="row-actions"><span class="label" id="fin-msg" style="align-self:center"></span>
         <button class="btn small" data-act="fin-cancelar">Cancelar</button><button class="btn small primary" data-act="fin-salvar" data-idx="${idx}">Salvar finalização</button></div>
     </div>`;
@@ -931,7 +1050,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
   function shrinkImage(file) {
     return new Promise((res, rej) => {
       const url = URL.createObjectURL(file), img = new Image();
-      img.onload = () => { const k = Math.min(1, 720 / Math.max(img.width, img.height)); const c = document.createElement("canvas");
+      img.onload = () => { const k = Math.min(1, 800 / Math.max(img.width, img.height)); const c = document.createElement("canvas");
         c.width = Math.round(img.width * k); c.height = Math.round(img.height * k); c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
         URL.revokeObjectURL(url); res(c.toDataURL("image/jpeg", 0.6)); };
       img.onerror = () => { URL.revokeObjectURL(url); rej(); };
@@ -941,21 +1060,24 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
 
   // ---------- Exportação ----------
   function toCSV(list) {
-    const head = ["Data", "Setor", "Local", "TST", "Registro TST", "Turno", "Liderança", "Cargo liderança", "Seção", "Norma", "Nº", "Pergunta", "Ref.", "Resultado", "Observação", "Ação corretiva", "Responsável ação", "Prazo", "Situação da ação", "Data de conclusão", "Executado por", "O que foi feito", "No prazo"];
+    const head = ["Data", "Setor", "Local", "TST", "Registro TST", "Turno", "Liderança", "Cargo liderança", "Seção", "Norma", "Nº", "Pergunta", "Ref.", "Resultado", "Descrição técnica", "Enquadramento", "Risco", "Plano de ação", "Responsável pela execução", "Prazo", "Situação da ação", "Data de conclusão", "Executado por", "O que foi feito", "No prazo"];
     const qq = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
     const rows = [head.map(qq).join(";")];
     for (const i of list) i.itens.forEach((it, n) => rows.push([fmtDate(i.data), setorLabel(i), i.local, i.responsavel, i.registroTst, i.turno, i.acompanhante, i.cargoLider, it.secao, it.nr || i.nr, n + 1, it.texto, it.ref,
-      { C: "Conforme", NC: "Não conforme", NA: "N/A" }[it.status], it.obs, it.acao, it.respAcao, it.prazo ? fmtDate(it.prazo) : "", it.status === "NC" ? (it.corrigido ? "Finalizada" : "Em aberto") : "", it.corrigido ? fmtDate(it.corrigidoEm) : "", it.corrigidoPor, it.descricaoConclusao,
+      { C: "Conforme", NC: "Não conforme", NA: "N/A" }[it.status], it.obs, it.enquadramento, it.risco, it.acao, it.respAcao, it.prazo ? fmtDate(it.prazo) : "", it.status === "NC" ? (it.corrigido ? "Finalizada" : "Em aberto") : "", it.corrigido ? fmtDate(it.corrigidoEm) : "", it.corrigidoPor, it.descricaoConclusao,
       it.corrigido && it.prazo ? (it.corrigidoEm <= it.prazo ? "Sim" : "Não") : ""].map(qq).join(";")));
     return "﻿" + rows.join("\r\n");
   }
-  function reportHTML(i) {
+  async function reportHTML(i0) {
+    const i = structuredClone(i0);
+    i.assinaturaLider = await resolveFoto(i.assinaturaLider);
+    for (const it of i.itens) { it.foto = await resolveFoto(it.foto); it.fotoConclusao = await resolveFoto(it.fotoConclusao); }
     const s = score(i), lab = { C: "Conforme", NC: "Não conforme", NA: "N/A" };
     let last = null;
     const rows = i.itens.map((it, n) => {
       const h = it.secao && it.secao !== last ? `<tr><th colspan="5" style="background:#1d211c;color:#fff">${esc(it.secao)}${it.nr ? " · " + esc(it.nr) : ""}</th></tr>` : "";
       last = it.secao || last;
-      return h + `<tr><td>${n + 1}</td><td>${esc(it.texto)}${it.ref ? ` <small>(${esc(it.ref)})</small>` : ""}</td><td class="${it.status}">${lab[it.status]}</td><td>${esc(it.obs)}</td><td>${it.status === "NC" ? `${esc(it.acao)}${it.respAcao ? " / " + esc(it.respAcao) : ""}${it.prazo ? " / " + fmtDate(it.prazo) : ""}${it.corrigido ? `<br><b>Finalizada em ${fmtDate(it.corrigidoEm)}</b>${it.corrigidoPor ? " por " + esc(it.corrigidoPor) : ""}: ${esc(it.descricaoConclusao || "")}${it.fotoConclusao ? `<br><img src="${it.fotoConclusao}" alt="Evidência" style="max-width:220px;margin-top:4px">` : ""}` : ""}` : ""}</td></tr>`;
+      return h + `<tr><td>${n + 1}</td><td>${esc(it.texto)}${it.ref ? ` <small>(${esc(it.ref)})</small>` : ""}</td><td class="${it.status}">${lab[it.status]}</td><td>${esc(it.obs)}${it.enquadramento ? `<br><small><b>Enquadramento:</b> ${esc(it.enquadramento)}</small>` : ""}${it.risco ? `<br><small><b>Risco:</b> ${esc(it.risco)}</small>` : ""}${(it.perguntasIA || []).length ? `<br><small>${it.perguntasIA.map(x => `<b>${esc(x.q)}</b> ${esc(x.r)}`).join("<br>")}</small>` : ""}${it.foto ? `<br><img src="${it.foto}" alt="Foto da NC" style="max-width:220px;margin-top:4px">` : ""}</td><td>${it.status === "NC" ? `${esc(it.acao)}${it.respAcao ? "<br><b>Responsável pela execução:</b> " + esc(it.respAcao) : ""}${it.prazo ? " / " + fmtDate(it.prazo) : ""}${it.corrigido ? `<br><b>Finalizada em ${fmtDate(it.corrigidoEm)}</b>${it.corrigidoPor ? " por " + esc(it.corrigidoPor) : ""}: ${esc(it.descricaoConclusao || "")}${it.fotoConclusao ? `<br><img src="${it.fotoConclusao}" alt="Evidência" style="max-width:220px;margin-top:4px">` : ""}` : ""}` : ""}</td></tr>`;
     }).join("");
     return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Inspeção – ${esc(setorLabel(i))} – ${fmtDate(i.data)}</title>
 <style>body{font-family:Arial,sans-serif;color:#1d211c;max-width:900px;margin:24px auto;padding:0 16px;font-size:13px}h1{font-size:20px;margin:0}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{border:1px solid #bbb;padding:6px;text-align:left;vertical-align:top}th{background:#eee}.C{color:#1f7a3d}.NC{color:#c0281e;font-weight:bold}.meta td{border:0;padding:2px 12px 2px 0}.sig{display:flex;gap:48px;margin-top:96px}.sig div{flex:1;border-top:1px solid #000;padding-top:4px;text-align:center}</style></head><body>
@@ -963,7 +1085,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
 <h1 style="margin-top:12px">Relatório de Inspeção de Segurança</h1><p>Setor: <b>${esc(setorLabel(i))}</b></p>
 <table class="meta"><tr><td><b>Local:</b> ${esc(i.local || "—")}</td><td><b>Data:</b> ${fmtDate(i.data)}</td><td><b>Conformidade:</b> ${s.pct ?? "—"}% (${s.c} C · ${s.nc} NC · ${s.na} N/A)</td></tr>
 <tr><td><b>TST:</b> ${esc(i.responsavel)}${i.registroTst ? " (" + esc(i.registroTst) + ")" : ""}</td><td><b>Horário:</b> ${esc(i.horaInicio || "—")} – ${esc(i.horaFim || "—")}${i.turno ? " · " + esc(i.turno) : ""}</td><td><b>Liderança:</b> ${esc(i.acompanhante || "—")}${i.cargoLider ? " (" + esc(i.cargoLider) + ")" : ""}</td></tr></table>
-<table><thead><tr><th>Nº</th><th>Pergunta</th><th>Resultado</th><th>Observação</th><th>Ação corretiva / Resp. / Prazo</th></tr></thead><tbody>${rows}</tbody></table>
+<table><thead><tr><th>Nº</th><th>Pergunta</th><th>Resultado</th><th>Descrição técnica</th><th>Plano de ação / Responsável / Prazo</th></tr></thead><tbody>${rows}</tbody></table>
 ${i.observacoes ? `<p><b>Observações gerais:</b> ${esc(i.observacoes)}</p>` : ""}
 <div class="sig"><div>${esc(i.responsavel)}${i.registroTst ? "<br>" + esc(i.registroTst) : ""}<br>Técnico de Segurança do Trabalho</div><div>${i.assinaturaLider ? `<img src="${i.assinaturaLider}" alt="Assinatura" style="display:block;max-width:100%;height:70px;object-fit:contain;margin:-78px auto 4px">` : ""}${esc(i.acompanhante || "")}<br>${esc(i.cargoLider || "Liderança do setor")}</div></div></body></html>`;
   }
@@ -1012,7 +1134,8 @@ ${i.observacoes ? `<p><b>Observações gerais:</b> ${esc(i.observacoes)}</p>` : 
       case "pf-tst": state.pf.tst = el.dataset.tst === "—" ? "" : el.dataset.tst; window.scrollTo(0, 0); render(); break;
       case "abrir": go("detalhe", { selected: el.dataset.id }); break;
       case "voltar": go("historico"); break;
-      case "descartar": state.draft = null; render(); break;
+      case "descartar": state.draft = null; state.ai = {}; render(); break;
+      case "ai-run": readHeader(); runAI(+el.dataset.i); break;
       case "sig-clear": { state.draft.assinaturaLider = ""; const pad = document.getElementById("sig-pad"); pad.getContext("2d").clearRect(0, 0, pad.width, pad.height); break; }
       case "sec-c": readHeader(); state.draft.itens.forEach(i => { if (i.secaoId === el.dataset.sec && !i.status) i.status = "C"; }); keepY(); break;
       case "finalizar": { const it = cur().itens[+el.dataset.idx]; state.closing = { idx: +el.dataset.idx, data: today(), por: it.respAcao || "", desc: "", foto: "" }; keepY(); document.getElementById("fin-desc")?.focus({ preventScroll: true }); break; }
@@ -1023,10 +1146,11 @@ ${i.observacoes ? `<p><b>Observações gerais:</b> ${esc(i.observacoes)}</p>` : 
         if (!c.data) return bad("Informe a data de conclusão.", "fin-data");
         if (!c.por.trim()) return bad("Informe quem executou.", "fin-por");
         if (!c.desc.trim()) return bad("Descreva o que foi feito.", "fin-desc");
+        if (!c.foto) return bad("Anexe a foto da ação concluída.", "fin-foto");
         const i = structuredClone(cur()); const it = i.itens[c.idx];
-        Object.assign(it, { corrigido: true, corrigidoEm: c.data, corrigidoPor: c.por.trim(), descricaoConclusao: c.desc.trim(), fotoConclusao: c.foto || "" });
         el.disabled = true;
-        try { await saveInsp(i); state.closing = null; toast("Ação finalizada"); keepY(); }
+        try {
+        Object.assign(it, { corrigido: true, corrigidoEm: c.data, corrigidoPor: c.por.trim(), descricaoConclusao: c.desc.trim(), fotoConclusao: await persistFoto(c.foto) }); await saveInsp(i); state.closing = null; toast("Ação finalizada"); keepY(); }
         catch (err) { el.disabled = false; bad(err?.code === "invalid_argument" ? "Não foi possível salvar. Se anexou foto, tente uma imagem menor." : "Não foi possível salvar. Tente novamente."); }
         break;
       }
@@ -1041,7 +1165,7 @@ ${i.observacoes ? `<p><b>Observações gerais:</b> ${esc(i.observacoes)}</p>` : 
       case "excluir-nao": state.confirmDelete = false; render(); break;
       case "excluir-sim": try { await deleteInsp(state.selected); toast("Inspeção excluída"); go("historico"); } catch { toast("Não foi possível excluir. Tente novamente."); } break;
       case "duplicar": { const i = cur(); state.draft = newDraft(i.setorId); Object.assign(state.draft, { setorNome: i.setorNome, local: i.local, responsavel: i.responsavel, registroTst: i.registroTst || state.draft.registroTst, acompanhante: i.acompanhante, cargoLider: i.cargoLider || "" }); go("nova"); break; }
-      case "relatorio": { const i = cur(); offer(`inspecao-${slug(setorLabel(i))}-${i.data}.html`, reportHTML(i)); break; }
+      case "relatorio": { const i = cur(); el.disabled = true; const html = await reportHTML(i); el.disabled = false; offer(`inspecao-${slug(setorLabel(i))}-${i.data}.html`, html); break; }
       case "csv-one": { const i = cur(); offer(`inspecao-${slug(setorLabel(i))}-${i.data}.csv`, toCSV([i])); break; }
       case "csv": offer(`inspecoes-${today()}.csv`, toCSV(filtered())); break;
       case "copiar": {
@@ -1073,6 +1197,13 @@ ${i.observacoes ? `<p><b>Observações gerais:</b> ${esc(i.observacoes)}</p>` : 
     }
   });
   document.addEventListener("change", async e => {
+    if (e.target.dataset.ncFoto != null && state.draft) {
+      const i = +e.target.dataset.ncFoto, f = e.target.files?.[0]; if (!f) return;
+      readHeader();
+      try { state.draft.itens[i].foto = await shrinkImage(f); state.draft.itens[i].analiseFoto = ""; rerenderKeep(); if (sample) runAI(i); }
+      catch { toast("Não foi possível ler a imagem. Tente outra foto."); }
+      return;
+    }
     if (e.target.id !== "fin-foto" || !state.closing) return;
     const f = e.target.files?.[0]; if (!f) return;
     try { state.closing.foto = await shrinkImage(f); const y = window.scrollY; render(); window.scrollTo(0, y); }
