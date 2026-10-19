@@ -30,6 +30,7 @@
   --warn: #9a6a00;
   --warn-bg: #fdf1cf;
   --focus: #1b5fd1;
+  --s-reg: #2f6fb5; --s-done: #1f8a45; --s-open: #d49b00; --s-late: #c0281e;
   --f-display: "Barlow Condensed", "Arial Narrow", "Helvetica Neue", sans-serif;
   --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --f-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
@@ -39,14 +40,14 @@
     --bg: #151814; --surface: #1e221d; --surface-2: #272c26; --fg: #e9ece6; --muted: #a2a99e; --line: #353b33;
     --accent: #f2c21b; --accent-ink: #151814;
     --ok: #5cc27e; --ok-bg: #1b3323; --bad: #ff7a6e; --bad-bg: #3d1d1a; --na: #a2a99e; --na-bg: #2b302a;
-    --warn: #f2c21b; --warn-bg: #3a3116; --focus: #7aa8ff; color-scheme: dark;
+    --warn: #f2c21b; --warn-bg: #3a3116; --focus: #7aa8ff; --s-reg: #4f8fdc; --s-done: #3fa865; --s-open: #e0b020; --s-late: #ff7a6e; color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #151814; --surface: #1e221d; --surface-2: #272c26; --fg: #e9ece6; --muted: #a2a99e; --line: #353b33;
   --accent: #f2c21b; --accent-ink: #151814;
   --ok: #5cc27e; --ok-bg: #1b3323; --bad: #ff7a6e; --bad-bg: #3d1d1a; --na: #a2a99e; --na-bg: #2b302a;
-  --warn: #f2c21b; --warn-bg: #3a3116; --focus: #7aa8ff; color-scheme: dark;
+  --warn: #f2c21b; --warn-bg: #3a3116; --focus: #7aa8ff; --s-reg: #4f8fdc; --s-done: #3fa865; --s-open: #e0b020; --s-late: #ff7a6e; color-scheme: dark;
 }
 * { box-sizing: border-box; }
 body { background: var(--bg); color: var(--fg); font-family: var(--f-body); font-size: 15px; line-height: 1.5; }
@@ -195,6 +196,31 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
   .toast { animation: rise .18s ease-out; }
   @keyframes rise { from { transform: translate(-50%, 8px); opacity: 0; } }
 }
+
+/* Painel de ações */
+.kpis7 { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+.kpis7 .num { font-size: 32px; }
+.filters .field { flex: 1 1 200px; }
+.filters .field select { width: 100%; flex: none; }
+.chart-wrap { overflow-x: auto; }
+.chart { width: 100%; min-width: 600px; height: auto; display: block; }
+.chart .grid { stroke: var(--line); stroke-width: 1; }
+.chart .tick { font: 11px var(--f-mono); fill: var(--muted); }
+.chart .val { font: 600 13px var(--f-mono); fill: var(--fg); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+.hbars { display: flex; flex-direction: column; gap: 8px; }
+.hrow { display: grid; grid-template-columns: minmax(0, 150px) minmax(0, 1fr) auto; gap: 10px; align-items: center; font-size: 13px; }
+.hl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.htrack { height: 12px; }
+.hstack { display: flex; gap: 2px; height: 100%; min-width: 4px; }
+.hstack i { display: block; height: 100%; border-radius: 3px; min-width: 3px; }
+.hv { font-family: var(--f-mono); font-size: 12px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tv { margin-top: 8px; font-size: 13px; }
+.tv summary { cursor: pointer; color: var(--muted); }
+.tv .table-wrap { margin-top: 8px; }
+.grid2.even { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 760px) { .grid2.even { grid-template-columns: minmax(0, 1fr); } .hrow { grid-template-columns: minmax(0, 1fr) auto; } .hrow .htrack { grid-column: 1 / -1; grid-row: 2; } }
 
 /* Setores e perguntas */
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -346,6 +372,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
   const state = {
     view: "painel", inspecoes: [], loaded: false, store: "db", canWrite: true,
     selected: null, confirmDelete: false, filtro: { q: "", setor: "" }, draft: null,
+    pf: { periodo: "12", setor: "", tst: "" },
     config: { secoes: structuredClone(DEFAULT_SECOES), setores: structuredClone(DEFAULT_SETORES) },
     cfgDraft: null, cfgSetor: "usinagem", cfgSecao: "epi", cfgDirty: false, cfgConfirmDel: false,
   };
@@ -376,7 +403,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
   const pctChip = p => p == null ? `<span class="chip na">—</span>` : `<span class="chip ${p >= 90 ? "ok" : p >= 70 ? "warn" : "bad"}">${p}%</span>`;
 
   // ---------- Armazenamento ----------
-  const LS_KEY = "inspecoes-seguranca-v1", LS_CFG = "inspecoes-seguranca-config-v1";
+  const LS_KEY = "inspecoes-seguranca-v1", LS_CFG = "inspecoes-seguranca-config-v1", LS_TST = "inspecoes-seguranca-tst-v1";
   const lsGet = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
   const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
 
@@ -453,41 +480,145 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
     return `<div class="panel empty"><h3>${title}</h3><p>${text}</p><button class="btn primary" data-act="nova">Iniciar inspeção</button></div>`;
   }
 
-  function viewPainel() {
-    const L = state.inspecoes;
-    const lead = `<h2>Painel</h2><p class="lead">Resumo das inspeções, não conformidades abertas e conformidade por setor.</p>`;
-    if (!L.length) return lead + emptyState("Nenhuma inspeção registrada", "Escolha o setor, responda as perguntas de cada seção como conforme, não conforme ou não aplicável e salve. Os resultados aparecem aqui.");
-    const pend = pendencias(), t = today();
-    const atrasadas = pend.filter(p => p.it.prazo && p.it.prazo < t).length;
-    const scores = L.map(score).filter(s => s.pct != null);
-    const media = scores.length ? Math.round(scores.reduce((a, s) => a + s.pct, 0) / scores.length) : null;
-    const doMes = L.filter(i => (i.data || "").startsWith(t.slice(0, 7))).length;
-    const grupos = {};
-    for (const i of L) { const s = score(i); if (s.pct == null) continue; (grupos[setorLabel(i)] ||= []).push(s.pct); }
-    const porSetor = Object.entries(grupos).map(([nome, ps]) => ({ nome, n: ps.length, pct: Math.round(ps.reduce((a, b) => a + b, 0) / ps.length) })).sort((a, b) => a.pct - b.pct);
+  // ---------- Painel de ações ----------
+  const MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+  const mLabel = k => `${MESES[+k.slice(5, 7) - 1]}/${k.slice(2, 4)}`;
+  const endOfMonth = k => { const [y, m] = k.split("-").map(Number); return new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10); };
+  function monthRange() {
+    const t = today(), cur = t.slice(0, 7), p = state.pf.periodo;
+    let start;
+    if (p === "ano") start = t.slice(0, 4) + "-01";
+    else if (p === "tudo") start = state.inspecoes.reduce((a, i) => (i.data || cur).slice(0, 7) < a ? (i.data || cur).slice(0, 7) : a, cur);
+    else { const d = new Date(Date.UTC(+t.slice(0, 4), +t.slice(5, 7) - 1 - (+p - 1), 1)); start = d.toISOString().slice(0, 7); }
+    const out = []; let [y, m] = start.split("-").map(Number);
+    while (`${y}-${String(m).padStart(2, "0")}` <= cur) { out.push(`${y}-${String(m).padStart(2, "0")}`); m++; if (m > 12) { m = 1; y++; } }
+    return out;
+  }
+  function svgBars(months, series) {
+    const W = 900, H = 220, L = 30, B = 24, T = 10, max = Math.max(1, ...series.flatMap(s => s.values));
+    const step = Math.max(1, Math.ceil(max / 4)), top = step * 4, y = v => T + (H - T - B) * (1 - v / top);
+    const gw = (W - L - 6) / months.length, bw = Math.max(2, Math.min(16, (gw - 6) / series.length - 2));
+    let g = "";
+    for (let v = 0; v <= top; v += step) g += `<line x1="${L}" x2="${W}" y1="${y(v)}" y2="${y(v)}" class="grid"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end" class="tick">${v}</text>`;
+    months.forEach((k, i) => {
+      const cx = L + gw * i + gw / 2, x0 = cx - (series.length * (bw + 2) - 2) / 2;
+      series.forEach((s, j) => { const v = s.values[i]; if (!v) return; const yy = y(v), h = y(0) - yy;
+        g += `<path d="M${x0 + j * (bw + 2)},${y(0)} v${-(h - 3)} q0,-3 3,-3 h${bw - 6} q3,0 3,3 v${h - 3} z" fill="${s.color}"><title>${mLabel(k)} · ${s.name}: ${v}</title></path>`; });
+      const every = Math.ceil(months.length / 8);
+      if (i % every === 0 || i === months.length - 1) g += `<text x="${cx}" y="${H - 6}" text-anchor="middle" class="tick">${mLabel(k)}</text>`;
+    });
+    return `<div class="chart-wrap"><svg viewBox="0 0 ${W} ${H}" class="chart" role="img" aria-label="Gráfico de barras por mês">${g}</svg></div>`;
+  }
+  function svgLine(months, values, name) {
+    const W = 900, H = 220, L = 30, B = 24, T = 24, max = Math.max(1, ...values);
+    const step = Math.max(1, Math.ceil(max / 4)), top = step * 4, y = v => T + (H - T - B) * (1 - v / top);
+    const x = i => months.length === 1 ? (L + W) / 2 : L + 20 + (W - L - 50) * i / (months.length - 1);
+    let g = "";
+    for (let v = 0; v <= top; v += step) g += `<line x1="${L}" x2="${W}" y1="${y(v)}" y2="${y(v)}" class="grid"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end" class="tick">${v}</text>`;
+    g += `<polyline points="${values.map((v, i) => `${x(i)},${y(v)}`).join(" ")}" fill="none" stroke="var(--bad)" stroke-width="2" stroke-linejoin="round"/>`;
+    const every = Math.ceil(months.length / 8);
+    values.forEach((v, i) => {
+      g += `<circle cx="${x(i)}" cy="${y(v)}" r="4" fill="var(--bad)" stroke="var(--surface)" stroke-width="2"><title>${mLabel(months[i])} · ${name}: ${v}</title></circle>`;
+      if (i % every === 0 || i === months.length - 1) g += `<text x="${x(i)}" y="${H - 6}" text-anchor="middle" class="tick">${mLabel(months[i])}</text>`;
+    });
+    const li = values.length - 1;
+    g += `<text x="${Math.min(x(li) + 8, W - 4)}" y="${y(values[li]) - 8}" text-anchor="end" class="val">${values[li]}</text>`;
+    return `<div class="chart-wrap"><svg viewBox="0 0 ${W} ${H}" class="chart" role="img" aria-label="${name} por mês">${g}</svg></div>`;
+  }
+  const legend = items => `<div class="legend">${items.map(([c, n]) => `<span><i style="background:${c}"></i>${n}</span>`).join("")}</div>`;
+  const tableView = (head, rows) => `<details class="tv"><summary>Ver em tabela</summary><div class="table-wrap"><table><thead><tr>${head.map(h => `<th>${h}</th>`).join("")}</tr></thead><tbody>${rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table></div></details>`;
 
-    return lead + `<div class="stack">
-      <div class="kpis">
-        <div class="kpi"><span class="label">Inspeções</span><span class="num">${L.length}</span><span class="sub">${doMes} neste mês</span></div>
-        <div class="kpi"><span class="label">Conformidade média</span><span class="num" style="color:${pctColor(media)}">${media ?? "—"}${media != null ? "%" : ""}</span><span class="sub">C ÷ (C + NC)</span></div>
-        <div class="kpi ${pend.length ? "alert" : ""}"><span class="label">NC em aberto</span><span class="num">${pend.length}</span><span class="sub">${atrasadas} com prazo vencido</span></div>
-        <div class="kpi"><span class="label">Última inspeção</span><span class="num" style="font-size:28px">${fmtDate(L[0].data)}</span><span class="sub">${esc(setorLabel(L[0]))}</span></div>
-      </div>
-      <div class="grid2">
-        <section class="panel">
-          <div class="panel-head"><h3>Ações corretivas pendentes</h3><span class="label">por prazo</span></div>
-          ${pend.length ? `<div class="nc-list">${pend.slice(0, 12).map(p => {
-            const late = p.it.prazo && p.it.prazo < t;
-            return `<div class="nc-row ${late ? "late" : "ontime"}"><div class="bar"></div>
-              <div style="min-width:0"><div class="t">${esc(p.it.texto)}</div>
-                <div class="m">${esc(setorLabel(p.insp))}${p.it.secao ? " · " + esc(p.it.secao) : ""} · ${p.it.respAcao ? "Resp.: " + esc(p.it.respAcao) + " · " : ""}${p.it.prazo ? (late ? `<span class="chip bad">vencido ${fmtDate(p.it.prazo)}</span>` : "prazo " + fmtDate(p.it.prazo)) : "sem prazo"}</div></div>
-              <button class="btn small" data-act="abrir" data-id="${p.insp.id}">Ver</button></div>`; }).join("")}</div>${pend.length > 12 ? `<p class="label" style="margin:8px 0 0">+ ${pend.length - 12} pendências no histórico</p>` : ""}`
-          : `<p class="lead" style="margin:0">Nenhuma não conformidade em aberto.</p>`}
+  function viewPainel() {
+    const lead = `<h2>Painel de ações</h2><p class="lead">Evolução das não conformidades e dos planos de ação, calculada a partir das inspeções registradas.</p>`;
+    if (!state.inspecoes.length) return lead + emptyState("Nenhuma inspeção registrada", "Escolha o setor, responda as perguntas e salve. Os indicadores aparecem aqui.");
+    const pf = state.pf, t = today();
+    const L = state.inspecoes.filter(i => (!pf.setor || setorLabel(i) === pf.setor) && (!pf.tst || (i.responsavel || "").trim() === pf.tst));
+    const setores = [...new Set(state.inspecoes.map(setorLabel))].sort();
+    const tsts = [...new Set(state.inspecoes.map(i => (i.responsavel || "").trim()).filter(Boolean))].sort();
+    const filtros = `<div class="filters">
+      <label class="field"><span class="label">Período dos gráficos mensais</span><select id="pf-periodo">${[["3", "Últimos 3 meses"], ["6", "Últimos 6 meses"], ["12", "Últimos 12 meses"], ["ano", "Este ano"], ["tudo", "Todo o período"]].map(([v, n]) => `<option value="${v}" ${pf.periodo === v ? "selected" : ""}>${n}</option>`).join("")}</select></label>
+      <label class="field"><span class="label">Setor</span><select id="pf-setor"><option value="">Todos os setores</option>${setores.map(s => `<option ${pf.setor === s ? "selected" : ""}>${esc(s)}</option>`).join("")}</select></label>
+      <label class="field"><span class="label">TST</span><select id="pf-tst"><option value="">Todos os TSTs</option>${tsts.map(s => `<option ${pf.tst === s ? "selected" : ""}>${esc(s)}</option>`).join("")}</select></label>
+    </div>`;
+    if (!L.length) return lead + filtros + `<div class="panel empty"><h3>Nenhuma inspeção com esses filtros</h3><p>Troque o setor ou o TST para ver os indicadores.</p></div>`;
+
+    const acoes = [];
+    for (const insp of L) insp.itens.forEach((it, idx) => { if (it.status !== "NC") return;
+      const done = !!it.corrigido, late = !done && it.prazo && it.prazo < t;
+      acoes.push({ insp, it, idx, setor: setorLabel(insp), norma: it.nr || insp.nr || "Sem norma", reg: insp.data || "", done, doneAt: it.corrigidoEm || "", late, prazo: it.prazo }); });
+    const avaliados = L.reduce((a, i) => a + i.itens.filter(x => x.status === "C" || x.status === "NC").length, 0);
+    const conformes = L.reduce((a, i) => a + i.itens.filter(x => x.status === "C").length, 0);
+    const indice = avaliados ? (conformes / avaliados * 100) : null;
+    const concl = acoes.filter(a => a.done), abertas = acoes.filter(a => !a.done), atras = acoes.filter(a => a.late);
+    const semPrazo = abertas.filter(a => !a.prazo).length;
+    const conclComPrazo = concl.filter(a => a.prazo), noPrazo = conclComPrazo.filter(a => a.doneAt && a.doneAt <= a.prazo);
+    const pct = (a, b) => b ? Math.round(a / b * 100) + "%" : "—";
+    const fmtPct = v => v == null ? "—" : v.toFixed(1).replace(".", ",") + "%";
+
+    const kpis = `<div class="kpis kpis7">
+      <div class="kpi"><span class="label">Inspeções</span><span class="num">${L.length}</span><span class="sub">${L.filter(i => (i.data || "").startsWith(t.slice(0, 7))).length} neste mês</span></div>
+      <div class="kpi"><span class="label">Índice de conformidade</span><span class="num" style="color:${pctColor(indice == null ? null : Math.round(indice))}">${fmtPct(indice)}</span><span class="sub">${conformes} conformes de ${avaliados} avaliados</span></div>
+      <div class="kpi"><span class="label">Não conformidades</span><span class="num">${acoes.length}</span><span class="sub">registradas no total</span></div>
+      <div class="kpi"><span class="label">Ações concluídas</span><span class="num" style="color:var(--ok)">${concl.length}</span><span class="sub">${pct(concl.length, acoes.length)} do total</span></div>
+      <div class="kpi"><span class="label">Ações em aberto</span><span class="num">${abertas.length}</span><span class="sub">${semPrazo} sem prazo definido</span></div>
+      <div class="kpi ${atras.length ? "alert" : ""}"><span class="label">Ações atrasadas</span><span class="num" style="color:${atras.length ? "var(--bad)" : "inherit"}">${atras.length}</span><span class="sub">prazo vencido e não concluídas</span></div>
+      <div class="kpi"><span class="label">Concluídas no prazo</span><span class="num">${pct(noPrazo.length, conclComPrazo.length)}</span><span class="sub">${noPrazo.length} de ${conclComPrazo.length} com prazo</span></div>
+    </div>`;
+
+    const months = monthRange();
+    const reg = months.map(k => acoes.filter(a => a.reg.startsWith(k)).length);
+    const don = months.map(k => acoes.filter(a => a.done && a.doneAt.startsWith(k)).length);
+    const open = months.map(k => { const e = endOfMonth(k); return acoes.filter(a => a.reg && a.reg <= e && !(a.done && a.doneAt && a.doneAt <= e)).length; });
+
+    const porSetor = Object.values(acoes.reduce((m, a) => { const r = (m[a.setor] ||= { nome: a.setor, c: 0, p: 0, l: 0 }); a.done ? r.c++ : a.late ? r.l++ : r.p++; return m; }, {})).sort((a, b) => (b.c + b.p + b.l) - (a.c + a.p + a.l));
+    const maxS = Math.max(1, ...porSetor.map(r => r.c + r.p + r.l));
+    const porNorma = Object.values(acoes.reduce((m, a) => { const r = (m[a.norma] ||= { nome: a.norma, n: 0, c: 0 }); r.n++; if (a.done) r.c++; return m; }, {})).sort((a, b) => b.n - a.n);
+    const maxN = Math.max(1, ...porNorma.map(r => r.n));
+    const porTst = Object.values(L.reduce((m, i) => { const k = (i.responsavel || "—").trim(); const r = (m[k] ||= { nome: k, n: 0, ult: "", reg: i.registroTst || "", nc: 0, ps: [] }); r.n++; if ((i.data || "") > r.ult) { r.ult = i.data; r.reg = i.registroTst || r.reg; } const s = score(i); if (s.pct != null) r.ps.push(s.pct); r.nc += s.nc; return m; }, {})).sort((a, b) => b.n - a.n);
+
+    const C_REG = "var(--s-reg)", C_DONE = "var(--s-done)", C_OPEN = "var(--s-open)", C_LATE = "var(--s-late)";
+    const pend = abertas.sort((a, b) => (a.prazo || "9999").localeCompare(b.prazo || "9999"));
+
+    return lead + `<div class="stack">${filtros}${kpis}
+      <section class="panel"><div class="panel-head"><h3>Registradas × concluídas por mês</h3></div>
+        <p class="lead" style="margin:-6px 0 8px">Não conformidades pelo mês da inspeção; ações pelo mês em que foram marcadas como concluídas.</p>
+        ${legend([[C_REG, "Não conformidades registradas"], [C_DONE, "Ações concluídas"]])}
+        ${svgBars(months, [{ name: "Não conformidades registradas", color: C_REG, values: reg }, { name: "Ações concluídas", color: C_DONE, values: don }])}
+        ${tableView(["Mês", "Registradas", "Concluídas"], months.map((k, i) => [mLabel(k), reg[i], don[i]]))}
+      </section>
+      <section class="panel"><div class="panel-head"><h3>Ações em aberto ao fim de cada mês</h3></div>
+        <p class="lead" style="margin:-6px 0 8px">Se a linha desce, a equipe está fechando ações mais rápido do que surgem novas não conformidades.</p>
+        ${svgLine(months, open, "Ações em aberto")}
+        ${tableView(["Mês", "Em aberto no fim do mês"], months.map((k, i) => [mLabel(k), open[i]]))}
+      </section>
+      <div class="grid2 even">
+        <section class="panel"><div class="panel-head"><h3>Situação das ações por setor</h3></div>
+          <p class="lead" style="margin:-6px 0 8px">Situação atual de todas as não conformidades registradas.</p>
+          ${legend([[C_DONE, "Concluídas"], [C_OPEN, "Abertas no prazo"], [C_LATE, "Atrasadas"]])}
+          ${porSetor.length ? `<div class="hbars">${porSetor.map(r => { const tot = r.c + r.p + r.l; return `<div class="hrow"><span class="hl" title="${esc(r.nome)}">${esc(r.nome)}</span>
+            <div class="htrack"><div class="hstack" style="width:${tot / maxS * 100}%">${[[r.c, C_DONE, "concluídas"], [r.p, C_OPEN, "abertas no prazo"], [r.l, C_LATE, "atrasadas"]].filter(x => x[0]).map(([v, c, n]) => `<i style="flex:${v};background:${c}" title="${esc(r.nome)}: ${v} ${n}"></i>`).join("")}</div></div>
+            <span class="hv">${r.c}/${tot} concluídas</span></div>`; }).join("")}</div>` : `<p class="lead" style="margin:0">Nenhuma não conformidade registrada.</p>`}
+          ${porSetor.length ? tableView(["Setor", "Concluídas", "Abertas no prazo", "Atrasadas"], porSetor.map(r => [esc(r.nome), r.c, r.p, r.l])) : ""}
         </section>
-        <section class="panel">
-          <div class="panel-head"><h3>Conformidade por setor</h3><span class="label">média</span></div>
-          <div class="bars">${porSetor.map(x => `<div class="barrow"><span>${esc(x.nome)} <span class="label">(${x.n})</span></span><span class="pct">${x.pct}%</span>
-            <div class="track"><div class="fill" style="width:${x.pct}%;background:${pctColor(x.pct)}"></div></div></div>`).join("")}</div>
+        <section class="panel"><div class="panel-head"><h3>Não conformidades por norma</h3></div>
+          <p class="lead" style="margin:-6px 0 8px">Onde as falhas se concentram, com quantas já tiveram a ação concluída.</p>
+          ${porNorma.length ? `<div class="hbars">${porNorma.map(r => `<div class="hrow"><span class="hl" title="${esc(r.nome)}">${esc(r.nome)}</span>
+            <div class="htrack"><div class="hstack" style="width:${r.n / maxN * 100}%"><i style="flex:1;background:${C_REG}" title="${esc(r.nome)}: ${r.n} não conformidades"></i></div></div>
+            <span class="hv">${r.n} · ${r.c} concluídas</span></div>`).join("")}</div>` : `<p class="lead" style="margin:0">Nenhuma não conformidade registrada.</p>`}
+        </section>
+      </div>
+      <div class="grid2 even">
+        <section class="panel"><div class="panel-head"><h3>Ações corretivas pendentes</h3><span class="label">por prazo</span></div>
+          ${pend.length ? `<div class="nc-list">${pend.slice(0, 10).map(p => `<div class="nc-row"><div class="bar" style="background:${p.late ? C_LATE : C_OPEN}"></div>
+              <div style="min-width:0"><div class="t">${esc(p.it.texto)}</div>
+                <div class="m">${esc(p.setor)}${p.it.secao ? " · " + esc(p.it.secao) : ""} · ${p.it.respAcao ? "Resp.: " + esc(p.it.respAcao) + " · " : ""}${p.prazo ? (p.late ? `<span class="chip bad">vencido ${fmtDate(p.prazo)}</span>` : "prazo " + fmtDate(p.prazo)) : "sem prazo"}</div></div>
+              <button class="btn small" data-act="abrir" data-id="${p.insp.id}">Ver</button></div>`).join("")}</div>${pend.length > 10 ? `<p class="label" style="margin:8px 0 0">+ ${pend.length - 10} pendências</p>` : ""}`
+          : `<p class="lead" style="margin:0">Nenhuma ação em aberto.</p>`}
+        </section>
+        <section class="panel"><div class="panel-head"><h3>Inspeções por TST</h3></div>
+          <div class="table-wrap" style="border:0"><table><thead><tr><th>TST</th><th>Inspeções</th><th>Última</th><th>Conf.</th><th>NC</th></tr></thead><tbody>
+          ${porTst.map(r => `<tr data-act="pf-tst" data-tst="${esc(r.nome)}" tabindex="0"><td>${esc(r.nome)}${r.reg ? `<div class="label">${esc(r.reg)}</div>` : ""}</td><td class="num">${r.n}</td><td class="num">${fmtDate(r.ult)}</td><td>${pctChip(r.ps.length ? Math.round(r.ps.reduce((a, b) => a + b, 0) / r.ps.length) : null)}</td><td class="num">${r.nc}</td></tr>`).join("")}
+          </tbody></table></div>
         </section>
       </div>
     </div>`;
@@ -499,7 +630,8 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
     const itens = [];
     for (const sid of st.secoes) { const sec = secById(cfg, sid); if (!sec) continue;
       for (const p of sec.perguntas) itens.push({ secaoId: sec.id, secao: sec.nome, nr: sec.nr, texto: p.texto, ref: p.ref, status: "", obs: "", acao: "", prazo: "", respAcao: "" }); }
-    return { setorId, setorNome: st.generico ? "" : st.nome, generico: st.generico, local: "", responsavel: "", data: today(), acompanhante: "", observacoes: "", itens };
+    const tst = lsGet(LS_TST, {});
+    return { setorId, setorNome: st.generico ? "" : st.nome, generico: st.generico, local: "", responsavel: tst.nome || "", registroTst: tst.registro || "", data: today(), horaInicio: "", horaFim: "", turno: "", acompanhante: "", observacoes: "", itens };
   }
 
   function viewNova() {
@@ -521,12 +653,21 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
     <form id="f-insp" class="stack" novalidate>
       <details class="panel"><summary class="label" style="cursor:pointer">Trocar setor</summary><div style="margin-top:12px">${chips}</div></details>
       <section class="panel">
-        <div class="panel-head"><h3>Identificação</h3></div>
+        <div class="panel-head"><h3>Dados do TST</h3><span class="label">quem realizou a inspeção</span></div>
         <div class="fields">
-          ${d.generico ? `<label class="field span2"><span class="label">Nome do setor *</span><input id="f-setor-nome" required value="${esc(d.setorNome)}" placeholder="Ex.: Manutenção"></label>` : ""}
+          <label class="field span2"><span class="label">Nome do TST *</span><input id="f-resp" required value="${esc(d.responsavel)}" placeholder="Nome completo do técnico"></label>
+          <label class="field"><span class="label">Registro profissional</span><input id="f-reg" value="${esc(d.registroTst)}" placeholder="Ex.: MTE/SRTE nº 12345"></label>
+          <label class="field"><span class="label">Data da inspeção *</span><input id="f-data" type="date" required value="${esc(d.data)}"></label>
+          <label class="field"><span class="label">Hora de início</span><input id="f-hini" type="time" value="${esc(d.horaInicio)}"></label>
+          <label class="field"><span class="label">Hora de término</span><input id="f-hfim" type="time" value="${esc(d.horaFim)}"></label>
+          <label class="field"><span class="label">Turno</span><select id="f-turno"><option value="">—</option>${["1º turno", "2º turno", "3º turno", "Administrativo"].map(o => `<option ${d.turno === o ? "selected" : ""}>${o}</option>`).join("")}</select></label>
+        </div>
+      </section>
+      <section class="panel">
+        <div class="panel-head"><h3>Setor inspecionado</h3></div>
+        <div class="fields">
+          ${d.generico ? `<label class="field"><span class="label">Nome do setor *</span><input id="f-setor-nome" required value="${esc(d.setorNome)}" placeholder="Ex.: Manutenção"></label>` : ""}
           <label class="field ${d.generico ? "" : "span2"}"><span class="label">Local / área</span><input id="f-local" value="${esc(d.local)}" placeholder="Ex.: Célula 3, forno 2"></label>
-          <label class="field"><span class="label">Data *</span><input id="f-data" type="date" required value="${esc(d.data)}"></label>
-          <label class="field"><span class="label">TST / inspetor *</span><input id="f-resp" required value="${esc(d.responsavel)}" placeholder="Nome do técnico"></label>
           <label class="field"><span class="label">Acompanhante</span><input id="f-acomp" value="${esc(d.acompanhante)}" placeholder="Ex.: Supervisor do setor"></label>
         </div>
       </section>
@@ -564,6 +705,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
     if (!g("f-data")) return;
     if (g("f-setor-nome")) d.setorNome = g("f-setor-nome").value;
     d.local = g("f-local").value; d.data = g("f-data").value; d.responsavel = g("f-resp").value; d.acompanhante = g("f-acomp").value; d.observacoes = g("f-obs").value;
+    d.registroTst = g("f-reg").value; d.horaInicio = g("f-hini").value; d.horaFim = g("f-hfim").value; d.turno = g("f-turno").value;
   }
 
   function bindNova() {
@@ -578,12 +720,13 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
       const fail = (t, id) => { msg.textContent = t; msg.style.color = "var(--bad)"; if (id) document.getElementById(id)?.focus(); };
       if (d.generico && !d.setorNome.trim()) return fail("Digite o nome do setor.", "f-setor-nome");
       if (!d.data) return fail("Preencha a data.", "f-data");
-      if (!d.responsavel.trim()) return fail("Preencha o TST / inspetor.", "f-resp");
+      if (!d.responsavel.trim()) return fail("Preencha o nome do TST.", "f-resp");
       const faltando = d.itens.findIndex(i => !i.status);
       if (faltando >= 0) { fail(`Responda a pergunta "${d.itens[faltando].texto.slice(0, 50)}…"`); document.getElementById("item-" + faltando).scrollIntoView({ block: "center" }); return; }
       const insp = { id: uid(), ...structuredClone(d), setorNome: d.setorNome.trim(), criadoEm: Date.now(), itens: d.itens.map(i => ({ ...i, corrigido: false, corrigidoEm: "" })) };
       delete insp.generico;
       const btn = f.querySelector("button[type=submit]"); btn.disabled = true; btn.textContent = "Salvando…";
+      lsSet(LS_TST, { nome: insp.responsavel.trim(), registro: (insp.registroTst || "").trim() });
       try { await saveInsp(insp); state.draft = null; toast("Inspeção salva"); go("detalhe", { selected: insp.id }); }
       catch (err) {
         btn.disabled = false; btn.textContent = "Salvar inspeção";
@@ -698,7 +841,9 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
         <div class="meta">
           <div><span class="label">Data</span><b>${fmtDate(i.data)}</b></div>
           <div><span class="label">Local / área</span><b>${esc(i.local || "—")}</b></div>
-          <div><span class="label">TST / inspetor</span><b>${esc(i.responsavel)}</b></div>
+          <div><span class="label">TST</span><b>${esc(i.responsavel)}</b>${i.registroTst ? `<span class="label">${esc(i.registroTst)}</span>` : ""}</div>
+          <div><span class="label">Horário</span><b>${i.horaInicio || i.horaFim ? `${esc(i.horaInicio || "?")} – ${esc(i.horaFim || "?")}` : "—"}</b></div>
+          <div><span class="label">Turno</span><b>${esc(i.turno || "—")}</b></div>
           <div><span class="label">Acompanhante</span><b>${esc(i.acompanhante || "—")}</b></div>
           <div><span class="label">Resultado</span><b><span class="chip ok">${s.c} C</span> <span class="chip bad">${s.nc} NC</span> <span class="chip na">${s.na} N/A</span></b></div>
         </div>
@@ -719,10 +864,10 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
 
   // ---------- Exportação ----------
   function toCSV(list) {
-    const head = ["Data", "Setor", "Local", "TST", "Seção", "Norma", "Nº", "Pergunta", "Ref.", "Resultado", "Observação", "Ação corretiva", "Responsável ação", "Prazo", "Corrigido"];
+    const head = ["Data", "Setor", "Local", "TST", "Registro TST", "Turno", "Seção", "Norma", "Nº", "Pergunta", "Ref.", "Resultado", "Observação", "Ação corretiva", "Responsável ação", "Prazo", "Corrigido"];
     const qq = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
     const rows = [head.map(qq).join(";")];
-    for (const i of list) i.itens.forEach((it, n) => rows.push([fmtDate(i.data), setorLabel(i), i.local, i.responsavel, it.secao, it.nr || i.nr, n + 1, it.texto, it.ref,
+    for (const i of list) i.itens.forEach((it, n) => rows.push([fmtDate(i.data), setorLabel(i), i.local, i.responsavel, i.registroTst, i.turno, it.secao, it.nr || i.nr, n + 1, it.texto, it.ref,
       { C: "Conforme", NC: "Não conforme", NA: "N/A" }[it.status], it.obs, it.acao, it.respAcao, it.prazo ? fmtDate(it.prazo) : "", it.status === "NC" ? (it.corrigido ? "Sim " + fmtDate(it.corrigidoEm) : "Não") : ""].map(qq).join(";")));
     return "﻿" + rows.join("\r\n");
   }
@@ -739,10 +884,10 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
 <div style="height:6px;background:repeating-linear-gradient(-45deg,#e8b500 0 12px,#1d211c 12px 24px)"></div>
 <h1 style="margin-top:12px">Relatório de Inspeção de Segurança</h1><p>Setor: <b>${esc(setorLabel(i))}</b></p>
 <table class="meta"><tr><td><b>Local:</b> ${esc(i.local || "—")}</td><td><b>Data:</b> ${fmtDate(i.data)}</td><td><b>Conformidade:</b> ${s.pct ?? "—"}% (${s.c} C · ${s.nc} NC · ${s.na} N/A)</td></tr>
-<tr><td><b>TST:</b> ${esc(i.responsavel)}</td><td><b>Acompanhante:</b> ${esc(i.acompanhante || "—")}</td><td></td></tr></table>
+<tr><td><b>TST:</b> ${esc(i.responsavel)}${i.registroTst ? " (" + esc(i.registroTst) + ")" : ""}</td><td><b>Horário:</b> ${esc(i.horaInicio || "—")} – ${esc(i.horaFim || "—")}${i.turno ? " · " + esc(i.turno) : ""}</td><td><b>Acompanhante:</b> ${esc(i.acompanhante || "—")}</td></tr></table>
 <table><thead><tr><th>Nº</th><th>Pergunta</th><th>Resultado</th><th>Observação</th><th>Ação corretiva / Resp. / Prazo</th></tr></thead><tbody>${rows}</tbody></table>
 ${i.observacoes ? `<p><b>Observações gerais:</b> ${esc(i.observacoes)}</p>` : ""}
-<div class="sig"><div>${esc(i.responsavel)}<br>TST / Inspetor</div><div>${esc(i.acompanhante || "")}<br>Responsável do setor</div></div></body></html>`;
+<div class="sig"><div>${esc(i.responsavel)}${i.registroTst ? "<br>" + esc(i.registroTst) : ""}<br>Técnico de Segurança do Trabalho</div><div>${esc(i.acompanhante || "")}<br>Responsável do setor</div></div></body></html>`;
   }
   async function offer(filename, data) {
     if (downloads) {
@@ -770,7 +915,7 @@ ${i.observacoes ? `<p><b>Observações gerais:</b> ${esc(i.observacoes)}</p>` : 
     if (el.dataset.setor && !el.dataset.act) {
       readHeader();
       const old = state.draft; state.draft = newDraft(el.dataset.setor);
-      if (old) Object.assign(state.draft, { local: old.local, responsavel: old.responsavel, data: old.data, acompanhante: old.acompanhante, observacoes: old.observacoes });
+      if (old) Object.assign(state.draft, { local: old.local, responsavel: old.responsavel, registroTst: old.registroTst, data: old.data, horaInicio: old.horaInicio, horaFim: old.horaFim, turno: old.turno, acompanhante: old.acompanhante, observacoes: old.observacoes });
       render(); return;
     }
     if (el.matches(".seg button")) {
@@ -786,6 +931,7 @@ ${i.observacoes ? `<p><b>Observações gerais:</b> ${esc(i.observacoes)}</p>` : 
     const keepY = () => { const y = window.scrollY; render(); window.scrollTo(0, y); };
     switch (act) {
       case "nova": go("nova"); break;
+      case "pf-tst": state.pf.tst = el.dataset.tst === "—" ? "" : el.dataset.tst; window.scrollTo(0, 0); render(); break;
       case "abrir": go("detalhe", { selected: el.dataset.id }); break;
       case "voltar": go("historico"); break;
       case "descartar": state.draft = null; render(); break;
@@ -800,7 +946,7 @@ ${i.observacoes ? `<p><b>Observações gerais:</b> ${esc(i.observacoes)}</p>` : 
       case "excluir": state.confirmDelete = true; render(); break;
       case "excluir-nao": state.confirmDelete = false; render(); break;
       case "excluir-sim": try { await deleteInsp(state.selected); toast("Inspeção excluída"); go("historico"); } catch { toast("Não foi possível excluir. Tente novamente."); } break;
-      case "duplicar": { const i = cur(); state.draft = newDraft(i.setorId); Object.assign(state.draft, { setorNome: i.setorNome, local: i.local, responsavel: i.responsavel, acompanhante: i.acompanhante }); go("nova"); break; }
+      case "duplicar": { const i = cur(); state.draft = newDraft(i.setorId); Object.assign(state.draft, { setorNome: i.setorNome, local: i.local, responsavel: i.responsavel, registroTst: i.registroTst || state.draft.registroTst, acompanhante: i.acompanhante }); go("nova"); break; }
       case "relatorio": { const i = cur(); offer(`inspecao-${slug(setorLabel(i))}-${i.data}.html`, reportHTML(i)); break; }
       case "csv-one": { const i = cur(); offer(`inspecao-${slug(setorLabel(i))}-${i.data}.csv`, toCSV([i])); break; }
       case "csv": offer(`inspecoes-${today()}.csv`, toCSV(filtered())); break;
@@ -838,6 +984,10 @@ ${i.observacoes ? `<p><b>Observações gerais:</b> ${esc(i.observacoes)}</p>` : 
   });
   document.addEventListener("input", e => {
     const t = e.target;
+    if (t.id === "pf-periodo" || t.id === "pf-setor" || t.id === "pf-tst") {
+      state.pf = { periodo: document.getElementById("pf-periodo").value, setor: document.getElementById("pf-setor").value, tst: document.getElementById("pf-tst").value };
+      const y = window.scrollY; render(); window.scrollTo(0, y); return;
+    }
     if (t.id === "h-q" || t.id === "h-setor") {
       state.filtro.q = document.getElementById("h-q").value; state.filtro.setor = document.getElementById("h-setor").value;
       document.getElementById("h-body").innerHTML = histRows(filtered()); return;

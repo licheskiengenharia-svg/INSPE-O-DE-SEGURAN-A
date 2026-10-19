@@ -5,7 +5,8 @@ Sistema web de inspeções de segurança do trabalho organizado por setor (Usina
 - Tela "Setores e perguntas" para criar setores e editar seções e perguntas
 - Registro de inspeções com itens Conforme / Não conforme / N/A
 - Não conformidades com ação corretiva, responsável e prazo
-- Painel com conformidade média e pendências
+- Painel de ações: índice de conformidade, ações concluídas, em aberto e atrasadas, gráficos por mês, por setor, por norma e por TST
+- Dados do TST em cada inspeção (nome, registro, data, horário e turno)
 - Histórico com busca, relatório em HTML e exportação CSV
 
 As inspeções ficam salvas no navegador de quem usa o site (localStorage). Use **Exportar CSV** para guardar uma cópia.
