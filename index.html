@@ -220,7 +220,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
 (() => {
   // ---------- Checklists (Normas Regulamentadoras) ----------
   const CHECKLISTS = [
-    { id: "nr06", nr: "NR-06", nome: "Equipamentos de Proteção Individual", itens: [
+    { id: "nr06", nr: "NR-06", nome: "Equipamento de Proteção Individual – EPI", itens: [
       ["EPIs adequados aos riscos da atividade disponíveis e em uso", "6.3"],
       ["EPIs com Certificado de Aprovação (CA) válido", "6.2"],
       ["Fichas de entrega de EPI assinadas e atualizadas", "6.5.1"],
@@ -228,7 +228,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
       ["Trabalhadores orientados sobre uso, guarda e conservação", "6.5.1"],
       ["Local adequado para guarda dos EPIs", ""],
     ]},
-    { id: "nr10", nr: "NR-10", nome: "Instalações e serviços em eletricidade", itens: [
+    { id: "nr10", nr: "NR-10", nome: "Segurança em Instalações e Serviços em Eletricidade", itens: [
       ["Quadros elétricos fechados, sinalizados e com acesso desobstruído", "10.10"],
       ["Diagrama unifilar atualizado disponível", "10.2.3"],
       ["Ausência de fios expostos, emendas improvisadas ou gambiarras", "10.4"],
@@ -238,7 +238,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
       ["Prontuário das instalações elétricas disponível (carga > 75 kW)", "10.2.4"],
       ["Tomadas e plugues no padrão e sem danos", ""],
     ]},
-    { id: "nr12", nr: "NR-12", nome: "Máquinas e equipamentos", itens: [
+    { id: "nr12", nr: "NR-12", nome: "Segurança no Trabalho em Máquinas e Equipamentos", itens: [
       ["Proteções fixas ou móveis instaladas nas zonas de perigo", "12.5"],
       ["Botão de parada de emergência acessível e funcionando", "12.6"],
       ["Dispositivos de intertravamento operantes", "12.5"],
@@ -248,7 +248,16 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
       ["Manutenção preventiva registrada e em dia", "12.11"],
       ["Área de circulação demarcada ao redor das máquinas", "12.2"],
     ]},
-    { id: "nr23", nr: "NR-23", nome: "Proteção contra incêndios", itens: [
+    { id: "nr18", nr: "NR-18", nome: "Segurança e Saúde no Trabalho na Indústria da Construção", itens: [
+      ["Proteção coletiva contra quedas (guarda-corpo e rodapé)", "18.9"],
+      ["Aberturas no piso protegidas", "18.9"],
+      ["Andaimes montados conforme projeto e inspecionados", "18.10"],
+      ["Escavações escoradas e sinalizadas", "18.6"],
+      ["Instalações elétricas provisórias protegidas", "18.5"],
+      ["Áreas de vivência em condições adequadas", "18.5"],
+      ["PGR da obra disponível", "18.4"],
+    ]},
+    { id: "nr23", nr: "NR-23", nome: "Proteção Contra Incêndios", itens: [
       ["Extintores no local, sinalizados e desobstruídos", "23.1"],
       ["Extintores com carga e inspeção dentro da validade", ""],
       ["Saídas de emergência sinalizadas e desobstruídas", "23.3"],
@@ -258,7 +267,24 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
       ["Alarme de incêndio testado", ""],
       ["Brigada de incêndio formada e treinada", ""],
     ]},
-    { id: "nr35", nr: "NR-35", nome: "Trabalho em altura", itens: [
+    { id: "nr24", nr: "NR-24", nome: "Condições Sanitárias e de Conforto nos Locais de Trabalho", itens: [
+      ["Instalações sanitárias limpas, separadas por sexo e em quantidade suficiente", "24.2"],
+      ["Lavatórios com material para limpeza e secagem das mãos", "24.2"],
+      ["Vestiários com armários individuais (quando exigidos)", "24.3"],
+      ["Local para refeições limpo, ventilado e com meios para aquecer e conservar alimentos", "24.5"],
+      ["Água potável e fresca disponível, com copos individuais ou bebedouro", "24.7"],
+      ["Áreas de circulação limpas e desobstruídas", ""],
+      ["Resíduos descartados em local adequado", ""],
+    ]},
+    { id: "nr26", nr: "NR-26", nome: "Sinalização e Identificação de Segurança", itens: [
+      ["Sinalização de segurança instalada conforme os riscos do local", "26.1"],
+      ["Cores de segurança nas tubulações, equipamentos e demarcações", "26.1"],
+      ["Produtos químicos classificados e rotulados", "26.4"],
+      ["Ficha com Dados de Segurança (FDS) disponível para os produtos", "26.5"],
+      ["Trabalhadores treinados para compreender rótulos e FDS", "26.6"],
+      ["Sinalização legível, bem posicionada e em bom estado", ""],
+    ]},
+    { id: "nr35", nr: "NR-35", nome: "Trabalho em Altura", itens: [
       ["Análise de Risco (AR) e Permissão de Trabalho (PT) emitidas", "35.4.5"],
       ["Trabalhadores com treinamento NR-35 válido", "35.3"],
       ["ASO com aptidão para trabalho em altura", "35.4.1.2"],
@@ -267,24 +293,6 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
       ["Área abaixo isolada e sinalizada", "35.4.6"],
       ["Plano de emergência e resgate disponível", "35.6"],
       ["Condições climáticas adequadas", "35.4.5"],
-    ]},
-    { id: "nr18", nr: "NR-18", nome: "Canteiro de obras", itens: [
-      ["Proteção coletiva contra quedas (guarda-corpo e rodapé)", "18.9"],
-      ["Aberturas no piso protegidas", "18.9"],
-      ["Andaimes montados conforme projeto e inspecionados", "18.10"],
-      ["Escavações escoradas e sinalizadas", "18.6"],
-      ["Instalações elétricas provisórias protegidas", "18.5"],
-      ["Áreas de vivência em condições adequadas", "18.5"],
-      ["PGR da obra disponível", "18.4"],
-    ]},
-    { id: "nr24", nr: "NR-24 / NR-26", nome: "Ordem, limpeza e sinalização", itens: [
-      ["Áreas de circulação limpas e desobstruídas", ""],
-      ["Sinalização de segurança conforme NR-26", "26.1"],
-      ["Produtos químicos rotulados e com FDS disponível", "26.4"],
-      ["Instalações sanitárias limpas e em condições", "24.2"],
-      ["Água potável disponível", "24.7"],
-      ["Resíduos descartados em local adequado", ""],
-      ["Iluminação adequada nos postos de trabalho", ""],
     ]},
   ];
   const clById = Object.fromEntries(CHECKLISTS.map(c => [c.id, c]));

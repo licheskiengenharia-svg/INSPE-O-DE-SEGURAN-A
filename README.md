@@ -1,6 +1,6 @@
 # Inspeção de Segurança
 
-Sistema web de inspeções de segurança do trabalho com checklists das NRs (NR-06, NR-10, NR-12, NR-18, NR-23, NR-24/26 e NR-35).
+Sistema web de inspeções de segurança do trabalho com checklists das NRs (NR-06, NR-10, NR-12, NR-18, NR-23, NR-24, NR-26 e NR-35).
 
 - Registro de inspeções com itens Conforme / Não conforme / N/A
 - Não conformidades com ação corretiva, responsável e prazo
