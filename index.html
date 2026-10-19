@@ -381,6 +381,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
 
   const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const today = () => new Date().toISOString().slice(0, 10);
+  const nowHM = () => new Date().toTimeString().slice(0, 5);
   const fmtDate = d => d ? d.split("-").reverse().join("/") : "—";
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   const secById = (cfg, id) => cfg.secoes.find(s => s.id === id);
@@ -631,7 +632,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
     for (const sid of st.secoes) { const sec = secById(cfg, sid); if (!sec) continue;
       for (const p of sec.perguntas) itens.push({ secaoId: sec.id, secao: sec.nome, nr: sec.nr, texto: p.texto, ref: p.ref, status: "", obs: "", acao: "", prazo: "", respAcao: "" }); }
     const tst = lsGet(LS_TST, {});
-    return { setorId, setorNome: st.generico ? "" : st.nome, generico: st.generico, local: "", responsavel: tst.nome || "", registroTst: tst.registro || "", data: today(), horaInicio: "", horaFim: "", turno: "", acompanhante: "", observacoes: "", itens };
+    return { setorId, setorNome: st.generico ? "" : st.nome, generico: st.generico, local: "", responsavel: tst.nome || "", registroTst: tst.registro || "", data: today(), horaInicio: nowHM(), horaFim: "", turno: "", acompanhante: "", observacoes: "", itens };
   }
 
   function viewNova() {
@@ -658,8 +659,8 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
           <label class="field span2"><span class="label">Nome do TST *</span><input id="f-resp" required value="${esc(d.responsavel)}" placeholder="Nome completo do técnico"></label>
           <label class="field"><span class="label">Registro profissional</span><input id="f-reg" value="${esc(d.registroTst)}" placeholder="Ex.: MTE/SRTE nº 12345"></label>
           <label class="field"><span class="label">Data da inspeção *</span><input id="f-data" type="date" required value="${esc(d.data)}"></label>
-          <label class="field"><span class="label">Hora de início</span><input id="f-hini" type="time" value="${esc(d.horaInicio)}"></label>
-          <label class="field"><span class="label">Hora de término</span><input id="f-hfim" type="time" value="${esc(d.horaFim)}"></label>
+          <label class="field"><span class="label">Hora de início</span><input id="f-hini" type="time" value="${esc(d.horaInicio)}"><span class="label" style="text-transform:none;letter-spacing:0">Registrada ao abrir a inspeção</span></label>
+          <label class="field"><span class="label">Hora de término</span><input id="f-hfim" type="time" value="${esc(d.horaFim)}" placeholder="ao salvar"><span class="label" style="text-transform:none;letter-spacing:0">${d.horaFim ? "" : "Preenchida ao salvar"}</span></label>
           <label class="field"><span class="label">Turno</span><select id="f-turno"><option value="">—</option>${["1º turno", "2º turno", "3º turno", "Administrativo"].map(o => `<option ${d.turno === o ? "selected" : ""}>${o}</option>`).join("")}</select></label>
         </div>
       </section>
@@ -723,6 +724,8 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
       if (!d.responsavel.trim()) return fail("Preencha o nome do TST.", "f-resp");
       const faltando = d.itens.findIndex(i => !i.status);
       if (faltando >= 0) { fail(`Responda a pergunta "${d.itens[faltando].texto.slice(0, 50)}…"`); document.getElementById("item-" + faltando).scrollIntoView({ block: "center" }); return; }
+      if (!d.horaFim) d.horaFim = nowHM();
+      if (!d.horaInicio) d.horaInicio = d.horaFim;
       const insp = { id: uid(), ...structuredClone(d), setorNome: d.setorNome.trim(), criadoEm: Date.now(), itens: d.itens.map(i => ({ ...i, corrigido: false, corrigidoEm: "" })) };
       delete insp.generico;
       const btn = f.querySelector("button[type=submit]"); btn.disabled = true; btn.textContent = "Salvando…";
