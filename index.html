@@ -195,6 +195,27 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
   .toast { animation: rise .18s ease-out; }
   @keyframes rise { from { transform: translate(-50%, 8px); opacity: 0; } }
 }
+
+/* Setores e perguntas */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.pill { font: 500 14px var(--f-body); border: 1px solid var(--line); background: var(--surface); color: var(--fg); border-radius: 999px; padding: 7px 14px; cursor: pointer; }
+.pill:hover { border-color: var(--muted); }
+.pill[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.pill .c { font-family: var(--f-mono); font-size: 12px; opacity: .7; }
+.check-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.check-card { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 2px 10px; align-items: start; background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 12px; cursor: pointer; }
+.check-card input { width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--bad); }
+.check-card .nm { font-weight: 600; }
+.check-card .sub { grid-column: 2; font-size: 12px; color: var(--muted); }
+.inline-check { display: flex; gap: 10px; align-items: flex-start; background: var(--surface-2); border-radius: 6px; padding: 8px 12px; cursor: pointer; }
+.inline-check input { width: 18px; height: 18px; flex: none; margin-top: 2px; accent-color: var(--bad); }
+.sec-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; flex-wrap: wrap; padding: 18px 0 8px; border-bottom: 2px solid var(--fg); }
+.sec-head:first-child { padding-top: 0; }
+.q-row { display: grid; grid-template-columns: 28px minmax(0, 1fr) 110px auto; gap: 8px; align-items: center; padding: 6px 0; border-top: 1px solid var(--line); }
+.q-row:first-child { border-top: 0; }
+.q-row .n { font-family: var(--f-mono); font-size: 12px; color: var(--muted); }
+.save-bar { position: sticky; bottom: 0; background: var(--bg); border-top: 1px solid var(--line); padding-block: 12px calc(12px + env(safe-area-inset-bottom, 0px)); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; z-index: 3; }
+@media (max-width: 760px) { .q-row { grid-template-columns: 24px minmax(0, 1fr); } .q-row .ref-in, .q-row .btn { grid-column: 2; justify-self: start; } }
 </style>
 
 <header class="top">
@@ -202,12 +223,13 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
   <div class="wrap">
     <div class="brand">
       <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3 30 28H2Z" fill="var(--accent)"/><path d="M16 3 30 28H2Z" fill="none" stroke="var(--fg)" stroke-width="1.5"/><rect x="14.6" y="11" width="2.8" height="9" rx="1" fill="var(--fg)"/><circle cx="16" cy="23.5" r="1.7" fill="var(--fg)"/></svg>
-      <div><h1>Inspeção de Segurança</h1><small>Checklists de campo · NRs MTE</small></div>
+      <div><h1>Inspeção de Segurança</h1><small>Checklists por setor · NRs MTE</small></div>
     </div>
     <nav class="tabs" role="tablist" aria-label="Seções">
       <button role="tab" id="tab-painel" data-view="painel" aria-selected="true">Painel</button>
       <button role="tab" id="tab-nova" data-view="nova" aria-selected="false">Nova inspeção</button>
       <button role="tab" id="tab-historico" data-view="historico" aria-selected="false">Histórico</button>
+      <button role="tab" id="tab-setores" data-view="setores" aria-selected="false">Setores e perguntas</button>
     </nav>
   </div>
 </header>
@@ -218,96 +240,114 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
 
 <script>
 (() => {
-  // ---------- Checklists (Normas Regulamentadoras) ----------
-  const CHECKLISTS = [
-    { id: "nr06", nr: "NR-06", nome: "Equipamento de Proteção Individual – EPI", itens: [
-      ["EPIs adequados aos riscos da atividade disponíveis e em uso", "6.3"],
-      ["EPIs com Certificado de Aprovação (CA) válido", "6.2"],
-      ["Fichas de entrega de EPI assinadas e atualizadas", "6.5.1"],
-      ["EPIs em bom estado de conservação e higienização", "6.6.1"],
-      ["Trabalhadores orientados sobre uso, guarda e conservação", "6.5.1"],
-      ["Local adequado para guarda dos EPIs", ""],
+  // ---------- Seções de perguntas (padrão; editáveis em "Setores e perguntas") ----------
+  const q = (texto, ref = "") => ({ texto, ref });
+  const DEFAULT_SECOES = [
+    { id: "epi", nome: "EPI", nr: "NR-06", perguntas: [
+      q("EPIs adequados aos riscos do setor em uso por todos os trabalhadores", "6.3"),
+      q("EPIs com Certificado de Aprovação (CA) válido e em bom estado", "6.2"),
+      q("Ficha de entrega de EPI atualizada e assinada", "6.5.1"),
+      q("Protetor auricular em uso nas áreas com ruído"),
+      q("Proteção contra calor e respingos de metal (avental, perneira, protetor facial) em uso quando aplicável"),
+      q("Respiradores adequados em áreas com poeira ou vapores, com filtros dentro da validade"),
     ]},
-    { id: "nr10", nr: "NR-10", nome: "Segurança em Instalações e Serviços em Eletricidade", itens: [
-      ["Quadros elétricos fechados, sinalizados e com acesso desobstruído", "10.10"],
-      ["Diagrama unifilar atualizado disponível", "10.2.3"],
-      ["Ausência de fios expostos, emendas improvisadas ou gambiarras", "10.4"],
-      ["Instalações e equipamentos aterrados", "10.2.8"],
-      ["Bloqueio e etiquetagem (LOTO) aplicados nas intervenções", "10.5"],
-      ["Trabalhadores autorizados com treinamento NR-10 válido", "10.8"],
-      ["Prontuário das instalações elétricas disponível (carga > 75 kW)", "10.2.4"],
-      ["Tomadas e plugues no padrão e sem danos", ""],
+    { id: "eletrica", nome: "Instalações elétricas", nr: "NR-10", perguntas: [
+      q("Quadros elétricos fechados, sinalizados e com acesso desobstruído", "10.10"),
+      q("Ausência de fios expostos, emendas improvisadas ou gambiarras", "10.4"),
+      q("Instalações e equipamentos aterrados", "10.2.8"),
+      q("Bloqueio e etiquetagem (LOTO) aplicados nas intervenções", "10.5"),
+      q("Intervenções feitas só por trabalhadores autorizados com NR-10 válida", "10.8"),
+      q("Tomadas, plugues e extensões no padrão e sem danos"),
+      q("Diagrama unifilar atualizado disponível", "10.2.3"),
     ]},
-    { id: "nr12", nr: "NR-12", nome: "Segurança no Trabalho em Máquinas e Equipamentos", itens: [
-      ["Proteções fixas ou móveis instaladas nas zonas de perigo", "12.5"],
-      ["Botão de parada de emergência acessível e funcionando", "12.6"],
-      ["Dispositivos de intertravamento operantes", "12.5"],
-      ["Sinalização de segurança nas máquinas", "12.12"],
-      ["Manual e procedimentos de operação disponíveis", "12.13"],
-      ["Operadores capacitados e autorizados", "12.16"],
-      ["Manutenção preventiva registrada e em dia", "12.11"],
-      ["Área de circulação demarcada ao redor das máquinas", "12.2"],
+    { id: "maquinas", nome: "Máquinas e equipamentos", nr: "NR-12", perguntas: [
+      q("Proteções fixas ou móveis instaladas nas zonas de perigo", "12.5"),
+      q("Parada de emergência acessível e funcionando", "12.6"),
+      q("Dispositivos de intertravamento operantes", "12.5"),
+      q("Sinalização de segurança nas máquinas", "12.12"),
+      q("Procedimento de operação disponível no posto", "12.13"),
+      q("Operadores capacitados e autorizados", "12.16"),
+      q("Manutenção preventiva registrada e em dia", "12.11"),
+      q("Área de circulação demarcada ao redor das máquinas", "12.2"),
     ]},
-    { id: "nr18", nr: "NR-18", nome: "Segurança e Saúde no Trabalho na Indústria da Construção", itens: [
-      ["Proteção coletiva contra quedas (guarda-corpo e rodapé)", "18.9"],
-      ["Aberturas no piso protegidas", "18.9"],
-      ["Andaimes montados conforme projeto e inspecionados", "18.10"],
-      ["Escavações escoradas e sinalizadas", "18.6"],
-      ["Instalações elétricas provisórias protegidas", "18.5"],
-      ["Áreas de vivência em condições adequadas", "18.5"],
-      ["PGR da obra disponível", "18.4"],
+    { id: "quimicos", nome: "Inflamáveis, químicos e resíduos", nr: "NR-20", perguntas: [
+      q("Produtos químicos rotulados e com FDS disponível no setor", "26.4"),
+      q("Inflamáveis armazenados em local ventilado, sinalizado e com contenção"),
+      q("Quantidade de inflamáveis no setor limitada ao uso da jornada"),
+      q("Recipientes fechados e compatíveis com o produto"),
+      q("Fontes de ignição controladas perto de inflamáveis"),
+      q("Resíduos segregados e identificados (areia, borra, solventes, embalagens)"),
+      q("Kit de contenção de derramamento disponível"),
     ]},
-    { id: "nr23", nr: "NR-23", nome: "Proteção Contra Incêndios", itens: [
-      ["Extintores no local, sinalizados e desobstruídos", "23.1"],
-      ["Extintores com carga e inspeção dentro da validade", ""],
-      ["Saídas de emergência sinalizadas e desobstruídas", "23.3"],
-      ["Iluminação de emergência funcionando", ""],
-      ["Hidrantes e mangueiras em condições de uso", ""],
-      ["Rotas de fuga sinalizadas", "23.3"],
-      ["Alarme de incêndio testado", ""],
-      ["Brigada de incêndio formada e treinada", ""],
+    { id: "frentes", nome: "Frentes de trabalho", nr: "NR-33 / NR-35", perguntas: [
+      q("Permissão de Trabalho emitida para altura ou espaço confinado"),
+      q("Trabalhadores com treinamento NR-35 ou NR-33 válido"),
+      q("Cinto e talabarte inspecionados, ponto de ancoragem definido", "35.5"),
+      q("Espaço confinado sinalizado, com medição de gases e vigia", "33.3"),
+      q("Área isolada e sinalizada"),
+      q("Plano de resgate disponível"),
     ]},
-    { id: "nr24", nr: "NR-24", nome: "Condições Sanitárias e de Conforto nos Locais de Trabalho", itens: [
-      ["Instalações sanitárias limpas, separadas por sexo e em quantidade suficiente", "24.2"],
-      ["Lavatórios com material para limpeza e secagem das mãos", "24.2"],
-      ["Vestiários com armários individuais (quando exigidos)", "24.3"],
-      ["Local para refeições limpo, ventilado e com meios para aquecer e conservar alimentos", "24.5"],
-      ["Água potável e fresca disponível, com copos individuais ou bebedouro", "24.7"],
-      ["Áreas de circulação limpas e desobstruídas", ""],
-      ["Resíduos descartados em local adequado", ""],
+    { id: "fornos", nome: "Fornos, metal líquido e calor", nr: "NR-13 / NR-14", perguntas: [
+      q("Fornos com inspeção e manutenção registradas", "NR-14"),
+      q("Panelas de vazamento secas, inspecionadas e com refratário em bom estado"),
+      q("Área de vazamento livre de umidade e água"),
+      q("Rotas de fuga livres ao redor dos fornos"),
+      q("Vasos de pressão e compressores com prontuário e inspeção", "NR-13"),
+      q("Pausas e hidratação para trabalho com calor", "NR-15 An. 3"),
+      q("Sistema de exaustão dos fornos funcionando"),
     ]},
-    { id: "nr26", nr: "NR-26", nome: "Sinalização e Identificação de Segurança", itens: [
-      ["Sinalização de segurança instalada conforme os riscos do local", "26.1"],
-      ["Cores de segurança nas tubulações, equipamentos e demarcações", "26.1"],
-      ["Produtos químicos classificados e rotulados", "26.4"],
-      ["Ficha com Dados de Segurança (FDS) disponível para os produtos", "26.5"],
-      ["Trabalhadores treinados para compreender rótulos e FDS", "26.6"],
-      ["Sinalização legível, bem posicionada e em bom estado", ""],
+    { id: "cargas", nome: "Movimentação de cargas", nr: "NR-11", perguntas: [
+      q("Ponte rolante e talhas com inspeção em dia e capacidade indicada"),
+      q("Cintas, correntes e ganchos inspecionados e identificados"),
+      q("Operadores de empilhadeira e ponte rolante habilitados", "11.1.5"),
+      q("Empilhadeira com checklist diário, sinal sonoro e luminoso"),
+      q("Ninguém sob carga suspensa; área de içamento isolada"),
+      q("Peças e materiais empilhados com altura e estabilidade seguras"),
     ]},
-    { id: "nr35", nr: "NR-35", nome: "Trabalho em Altura", itens: [
-      ["Análise de Risco (AR) e Permissão de Trabalho (PT) emitidas", "35.4.5"],
-      ["Trabalhadores com treinamento NR-35 válido", "35.3"],
-      ["ASO com aptidão para trabalho em altura", "35.4.1.2"],
-      ["Cinto paraquedista e talabarte inspecionados", "35.5"],
-      ["Ponto de ancoragem definido e resistente", "35.5"],
-      ["Área abaixo isolada e sinalizada", "35.4.6"],
-      ["Plano de emergência e resgate disponível", "35.6"],
-      ["Condições climáticas adequadas", "35.4.5"],
+    { id: "ambiente", nome: "Ruído, poeira e ergonomia", nr: "NR-15 / NR-17", perguntas: [
+      q("Exaustão local funcionando nos pontos de poeira (jateamento, rebarbação, desmoldagem)"),
+      q("Cabines de jato e pintura com exaustão e filtros em bom estado"),
+      q("Fontes de ruído enclausuradas ou protegidas quando possível"),
+      q("Postos com altura e alcance adequados", "17.3"),
+      q("Levantamento manual de peças com auxílio mecânico quando necessário", "17.5"),
+    ]},
+    { id: "incendio", nome: "Prevenção e combate a incêndio", nr: "NR-23", perguntas: [
+      q("Extintores no local, sinalizados, desobstruídos e dentro da validade"),
+      q("Hidrantes e mangueiras em condições de uso"),
+      q("Saídas de emergência sinalizadas e desobstruídas", "23.3"),
+      q("Iluminação de emergência funcionando"),
+      q("Brigada de incêndio do turno identificada"),
+    ]},
+    { id: "areas", nome: "Áreas comuns e 5S", nr: "NR-24 / NR-26", perguntas: [
+      q("Corredores e rotas desobstruídos e demarcados"),
+      q("Piso sem óleo, areia acumulada, buracos ou desníveis"),
+      q("Materiais organizados, sem itens desnecessários no setor"),
+      q("Sinalização de segurança visível", "NR-26"),
+      q("Iluminação adequada"),
+      q("Sanitários, vestiários e refeitório limpos", "NR-24"),
+      q("Água potável disponível", "24.7"),
+      q("Lixeiras e coleta seletiva identificadas"),
     ]},
   ];
-  const clById = Object.fromEntries(CHECKLISTS.map(c => [c.id, c]));
+  const TODAS = DEFAULT_SECOES.map(s => s.id);
+  const sem = (...ex) => TODAS.filter(id => !ex.includes(id));
+  const DEFAULT_SETORES = [
+    { id: "usinagem", nome: "Usinagem", generico: false, secoes: sem("fornos", "frentes") },
+    { id: "fusao", nome: "Fusão", generico: false, secoes: TODAS },
+    { id: "macharia", nome: "Macharia", generico: false, secoes: sem("fornos", "frentes") },
+    { id: "savelli", nome: "Savelli (areia verde)", generico: false, secoes: sem("fornos") },
+    { id: "curafrio", nome: "Cura Frio", generico: false, secoes: sem("fornos", "frentes") },
+    { id: "rebarbacao", nome: "Rebarbação e jateamento", generico: false, secoes: sem("fornos", "frentes") },
+    { id: "pintura", nome: "Pintura", generico: false, secoes: sem("fornos", "cargas") },
+    { id: "outro", nome: "Outro setor (todas as seções)", generico: true, secoes: TODAS },
+  ];
 
   // ---------- Estado ----------
   const state = {
-    view: "painel",
-    inspecoes: [],
-    loaded: false,
-    store: "db",          // "db" | "local"
-    canWrite: true,
-    selected: null,       // id em detalhe
-    confirmDelete: false,
-    filtro: { q: "", cl: "" },
-    draft: null,
+    view: "painel", inspecoes: [], loaded: false, store: "db", canWrite: true,
+    selected: null, confirmDelete: false, filtro: { q: "", setor: "" }, draft: null,
+    config: { secoes: structuredClone(DEFAULT_SECOES), setores: structuredClone(DEFAULT_SETORES) },
+    cfgDraft: null, cfgSetor: "usinagem", cfgSecao: "epi", cfgDirty: false, cfgConfirmDel: false,
   };
   let db = null, downloads = null;
   const app = document.getElementById("app");
@@ -316,6 +356,9 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
   const today = () => new Date().toISOString().slice(0, 10);
   const fmtDate = d => d ? d.split("-").reverse().join("/") : "—";
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  const secById = (cfg, id) => cfg.secoes.find(s => s.id === id);
+  const countQ = (cfg, setor) => setor.secoes.reduce((n, id) => n + (secById(cfg, id)?.perguntas.length || 0), 0);
+  const setorLabel = i => i.setorNome || [i.nr, i.checklistNome].filter(Boolean).join(" · ") || "—";
 
   function toast(msg) {
     const t = document.createElement("div");
@@ -333,25 +376,32 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
   const pctChip = p => p == null ? `<span class="chip na">—</span>` : `<span class="chip ${p >= 90 ? "ok" : p >= 70 ? "warn" : "bad"}">${p}%</span>`;
 
   // ---------- Armazenamento ----------
-  const LS_KEY = "inspecoes-seguranca-v1";
-  function lsLoad() { try { return JSON.parse(localStorage.getItem(LS_KEY) || "[]"); } catch { return []; } }
-  function lsSave() { try { localStorage.setItem(LS_KEY, JSON.stringify(state.inspecoes)); } catch {} }
+  const LS_KEY = "inspecoes-seguranca-v1", LS_CFG = "inspecoes-seguranca-config-v1";
+  const lsGet = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
+  const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
 
   async function saveInsp(insp) {
-    if (state.store === "db") {
-      const { id, ...body } = insp;
-      await db.collection("inspecoes").doc(id).set(body);
-    } else {
+    if (state.store === "db") { const { id, ...body } = insp; await db.collection("inspecoes").doc(id).set(body); }
+    else {
       const i = state.inspecoes.findIndex(x => x.id === insp.id);
       if (i >= 0) state.inspecoes[i] = insp; else state.inspecoes.push(insp);
-      sortInsp(); lsSave(); render();
+      sortInsp(); lsSet(LS_KEY, state.inspecoes); render();
     }
   }
   async function deleteInsp(id) {
     if (state.store === "db") await db.collection("inspecoes").doc(id).delete();
-    else { state.inspecoes = state.inspecoes.filter(x => x.id !== id); lsSave(); render(); }
+    else { state.inspecoes = state.inspecoes.filter(x => x.id !== id); lsSet(LS_KEY, state.inspecoes); render(); }
+  }
+  async function saveConfig(cfg) {
+    if (state.store === "db") await db.doc("config/setup").set(cfg);
+    else { state.config = structuredClone(cfg); lsSet(LS_CFG, cfg); render(); }
   }
   function sortInsp() { state.inspecoes.sort((a, b) => (b.data || "").localeCompare(a.data || "") || (b.criadoEm || 0) - (a.criadoEm || 0)); }
+  function useLocal() {
+    state.store = "local"; state.inspecoes = lsGet(LS_KEY, []);
+    const cfg = lsGet(LS_CFG, null); if (cfg?.setores && cfg?.secoes) state.config = cfg;
+    sortInsp(); state.loaded = true; render();
+  }
 
   async function initStore() {
     try {
@@ -360,15 +410,16 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
       if (user && user.can) { const w = await user.can("data.write"); if (w === false) state.canWrite = false; }
     } catch { db = null; }
     try { downloads = await claude.use("downloads"); } catch { downloads = null; }
-    if (!db) {
-      state.store = "local"; state.inspecoes = lsLoad(); sortInsp(); state.loaded = true; render(); return;
-    }
+    if (!db) return useLocal();
+    db.doc("config/setup").onSnapshot(snap => {
+      const d = snap.exists ? snap.data() : null;
+      if (d?.setores && d?.secoes) state.config = structuredClone(d);
+      if (state.loaded && !state.cfgDirty) { state.cfgDraft = null; render(); }
+    }, () => {});
     db.collection("inspecoes").onSnapshot(snap => {
       state.inspecoes = snap.docs.map(d => ({ id: d.id, ...structuredClone(d.data()) }));
       sortInsp(); state.loaded = true; render();
-    }, () => {
-      state.store = "local"; state.inspecoes = lsLoad(); sortInsp(); state.loaded = true; render();
-    });
+    }, () => useLocal());
   }
 
   // ---------- Navegação ----------
@@ -387,65 +438,55 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
     if (!state.loaded) return;
     if (state.view === "nova") readHeader();
     const note = state.store === "local"
-      ? `<div class="store-note">As inspeções ficam salvas neste navegador. Use Exportar CSV para guardar uma cópia.</div>` : "";
-    const v = { painel: viewPainel, nova: viewNova, historico: viewHistorico, detalhe: viewDetalhe }[state.view] || viewPainel;
+      ? `<div class="store-note">As inspeções e a configuração dos setores ficam salvas neste navegador. Use Exportar CSV para guardar uma cópia.</div>` : "";
+    const v = { painel: viewPainel, nova: viewNova, historico: viewHistorico, detalhe: viewDetalhe, setores: viewSetores }[state.view] || viewPainel;
     app.innerHTML = note + v();
     if (state.view === "nova") bindNova();
   }
 
   function pendencias() {
     const out = [];
-    for (const insp of state.inspecoes) insp.itens.forEach((it, idx) => {
-      if (it.status === "NC" && !it.corrigido) out.push({ insp, it, idx });
-    });
+    for (const insp of state.inspecoes) insp.itens.forEach((it, idx) => { if (it.status === "NC" && !it.corrigido) out.push({ insp, it, idx }); });
     return out.sort((a, b) => (a.it.prazo || "9999").localeCompare(b.it.prazo || "9999"));
   }
-
   function emptyState(title, text) {
     return `<div class="panel empty"><h3>${title}</h3><p>${text}</p><button class="btn primary" data-act="nova">Iniciar inspeção</button></div>`;
   }
 
   function viewPainel() {
     const L = state.inspecoes;
-    if (!L.length) return `<h2>Painel</h2><p class="lead">Resumo das inspeções, não conformidades abertas e conformidade por checklist.</p>` +
-      emptyState("Nenhuma inspeção registrada", "Escolha um checklist, marque cada item como conforme, não conforme ou não aplicável e salve. Os resultados aparecem aqui.");
-    const pend = pendencias();
-    const t = today();
+    const lead = `<h2>Painel</h2><p class="lead">Resumo das inspeções, não conformidades abertas e conformidade por setor.</p>`;
+    if (!L.length) return lead + emptyState("Nenhuma inspeção registrada", "Escolha o setor, responda as perguntas de cada seção como conforme, não conforme ou não aplicável e salve. Os resultados aparecem aqui.");
+    const pend = pendencias(), t = today();
     const atrasadas = pend.filter(p => p.it.prazo && p.it.prazo < t).length;
     const scores = L.map(score).filter(s => s.pct != null);
     const media = scores.length ? Math.round(scores.reduce((a, s) => a + s.pct, 0) / scores.length) : null;
-    const mes = t.slice(0, 7);
-    const doMes = L.filter(i => (i.data || "").startsWith(mes)).length;
+    const doMes = L.filter(i => (i.data || "").startsWith(t.slice(0, 7))).length;
+    const grupos = {};
+    for (const i of L) { const s = score(i); if (s.pct == null) continue; (grupos[setorLabel(i)] ||= []).push(s.pct); }
+    const porSetor = Object.entries(grupos).map(([nome, ps]) => ({ nome, n: ps.length, pct: Math.round(ps.reduce((a, b) => a + b, 0) / ps.length) })).sort((a, b) => a.pct - b.pct);
 
-    const porCl = CHECKLISTS.map(cl => {
-      const s = L.filter(i => i.checklistId === cl.id).map(score).filter(s => s.pct != null);
-      return { cl, n: s.length, pct: s.length ? Math.round(s.reduce((a, x) => a + x.pct, 0) / s.length) : null };
-    }).filter(x => x.n);
-
-    return `<h2>Painel</h2><p class="lead">Resumo das inspeções, não conformidades abertas e conformidade por checklist.</p>
-    <div class="stack">
+    return lead + `<div class="stack">
       <div class="kpis">
         <div class="kpi"><span class="label">Inspeções</span><span class="num">${L.length}</span><span class="sub">${doMes} neste mês</span></div>
         <div class="kpi"><span class="label">Conformidade média</span><span class="num" style="color:${pctColor(media)}">${media ?? "—"}${media != null ? "%" : ""}</span><span class="sub">C ÷ (C + NC)</span></div>
         <div class="kpi ${pend.length ? "alert" : ""}"><span class="label">NC em aberto</span><span class="num">${pend.length}</span><span class="sub">${atrasadas} com prazo vencido</span></div>
-        <div class="kpi"><span class="label">Última inspeção</span><span class="num" style="font-size:28px">${fmtDate(L[0].data)}</span><span class="sub">${esc(L[0].local)}</span></div>
+        <div class="kpi"><span class="label">Última inspeção</span><span class="num" style="font-size:28px">${fmtDate(L[0].data)}</span><span class="sub">${esc(setorLabel(L[0]))}</span></div>
       </div>
       <div class="grid2">
         <section class="panel">
           <div class="panel-head"><h3>Ações corretivas pendentes</h3><span class="label">por prazo</span></div>
           ${pend.length ? `<div class="nc-list">${pend.slice(0, 12).map(p => {
             const late = p.it.prazo && p.it.prazo < t;
-            return `<div class="nc-row ${late ? "late" : "ontime"}">
-              <div class="bar"></div>
+            return `<div class="nc-row ${late ? "late" : "ontime"}"><div class="bar"></div>
               <div style="min-width:0"><div class="t">${esc(p.it.texto)}</div>
-                <div class="m">${esc(p.insp.local)} · ${esc(clById[p.insp.checklistId]?.nr || p.insp.checklistNome)} · ${p.it.respAcao ? "Resp.: " + esc(p.it.respAcao) + " · " : ""}${p.it.prazo ? (late ? `<span class="chip bad">vencido ${fmtDate(p.it.prazo)}</span>` : "prazo " + fmtDate(p.it.prazo)) : "sem prazo"}</div></div>
-              <button class="btn small" data-act="abrir" data-id="${p.insp.id}">Ver</button>
-            </div>`; }).join("")}</div>${pend.length > 12 ? `<p class="label" style="margin:8px 0 0">+ ${pend.length - 12} pendências no histórico</p>` : ""}`
+                <div class="m">${esc(setorLabel(p.insp))}${p.it.secao ? " · " + esc(p.it.secao) : ""} · ${p.it.respAcao ? "Resp.: " + esc(p.it.respAcao) + " · " : ""}${p.it.prazo ? (late ? `<span class="chip bad">vencido ${fmtDate(p.it.prazo)}</span>` : "prazo " + fmtDate(p.it.prazo)) : "sem prazo"}</div></div>
+              <button class="btn small" data-act="abrir" data-id="${p.insp.id}">Ver</button></div>`; }).join("")}</div>${pend.length > 12 ? `<p class="label" style="margin:8px 0 0">+ ${pend.length - 12} pendências no histórico</p>` : ""}`
           : `<p class="lead" style="margin:0">Nenhuma não conformidade em aberto.</p>`}
         </section>
         <section class="panel">
-          <div class="panel-head"><h3>Conformidade por checklist</h3><span class="label">média</span></div>
-          <div class="bars">${porCl.map(x => `<div class="barrow"><span>${esc(x.cl.nr)} · ${esc(x.cl.nome)} <span class="label">(${x.n})</span></span><span class="pct">${x.pct}%</span>
+          <div class="panel-head"><h3>Conformidade por setor</h3><span class="label">média</span></div>
+          <div class="bars">${porSetor.map(x => `<div class="barrow"><span>${esc(x.nome)} <span class="label">(${x.n})</span></span><span class="pct">${x.pct}%</span>
             <div class="track"><div class="fill" style="width:${x.pct}%;background:${pctColor(x.pct)}"></div></div></div>`).join("")}</div>
         </section>
       </div>
@@ -453,57 +494,58 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
   }
 
   // ---------- Nova inspeção ----------
-  function newDraft(clId) {
-    const cl = clById[clId];
-    return {
-      checklistId: clId, local: "", setor: "", responsavel: "", data: today(), acompanhante: "", observacoes: "",
-      itens: cl ? cl.itens.map(([texto, ref]) => ({ texto, ref, status: "", obs: "", acao: "", prazo: "", respAcao: "" })) : [],
-    };
+  function newDraft(setorId) {
+    const cfg = state.config, st = cfg.setores.find(s => s.id === setorId);
+    const itens = [];
+    for (const sid of st.secoes) { const sec = secById(cfg, sid); if (!sec) continue;
+      for (const p of sec.perguntas) itens.push({ secaoId: sec.id, secao: sec.nome, nr: sec.nr, texto: p.texto, ref: p.ref, status: "", obs: "", acao: "", prazo: "", respAcao: "" }); }
+    return { setorId, setorNome: st.generico ? "" : st.nome, generico: st.generico, local: "", responsavel: "", data: today(), acompanhante: "", observacoes: "", itens };
   }
 
   function viewNova() {
     if (!state.canWrite) return `<h2>Nova inspeção</h2><div class="panel empty"><h3>Somente leitura</h3><p>Seu acesso a esta página permite consultar as inspeções, mas não registrar novas.</p></div>`;
-    const d = state.draft;
-    const cards = CHECKLISTS.map(c => `<button type="button" class="cl-card" data-cl="${c.id}" aria-pressed="${d?.checklistId === c.id}">
-      <span class="nr">${c.nr} · ${c.itens.length} itens</span><span class="nm">${esc(c.nome)}</span></button>`).join("");
-    if (!d) return `<h2>Nova inspeção</h2><p class="lead">Escolha o checklist da norma que será verificada.</p><div class="cl-grid">${cards}</div>`;
-    const cl = clById[d.checklistId];
-    const s = score(d);
-    const answered = d.itens.filter(i => i.status).length;
-    return `<h2>Nova inspeção</h2><p class="lead">${esc(cl.nr)} · ${esc(cl.nome)}</p>
+    const d = state.draft, cfg = state.config;
+    const chips = `<div class="chips">${cfg.setores.map(s => `<button type="button" class="pill" data-setor="${esc(s.id)}" aria-pressed="${d?.setorId === s.id}">${esc(s.nome)} <span class="c">(${countQ(cfg, s)})</span></button>`).join("")}</div>`;
+    if (!d) return `<h2>Nova inspeção</h2><p class="lead">Escolha o setor. Cada setor traz só as seções de perguntas que se aplicam a ele.</p>${chips}`;
+    const s = score(d), answered = d.itens.filter(i => i.status).length;
+    let lastSec = null, n = 0, secN = 0;
+    const rows = d.itens.map((it, i) => {
+      let head = "";
+      if (it.secaoId !== lastSec) { lastSec = it.secaoId; secN++; n = 0;
+        const total = d.itens.filter(x => x.secaoId === it.secaoId).length;
+        head = `<div class="sec-head"><h3>${esc(it.secao)}</h3><span class="label">${esc(it.nr || "")}${it.nr ? " · " : ""}${total} perguntas <button type="button" class="btn small" data-act="sec-c" data-sec="${esc(it.secaoId)}" style="margin-left:8px">Pendentes = C</button></span></div>`; }
+      n++;
+      return head + itemRow(it, i, `${secN}.${n}`);
+    }).join("");
+    return `<h2>Nova inspeção</h2><p class="lead">${esc(d.generico ? "Outro setor" : d.setorNome)} · ${d.itens.length} perguntas</p>
     <form id="f-insp" class="stack" novalidate>
-      <details class="panel"><summary class="label" style="cursor:pointer">Trocar checklist</summary><div class="cl-grid" style="margin-top:12px">${cards}</div></details>
+      <details class="panel"><summary class="label" style="cursor:pointer">Trocar setor</summary><div style="margin-top:12px">${chips}</div></details>
       <section class="panel">
         <div class="panel-head"><h3>Identificação</h3></div>
         <div class="fields">
-          <label class="field span2"><span class="label">Local / unidade *</span><input id="f-local" name="local" required value="${esc(d.local)}" placeholder="Ex.: Galpão 2 – Linha de envase"></label>
-          <label class="field"><span class="label">Data *</span><input id="f-data" name="data" type="date" required value="${esc(d.data)}"></label>
-          <label class="field"><span class="label">Setor</span><input id="f-setor" name="setor" value="${esc(d.setor)}" placeholder="Ex.: Produção"></label>
-          <label class="field"><span class="label">Inspetor responsável *</span><input id="f-resp" name="responsavel" required value="${esc(d.responsavel)}" placeholder="Nome do técnico"></label>
-          <label class="field"><span class="label">Acompanhante</span><input id="f-acomp" name="acompanhante" value="${esc(d.acompanhante)}" placeholder="Ex.: Supervisor da área"></label>
+          ${d.generico ? `<label class="field span2"><span class="label">Nome do setor *</span><input id="f-setor-nome" required value="${esc(d.setorNome)}" placeholder="Ex.: Manutenção"></label>` : ""}
+          <label class="field ${d.generico ? "" : "span2"}"><span class="label">Local / área</span><input id="f-local" value="${esc(d.local)}" placeholder="Ex.: Célula 3, forno 2"></label>
+          <label class="field"><span class="label">Data *</span><input id="f-data" type="date" required value="${esc(d.data)}"></label>
+          <label class="field"><span class="label">TST / inspetor *</span><input id="f-resp" required value="${esc(d.responsavel)}" placeholder="Nome do técnico"></label>
+          <label class="field"><span class="label">Acompanhante</span><input id="f-acomp" value="${esc(d.acompanhante)}" placeholder="Ex.: Supervisor do setor"></label>
         </div>
       </section>
       <section class="panel">
-        <div class="panel-head"><h3>Itens verificados</h3>
-          <div class="progress" id="prog"><span><b>${answered}</b>/${d.itens.length} respondidos</span><span class="chip ok">${s.c} C</span><span class="chip bad">${s.nc} NC</span><span class="chip na">${s.na} N/A</span></div></div>
-        <div class="items">${d.itens.map((it, i) => itemRow(it, i)).join("")}</div>
-        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
-          <input id="f-novo-item" placeholder="Adicionar item extra a este checklist" style="flex:1 1 240px;width:auto">
-          <button type="button" class="btn" data-act="add-item">Adicionar item</button>
-          <button type="button" class="btn" data-act="todos-c">Marcar pendentes como conforme</button>
-        </div>
+        <div class="panel-head"><h3>Perguntas</h3>
+          <div class="progress"><span><b>${answered}</b>/${d.itens.length} respondidas</span><span class="chip ok">${s.c} C</span><span class="chip bad">${s.nc} NC</span><span class="chip na">${s.na} N/A</span></div></div>
+        <div class="items">${rows}</div>
       </section>
       <section class="panel">
-        <label class="field"><span class="label">Observações gerais</span><textarea id="f-obs" name="observacoes" placeholder="Condições encontradas, orientações dadas no local…">${esc(d.observacoes)}</textarea></label>
+        <label class="field"><span class="label">Observações gerais</span><textarea id="f-obs" placeholder="Condições encontradas, orientações dadas no local…">${esc(d.observacoes)}</textarea></label>
       </section>
       <div class="sticky-actions">
-        <span class="label" id="f-msg">Itens sem resposta não podem ficar em branco.</span>
+        <span class="label" id="f-msg">Todas as perguntas precisam de resposta.</span>
         <div class="row-actions"><button type="button" class="btn" data-act="descartar">Descartar</button><button type="submit" class="btn primary">Salvar inspeção</button></div>
       </div>
     </form>`;
   }
 
-  function itemRow(it, i) {
+  function itemRow(it, i, num) {
     const seg = ["C", "NC", "NA"].map(v => `<button type="button" data-v="${v}" data-i="${i}" aria-pressed="${it.status === v}" aria-label="${{ C: "Conforme", NC: "Não conforme", NA: "Não aplicável" }[v]}">${v === "NA" ? "N/A" : v}</button>`).join("");
     const extra = it.status === "NC" ? `<div class="extra">
         <label class="field span3"><span class="label">Descrição da não conformidade</span><textarea id="nc-obs-${i}" data-k="obs" data-i="${i}" placeholder="O que foi encontrado">${esc(it.obs)}</textarea></label>
@@ -511,20 +553,21 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
         <label class="field"><span class="label">Responsável pela ação</span><input id="nc-resp-${i}" data-k="respAcao" data-i="${i}" value="${esc(it.respAcao)}"></label>
         <label class="field"><span class="label">Prazo</span><input id="nc-prazo-${i}" type="date" data-k="prazo" data-i="${i}" value="${esc(it.prazo)}"></label>
       </div>` : (it.status ? `<input class="obs" id="it-obs-${i}" data-k="obs" data-i="${i}" value="${esc(it.obs)}" placeholder="Observação (opcional)">` : "");
-    return `<div class="item" id="item-${i}"><span class="n">${String(i + 1).padStart(2, "0")}</span>
-      <div class="txt">${esc(it.texto)}${it.ref ? `<div class="ref">item ${esc(it.ref)}</div>` : ""}</div>
-      <div class="seg" role="group" aria-label="Resultado do item ${i + 1}">${seg}</div>${extra}</div>`;
+    return `<div class="item" id="item-${i}"><span class="n">${num}</span>
+      <div class="txt">${esc(it.texto)}${it.ref ? `<div class="ref">${esc(it.ref)}</div>` : ""}</div>
+      <div class="seg" role="group" aria-label="Resultado da pergunta ${num}">${seg}</div>${extra}</div>`;
   }
 
   function readHeader() {
     const d = state.draft; if (!d) return;
     const g = id => document.getElementById(id);
-    if (g("f-local")) { d.local = g("f-local").value; d.data = g("f-data").value; d.setor = g("f-setor").value; d.responsavel = g("f-resp").value; d.acompanhante = g("f-acomp").value; d.observacoes = g("f-obs").value; }
+    if (!g("f-data")) return;
+    if (g("f-setor-nome")) d.setorNome = g("f-setor-nome").value;
+    d.local = g("f-local").value; d.data = g("f-data").value; d.responsavel = g("f-resp").value; d.acompanhante = g("f-acomp").value; d.observacoes = g("f-obs").value;
   }
 
   function bindNova() {
-    const f = document.getElementById("f-insp");
-    if (!f) return;
+    const f = document.getElementById("f-insp"); if (!f) return;
     f.addEventListener("input", e => {
       const k = e.target.dataset.k, i = e.target.dataset.i;
       if (k != null && i != null) state.draft.itens[+i][k] = e.target.value;
@@ -532,47 +575,96 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
     f.addEventListener("submit", async e => {
       e.preventDefault(); readHeader();
       const d = state.draft, msg = document.getElementById("f-msg");
+      const fail = (t, id) => { msg.textContent = t; msg.style.color = "var(--bad)"; if (id) document.getElementById(id)?.focus(); };
+      if (d.generico && !d.setorNome.trim()) return fail("Digite o nome do setor.", "f-setor-nome");
+      if (!d.data) return fail("Preencha a data.", "f-data");
+      if (!d.responsavel.trim()) return fail("Preencha o TST / inspetor.", "f-resp");
       const faltando = d.itens.findIndex(i => !i.status);
-      if (!d.local.trim() || !d.responsavel.trim() || !d.data) { msg.textContent = "Preencha local, data e inspetor responsável."; msg.style.color = "var(--bad)"; document.getElementById(!d.local.trim() ? "f-local" : !d.data ? "f-data" : "f-resp").focus(); return; }
-      if (faltando >= 0) { msg.textContent = `Responda o item ${faltando + 1} (C, NC ou N/A).`; msg.style.color = "var(--bad)"; document.getElementById("item-" + faltando).scrollIntoView({ block: "center" }); return; }
-      const cl = clById[d.checklistId];
-      const insp = { id: uid(), ...structuredClone(d), checklistNome: cl.nome, nr: cl.nr, criadoEm: Date.now(),
-        itens: d.itens.map(i => ({ ...i, corrigido: false, corrigidoEm: "" })) };
+      if (faltando >= 0) { fail(`Responda a pergunta "${d.itens[faltando].texto.slice(0, 50)}…"`); document.getElementById("item-" + faltando).scrollIntoView({ block: "center" }); return; }
+      const insp = { id: uid(), ...structuredClone(d), setorNome: d.setorNome.trim(), criadoEm: Date.now(), itens: d.itens.map(i => ({ ...i, corrigido: false, corrigidoEm: "" })) };
+      delete insp.generico;
       const btn = f.querySelector("button[type=submit]"); btn.disabled = true; btn.textContent = "Salvando…";
-      try {
-        await saveInsp(insp); state.draft = null; toast("Inspeção salva"); go("detalhe", { selected: insp.id });
-      } catch (err) {
+      try { await saveInsp(insp); state.draft = null; toast("Inspeção salva"); go("detalhe", { selected: insp.id }); }
+      catch (err) {
         btn.disabled = false; btn.textContent = "Salvar inspeção";
-        msg.style.color = "var(--bad)";
-        msg.textContent = err?.code === "invalid_argument" ? "Seu acesso não permite salvar inspeções nesta página." : err?.code === "quota_exceeded" ? "O banco atingiu o limite de registros. Exclua inspeções antigas para continuar." : "Não foi possível salvar agora. Tente novamente em instantes.";
+        fail(err?.code === "invalid_argument" ? "Seu acesso não permite salvar inspeções nesta página." : err?.code === "quota_exceeded" ? "O banco atingiu o limite de registros. Exclua inspeções antigas para continuar." : "Não foi possível salvar agora. Tente novamente em instantes.");
       }
     });
   }
 
+  // ---------- Setores e perguntas ----------
+  function viewSetores() {
+    if (!state.cfgDraft) state.cfgDraft = structuredClone(state.config);
+    const cfg = state.cfgDraft;
+    if (!cfg.setores.find(s => s.id === state.cfgSetor)) state.cfgSetor = cfg.setores[0]?.id;
+    if (!cfg.secoes.find(s => s.id === state.cfgSecao)) state.cfgSecao = cfg.secoes[0]?.id;
+    const st = cfg.setores.find(s => s.id === state.cfgSetor);
+    const sec = cfg.secoes.find(s => s.id === state.cfgSecao);
+    const ro = !state.canWrite;
+    return `<h2>Setores e perguntas</h2><p class="lead">Cada setor recebe só as seções que se aplicam a ele. As mudanças valem para as próximas inspeções; as já registradas mantêm suas perguntas.</p>
+    <div class="stack">
+      <div class="chips">${cfg.setores.map(s => `<button type="button" class="pill" data-act="cfg-setor" data-id="${esc(s.id)}" aria-pressed="${s.id === state.cfgSetor}">${esc(s.nome)} <span class="c">(${countQ(cfg, s)})</span></button>`).join("")}
+        ${ro ? "" : `<button type="button" class="pill" data-act="cfg-novo-setor">+ Novo setor</button>`}</div>
+      ${st ? `<section class="panel stack" style="gap:14px">
+        <div class="fields">
+          <label class="field span2"><span class="label">Nome do setor</span><input id="cfg-nome" data-cfg="nome" value="${esc(st.nome)}" ${ro ? "disabled" : ""}></label>
+          <label class="inline-check" style="align-self:end"><input type="checkbox" id="cfg-generico" data-cfg="generico" ${st.generico ? "checked" : ""} ${ro ? "disabled" : ""}><span>O TST digita o nome do setor ao abrir a inspeção (setor genérico)</span></label>
+        </div>
+        <div><h3>Seções de perguntas</h3><p class="lead" style="margin:2px 0 10px">Marque as seções que se aplicam a este setor.</p>
+          <div class="check-grid">${cfg.secoes.map(s => `<label class="check-card"><input type="checkbox" data-cfg="secao" value="${esc(s.id)}" ${st.secoes.includes(s.id) ? "checked" : ""} ${ro ? "disabled" : ""}>
+            <span class="nm">${esc(s.nome)}</span><span class="sub">${s.perguntas.length} perguntas${s.nr ? " · " + esc(s.nr) : ""}</span></label>`).join("")}</div></div>
+        ${ro ? "" : (state.cfgConfirmDel ? `<div class="confirm">Excluir o setor "${esc(st.nome)}"? As inspeções já registradas não são apagadas. <button class="btn small danger" data-act="cfg-del-sim">Excluir</button><button class="btn small" data-act="cfg-del-nao">Cancelar</button></div>`
+          : `<div><button type="button" class="btn danger small" data-act="cfg-del">Excluir setor</button></div>`)}
+      </section>` : ""}
+      <section class="panel stack" style="gap:12px">
+        <div class="panel-head" style="margin:0"><h3>Perguntas das seções</h3>${ro ? "" : `<button type="button" class="btn small" data-act="cfg-nova-secao">+ Nova seção</button>`}</div>
+        <div class="chips">${cfg.secoes.map(s => `<button type="button" class="pill" data-act="cfg-secao" data-id="${esc(s.id)}" aria-pressed="${s.id === state.cfgSecao}">${esc(s.nome)} <span class="c">(${s.perguntas.length})</span></button>`).join("")}</div>
+        ${sec ? `<div class="fields">
+          <label class="field span2"><span class="label">Nome da seção</span><input id="sec-nome" data-sec="nome" value="${esc(sec.nome)}" ${ro ? "disabled" : ""}></label>
+          <label class="field"><span class="label">Norma</span><input id="sec-nr" data-sec="nr" value="${esc(sec.nr)}" placeholder="Ex.: NR-12" ${ro ? "disabled" : ""}></label>
+        </div>
+        <div>${sec.perguntas.map((p, i) => `<div class="q-row"><span class="n">${i + 1}</span>
+          <input id="q-t-${i}" data-q="texto" data-i="${i}" value="${esc(p.texto)}" ${ro ? "disabled" : ""}>
+          <input class="ref-in" id="q-r-${i}" data-q="ref" data-i="${i}" value="${esc(p.ref)}" placeholder="Item da NR" ${ro ? "disabled" : ""}>
+          ${ro ? "" : `<button type="button" class="btn small danger" data-act="q-del" data-i="${i}" aria-label="Remover pergunta ${i + 1}">Remover</button>`}</div>`).join("")}</div>
+        ${ro ? "" : `<div style="display:flex;gap:8px;flex-wrap:wrap"><input id="q-nova" placeholder="Nova pergunta para a seção ${esc(sec.nome)}" style="flex:1 1 260px;width:auto"><button type="button" class="btn" data-act="q-add">Adicionar pergunta</button></div>`}` : ""}
+      </section>
+      ${ro ? "" : `<div class="save-bar"><button type="button" class="btn primary" data-act="cfg-salvar" ${state.cfgDirty ? "" : "disabled"}>Salvar alterações</button>
+        <button type="button" class="btn" data-act="cfg-descartar" ${state.cfgDirty ? "" : "disabled"}>Descartar</button>
+        <span class="label">${state.cfgDirty ? "Há alterações não salvas" : "Tudo salvo"}</span>
+        <button type="button" class="btn small" data-act="cfg-padrao" style="margin-left:auto">Restaurar padrão</button></div>`}
+    </div>`;
+  }
+  function cfgChanged(rerender = true) {
+    state.cfgDirty = true;
+    if (rerender) { const y = window.scrollY; render(); window.scrollTo(0, y); }
+    else document.querySelectorAll('[data-act="cfg-salvar"],[data-act="cfg-descartar"]').forEach(b => b.disabled = false);
+  }
+
   // ---------- Histórico ----------
   function filtered() {
-    const q = state.filtro.q.trim().toLowerCase();
-    return state.inspecoes.filter(i => (!state.filtro.cl || i.checklistId === state.filtro.cl) &&
-      (!q || [i.local, i.setor, i.responsavel, i.checklistNome, i.nr].join(" ").toLowerCase().includes(q)));
+    const qq = state.filtro.q.trim().toLowerCase();
+    return state.inspecoes.filter(i => (!state.filtro.setor || setorLabel(i) === state.filtro.setor) &&
+      (!qq || [setorLabel(i), i.local, i.responsavel].join(" ").toLowerCase().includes(qq)));
   }
   function viewHistorico() {
-    if (!state.inspecoes.length) return `<h2>Histórico</h2><p class="lead">Todas as inspeções registradas.</p>` + emptyState("Nenhuma inspeção ainda", "Registre a primeira inspeção para montar o histórico.");
-    const L = filtered();
-    return `<h2>Histórico</h2><p class="lead">Todas as inspeções registradas. Clique em uma linha para ver o relatório.</p>
-      <div class="filters">
-        <input id="h-q" type="search" placeholder="Buscar por local, setor ou inspetor" value="${esc(state.filtro.q)}">
-        <select id="h-cl"><option value="">Todos os checklists</option>${CHECKLISTS.map(c => `<option value="${c.id}" ${state.filtro.cl === c.id ? "selected" : ""}>${c.nr} · ${esc(c.nome)}</option>`).join("")}</select>
+    const lead = `<h2>Histórico</h2><p class="lead">Todas as inspeções registradas. Clique em uma linha para ver o relatório.</p>`;
+    if (!state.inspecoes.length) return lead + emptyState("Nenhuma inspeção ainda", "Registre a primeira inspeção para montar o histórico.");
+    const setores = [...new Set(state.inspecoes.map(setorLabel))].sort();
+    return lead + `<div class="filters">
+        <input id="h-q" type="search" placeholder="Buscar por setor, local ou TST" value="${esc(state.filtro.q)}">
+        <select id="h-setor"><option value="">Todos os setores</option>${setores.map(s => `<option ${state.filtro.setor === s ? "selected" : ""}>${esc(s)}</option>`).join("")}</select>
         <button class="btn" data-act="csv">Exportar CSV</button>
       </div>
-      <div class="table-wrap"><table><thead><tr><th>Data</th><th>Local</th><th class="hide-sm">Checklist</th><th class="hide-sm">Inspetor</th><th>Conformidade</th><th>NC abertas</th></tr></thead>
-      <tbody id="h-body">${histRows(L)}</tbody></table></div>
+      <div class="table-wrap"><table><thead><tr><th>Data</th><th>Setor</th><th class="hide-sm">Local</th><th class="hide-sm">TST</th><th>Conformidade</th><th>NC abertas</th></tr></thead>
+      <tbody id="h-body">${histRows(filtered())}</tbody></table></div>
       <div id="copy-area"></div>`;
   }
   function histRows(L) {
     if (!L.length) return `<tr><td colspan="6" class="empty">Nenhuma inspeção corresponde à busca.</td></tr>`;
     return L.map(i => { const s = score(i); const ab = i.itens.filter(x => x.status === "NC" && !x.corrigido).length;
-      return `<tr data-act="abrir" data-id="${i.id}" tabindex="0"><td class="num">${fmtDate(i.data)}</td><td>${esc(i.local)}${i.exemplo ? ` <span class="chip ex">exemplo</span>` : ""}${i.setor ? `<div class="label">${esc(i.setor)}</div>` : ""}</td>
-      <td class="hide-sm">${esc(i.nr)} · ${esc(i.checklistNome)}</td><td class="hide-sm">${esc(i.responsavel)}</td><td>${pctChip(s.pct)}</td><td class="num">${ab ? `<span class="chip bad">${ab}</span>` : "0"}</td></tr>`; }).join("");
+      return `<tr data-act="abrir" data-id="${i.id}" tabindex="0"><td class="num">${fmtDate(i.data)}</td><td>${esc(setorLabel(i))}${i.exemplo ? ` <span class="chip ex">exemplo</span>` : ""}</td>
+      <td class="hide-sm">${esc(i.local || "—")}</td><td class="hide-sm">${esc(i.responsavel)}</td><td>${pctChip(s.pct)}</td><td class="num">${ab ? `<span class="chip bad">${ab}</span>` : "0"}</td></tr>`; }).join("");
   }
 
   // ---------- Detalhe ----------
@@ -580,40 +672,43 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
     const i = state.inspecoes.find(x => x.id === state.selected);
     if (!i) return `<h2>Inspeção não encontrada</h2><p class="lead">Ela pode ter sido excluída.</p><button class="btn" data-act="voltar">Voltar ao histórico</button>`;
     const s = score(i);
+    let last = null;
+    const itens = i.itens.map((it, idx) => {
+      const head = it.secao && it.secao !== last ? `<div class="sec-head"><h3>${esc(it.secao)}</h3><span class="label">${esc(it.nr || "")}</span></div>` : "";
+      last = it.secao || last;
+      return head + `<div class="d-item"><span class="n label" style="padding-top:2px">${idx + 1}</span>
+        <div>${esc(it.texto)}${it.ref ? ` <span class="label">${esc(it.ref)}</span>` : ""}</div>
+        <span class="chip ${it.status === "C" ? "ok" : it.status === "NC" ? "bad" : "na"}">${{ C: "Conforme", NC: "Não conforme", NA: "N/A" }[it.status]}</span>
+        ${it.obs ? `<div class="note">${esc(it.obs)}</div>` : ""}
+        ${it.status === "NC" ? `<div class="act ${it.corrigido ? "done" : ""}">
+          <span><span class="label">Ação</span> ${esc(it.acao || "não definida")}</span>
+          ${it.respAcao ? `<span><span class="label">Resp.</span> ${esc(it.respAcao)}</span>` : ""}
+          <span><span class="label">Prazo</span> ${fmtDate(it.prazo)}</span>
+          ${it.corrigido ? `<span class="chip ok">Corrigido em ${fmtDate(it.corrigidoEm)}</span>${state.canWrite ? `<button class="btn small" data-act="reabrir" data-idx="${idx}">Reabrir</button>` : ""}`
+            : state.canWrite ? `<button class="btn small" data-act="corrigir" data-idx="${idx}">Marcar como corrigido</button>` : `<span class="chip bad">Em aberto</span>`}
+        </div>` : ""}</div>`;
+    }).join("");
     return `<div class="stack">
       <div><button class="btn small" data-act="voltar">← Histórico</button></div>
       <section class="panel">
         <div class="detail-head">
-          <div style="min-width:0"><span class="label">${esc(i.nr)} · ${esc(i.checklistNome)}</span><h2 style="margin-top:4px">${esc(i.local)}</h2>${i.exemplo ? `<span class="chip ex">registro de exemplo</span>` : ""}</div>
+          <div style="min-width:0"><span class="label">Setor</span><h2 style="margin-top:4px">${esc(setorLabel(i))}</h2>${i.exemplo ? `<span class="chip ex">registro de exemplo</span>` : ""}</div>
           <div style="text-align:right"><div class="score" style="color:${pctColor(s.pct)}">${s.pct ?? "—"}${s.pct != null ? "%" : ""}</div><span class="label">conformidade</span></div>
         </div>
         <div class="meta">
           <div><span class="label">Data</span><b>${fmtDate(i.data)}</b></div>
-          <div><span class="label">Setor</span><b>${esc(i.setor || "—")}</b></div>
-          <div><span class="label">Inspetor</span><b>${esc(i.responsavel)}</b></div>
+          <div><span class="label">Local / área</span><b>${esc(i.local || "—")}</b></div>
+          <div><span class="label">TST / inspetor</span><b>${esc(i.responsavel)}</b></div>
           <div><span class="label">Acompanhante</span><b>${esc(i.acompanhante || "—")}</b></div>
           <div><span class="label">Resultado</span><b><span class="chip ok">${s.c} C</span> <span class="chip bad">${s.nc} NC</span> <span class="chip na">${s.na} N/A</span></b></div>
         </div>
         ${i.observacoes ? `<p style="margin:16px 0 0;max-width:65ch"><span class="label">Observações gerais</span><br>${esc(i.observacoes)}</p>` : ""}
       </section>
-      <section class="panel"><div class="panel-head"><h3>Itens</h3></div>
-        ${i.itens.map((it, idx) => `<div class="d-item"><span class="n label" style="padding-top:2px">${String(idx + 1).padStart(2, "0")}</span>
-          <div>${esc(it.texto)}${it.ref ? ` <span class="label">${esc(it.ref)}</span>` : ""}</div>
-          <span class="chip ${it.status === "C" ? "ok" : it.status === "NC" ? "bad" : "na"}">${{ C: "Conforme", NC: "Não conforme", NA: "N/A" }[it.status]}</span>
-          ${it.obs ? `<div class="note">${esc(it.obs)}</div>` : ""}
-          ${it.status === "NC" ? `<div class="act ${it.corrigido ? "done" : ""}">
-            <span><span class="label">Ação</span> ${esc(it.acao || "não definida")}</span>
-            ${it.respAcao ? `<span><span class="label">Resp.</span> ${esc(it.respAcao)}</span>` : ""}
-            <span><span class="label">Prazo</span> ${fmtDate(it.prazo)}</span>
-            ${it.corrigido ? `<span class="chip ok">Corrigido em ${fmtDate(it.corrigidoEm)}</span>${state.canWrite ? `<button class="btn small" data-act="reabrir" data-idx="${idx}">Reabrir</button>` : ""}`
-              : state.canWrite ? `<button class="btn small" data-act="corrigir" data-idx="${idx}">Marcar como corrigido</button>` : `<span class="chip bad">Em aberto</span>`}
-          </div>` : ""}
-        </div>`).join("")}
-      </section>
+      <section class="panel">${itens}</section>
       <div class="row-actions">
         <button class="btn" data-act="relatorio">Baixar relatório (HTML)</button>
         <button class="btn" data-act="csv-one">Exportar CSV</button>
-        <button class="btn" data-act="duplicar">Nova inspeção neste local</button>
+        ${i.setorId && state.config.setores.some(s => s.id === i.setorId) ? `<button class="btn" data-act="duplicar">Nova inspeção neste setor</button>` : ""}
         ${state.canWrite ? (state.confirmDelete
           ? `<div class="confirm">Excluir esta inspeção definitivamente? <button class="btn small danger" data-act="excluir-sim">Excluir</button><button class="btn small" data-act="excluir-nao">Cancelar</button></div>`
           : `<button class="btn danger" data-act="excluir">Excluir</button>`) : ""}
@@ -624,26 +719,30 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
 
   // ---------- Exportação ----------
   function toCSV(list) {
-    const head = ["Data", "Local", "Setor", "Inspetor", "Norma", "Checklist", "Nº", "Item", "Ref.", "Resultado", "Observação", "Ação corretiva", "Responsável ação", "Prazo", "Corrigido"];
-    const q = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
-    const rows = [head.map(q).join(";")];
-    for (const i of list) i.itens.forEach((it, n) => rows.push([fmtDate(i.data), i.local, i.setor, i.responsavel, i.nr, i.checklistNome, n + 1, it.texto, it.ref,
-      { C: "Conforme", NC: "Não conforme", NA: "N/A" }[it.status], it.obs, it.acao, it.respAcao, it.prazo ? fmtDate(it.prazo) : "", it.status === "NC" ? (it.corrigido ? "Sim " + fmtDate(it.corrigidoEm) : "Não") : ""].map(q).join(";")));
+    const head = ["Data", "Setor", "Local", "TST", "Seção", "Norma", "Nº", "Pergunta", "Ref.", "Resultado", "Observação", "Ação corretiva", "Responsável ação", "Prazo", "Corrigido"];
+    const qq = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const rows = [head.map(qq).join(";")];
+    for (const i of list) i.itens.forEach((it, n) => rows.push([fmtDate(i.data), setorLabel(i), i.local, i.responsavel, it.secao, it.nr || i.nr, n + 1, it.texto, it.ref,
+      { C: "Conforme", NC: "Não conforme", NA: "N/A" }[it.status], it.obs, it.acao, it.respAcao, it.prazo ? fmtDate(it.prazo) : "", it.status === "NC" ? (it.corrigido ? "Sim " + fmtDate(it.corrigidoEm) : "Não") : ""].map(qq).join(";")));
     return "﻿" + rows.join("\r\n");
   }
   function reportHTML(i) {
-    const s = score(i);
-    const lab = { C: "Conforme", NC: "Não conforme", NA: "N/A" };
-    return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Inspeção ${esc(i.nr)} – ${esc(i.local)} – ${fmtDate(i.data)}</title>
+    const s = score(i), lab = { C: "Conforme", NC: "Não conforme", NA: "N/A" };
+    let last = null;
+    const rows = i.itens.map((it, n) => {
+      const h = it.secao && it.secao !== last ? `<tr><th colspan="5" style="background:#1d211c;color:#fff">${esc(it.secao)}${it.nr ? " · " + esc(it.nr) : ""}</th></tr>` : "";
+      last = it.secao || last;
+      return h + `<tr><td>${n + 1}</td><td>${esc(it.texto)}${it.ref ? ` <small>(${esc(it.ref)})</small>` : ""}</td><td class="${it.status}">${lab[it.status]}</td><td>${esc(it.obs)}</td><td>${it.status === "NC" ? `${esc(it.acao)}${it.respAcao ? " / " + esc(it.respAcao) : ""}${it.prazo ? " / " + fmtDate(it.prazo) : ""}${it.corrigido ? " — corrigido em " + fmtDate(it.corrigidoEm) : ""}` : ""}</td></tr>`;
+    }).join("");
+    return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Inspeção – ${esc(setorLabel(i))} – ${fmtDate(i.data)}</title>
 <style>body{font-family:Arial,sans-serif;color:#1d211c;max-width:900px;margin:24px auto;padding:0 16px;font-size:13px}h1{font-size:20px;margin:0}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{border:1px solid #bbb;padding:6px;text-align:left;vertical-align:top}th{background:#eee}.C{color:#1f7a3d}.NC{color:#c0281e;font-weight:bold}.meta td{border:0;padding:2px 12px 2px 0}.sig{display:flex;gap:48px;margin-top:48px}.sig div{flex:1;border-top:1px solid #000;padding-top:4px;text-align:center}</style></head><body>
 <div style="height:6px;background:repeating-linear-gradient(-45deg,#e8b500 0 12px,#1d211c 12px 24px)"></div>
-<h1 style="margin-top:12px">Relatório de Inspeção de Segurança</h1><p>${esc(i.nr)} · ${esc(i.checklistNome)}</p>
-<table class="meta"><tr><td><b>Local:</b> ${esc(i.local)}</td><td><b>Setor:</b> ${esc(i.setor || "—")}</td><td><b>Data:</b> ${fmtDate(i.data)}</td></tr>
-<tr><td><b>Inspetor:</b> ${esc(i.responsavel)}</td><td><b>Acompanhante:</b> ${esc(i.acompanhante || "—")}</td><td><b>Conformidade:</b> ${s.pct ?? "—"}% (${s.c} C · ${s.nc} NC · ${s.na} N/A)</td></tr></table>
-<table><thead><tr><th>Nº</th><th>Item</th><th>Resultado</th><th>Observação</th><th>Ação corretiva / Resp. / Prazo</th></tr></thead><tbody>
-${i.itens.map((it, n) => `<tr><td>${n + 1}</td><td>${esc(it.texto)}${it.ref ? ` <small>(${esc(it.ref)})</small>` : ""}</td><td class="${it.status}">${lab[it.status]}</td><td>${esc(it.obs)}</td><td>${it.status === "NC" ? `${esc(it.acao)}${it.respAcao ? " / " + esc(it.respAcao) : ""}${it.prazo ? " / " + fmtDate(it.prazo) : ""}${it.corrigido ? " — corrigido em " + fmtDate(it.corrigidoEm) : ""}` : ""}</td></tr>`).join("")}
-</tbody></table>${i.observacoes ? `<p><b>Observações gerais:</b> ${esc(i.observacoes)}</p>` : ""}
-<div class="sig"><div>${esc(i.responsavel)}<br>Inspetor</div><div>${esc(i.acompanhante || "")}<br>Responsável da área</div></div></body></html>`;
+<h1 style="margin-top:12px">Relatório de Inspeção de Segurança</h1><p>Setor: <b>${esc(setorLabel(i))}</b></p>
+<table class="meta"><tr><td><b>Local:</b> ${esc(i.local || "—")}</td><td><b>Data:</b> ${fmtDate(i.data)}</td><td><b>Conformidade:</b> ${s.pct ?? "—"}% (${s.c} C · ${s.nc} NC · ${s.na} N/A)</td></tr>
+<tr><td><b>TST:</b> ${esc(i.responsavel)}</td><td><b>Acompanhante:</b> ${esc(i.acompanhante || "—")}</td><td></td></tr></table>
+<table><thead><tr><th>Nº</th><th>Pergunta</th><th>Resultado</th><th>Observação</th><th>Ação corretiva / Resp. / Prazo</th></tr></thead><tbody>${rows}</tbody></table>
+${i.observacoes ? `<p><b>Observações gerais:</b> ${esc(i.observacoes)}</p>` : ""}
+<div class="sig"><div>${esc(i.responsavel)}<br>TST / Inspetor</div><div>${esc(i.acompanhante || "")}<br>Responsável do setor</div></div></body></html>`;
   }
   async function offer(filename, data) {
     if (downloads) {
@@ -666,12 +765,12 @@ ${i.itens.map((it, n) => `<tr><td>${n + 1}</td><td>${esc(it.texto)}${it.ref ? ` 
 
   // ---------- Ações ----------
   document.addEventListener("click", async e => {
-    const el = e.target.closest("[data-act], .cl-card, .seg button");
+    const el = e.target.closest("[data-act], [data-setor], .seg button");
     if (!el) return;
-    if (el.classList.contains("cl-card")) {
+    if (el.dataset.setor && !el.dataset.act) {
       readHeader();
-      const old = state.draft; state.draft = newDraft(el.dataset.cl);
-      if (old) Object.assign(state.draft, { local: old.local, setor: old.setor, responsavel: old.responsavel, data: old.data, acompanhante: old.acompanhante, observacoes: old.observacoes });
+      const old = state.draft; state.draft = newDraft(el.dataset.setor);
+      if (old) Object.assign(state.draft, { local: old.local, responsavel: old.responsavel, data: old.data, acompanhante: old.acompanhante, observacoes: old.observacoes });
       render(); return;
     }
     if (el.matches(".seg button")) {
@@ -683,16 +782,14 @@ ${i.itens.map((it, n) => `<tr><td>${n + 1}</td><td>${esc(it.texto)}${it.ref ? ` 
     }
     const act = el.dataset.act;
     const cur = () => state.inspecoes.find(x => x.id === state.selected);
+    const cfg = state.cfgDraft;
+    const keepY = () => { const y = window.scrollY; render(); window.scrollTo(0, y); };
     switch (act) {
       case "nova": go("nova"); break;
       case "abrir": go("detalhe", { selected: el.dataset.id }); break;
       case "voltar": go("historico"); break;
       case "descartar": state.draft = null; render(); break;
-      case "add-item": {
-        readHeader(); const inp = document.getElementById("f-novo-item"); const t = inp.value.trim(); if (!t) { inp.focus(); break; }
-        state.draft.itens.push({ texto: t, ref: "", status: "", obs: "", acao: "", prazo: "", respAcao: "" }); render(); break;
-      }
-      case "todos-c": readHeader(); state.draft.itens.forEach(i => { if (!i.status) i.status = "C"; }); { const y = window.scrollY; render(); window.scrollTo(0, y); } break;
+      case "sec-c": readHeader(); state.draft.itens.forEach(i => { if (i.secaoId === el.dataset.sec && !i.status) i.status = "C"; }); keepY(); break;
       case "corrigir": case "reabrir": {
         const i = structuredClone(cur()); const it = i.itens[+el.dataset.idx];
         it.corrigido = act === "corrigir"; it.corrigidoEm = it.corrigido ? today() : "";
@@ -703,28 +800,62 @@ ${i.itens.map((it, n) => `<tr><td>${n + 1}</td><td>${esc(it.texto)}${it.ref ? ` 
       case "excluir": state.confirmDelete = true; render(); break;
       case "excluir-nao": state.confirmDelete = false; render(); break;
       case "excluir-sim": try { await deleteInsp(state.selected); toast("Inspeção excluída"); go("historico"); } catch { toast("Não foi possível excluir. Tente novamente."); } break;
-      case "duplicar": { const i = cur(); state.draft = newDraft(i.checklistId); Object.assign(state.draft, { local: i.local, setor: i.setor, responsavel: i.responsavel, acompanhante: i.acompanhante }); go("nova"); break; }
-      case "relatorio": { const i = cur(); offer(`inspecao-${slug(i.nr)}-${slug(i.local)}-${i.data}.html`, reportHTML(i)); break; }
-      case "csv-one": { const i = cur(); offer(`inspecao-${slug(i.local)}-${i.data}.csv`, toCSV([i])); break; }
+      case "duplicar": { const i = cur(); state.draft = newDraft(i.setorId); Object.assign(state.draft, { setorNome: i.setorNome, local: i.local, responsavel: i.responsavel, acompanhante: i.acompanhante }); go("nova"); break; }
+      case "relatorio": { const i = cur(); offer(`inspecao-${slug(setorLabel(i))}-${i.data}.html`, reportHTML(i)); break; }
+      case "csv-one": { const i = cur(); offer(`inspecao-${slug(setorLabel(i))}-${i.data}.csv`, toCSV([i])); break; }
       case "csv": offer(`inspecoes-${today()}.csv`, toCSV(filtered())); break;
       case "copiar": {
         const ta = document.getElementById("copy-text");
         try { await navigator.clipboard.writeText(ta.value); toast("Copiado"); } catch { ta.select(); toast("Texto selecionado. Use Ctrl+C para copiar."); }
         break;
       }
+      // Configuração
+      case "cfg-setor": state.cfgSetor = el.dataset.id; state.cfgConfirmDel = false; keepY(); break;
+      case "cfg-secao": state.cfgSecao = el.dataset.id; keepY(); break;
+      case "cfg-novo-setor": { const id = "s-" + uid(); cfg.setores.push({ id, nome: "Novo setor", generico: false, secoes: [] }); state.cfgSetor = id; cfgChanged(); document.getElementById("cfg-nome")?.select(); break; }
+      case "cfg-nova-secao": { const id = "sec-" + uid(); cfg.secoes.push({ id, nome: "Nova seção", nr: "", perguntas: [] }); state.cfgSecao = id; cfgChanged(); document.getElementById("sec-nome")?.select(); break; }
+      case "cfg-del": state.cfgConfirmDel = true; keepY(); break;
+      case "cfg-del-nao": state.cfgConfirmDel = false; keepY(); break;
+      case "cfg-del-sim": cfg.setores = cfg.setores.filter(s => s.id !== state.cfgSetor); state.cfgConfirmDel = false; state.cfgSetor = cfg.setores[0]?.id; cfgChanged(); break;
+      case "q-del": cfg.secoes.find(s => s.id === state.cfgSecao).perguntas.splice(+el.dataset.i, 1); cfgChanged(); break;
+      case "q-add": { const inp = document.getElementById("q-nova"); const t = inp.value.trim(); if (!t) { inp.focus(); break; }
+        cfg.secoes.find(s => s.id === state.cfgSecao).perguntas.push({ texto: t, ref: "" }); cfgChanged(); document.getElementById("q-nova")?.focus(); break; }
+      case "cfg-padrao": state.cfgDraft = { secoes: structuredClone(DEFAULT_SECOES), setores: structuredClone(DEFAULT_SETORES) }; cfgChanged(); toast("Padrão carregado. Clique em Salvar alterações para aplicar."); break;
+      case "cfg-descartar": state.cfgDraft = null; state.cfgDirty = false; keepY(); break;
+      case "cfg-salvar": {
+        const usados = new Set(cfg.setores.flatMap(s => s.secoes));
+        cfg.secoes.forEach(s => s.perguntas = s.perguntas.filter(p => p.texto.trim()));
+        el.disabled = true;
+        try { await saveConfig(structuredClone(cfg)); state.config = structuredClone(cfg); state.cfgDirty = false; state.cfgDraft = null; toast("Setores e perguntas salvos"); keepY(); }
+        catch (err) { el.disabled = false; toast(err?.code === "invalid_argument" ? "Seu acesso não permite alterar os setores." : "Não foi possível salvar. Tente novamente."); }
+        void usados; break;
+      }
     }
   });
   document.addEventListener("keydown", e => {
     if (e.key === "Enter" && e.target.matches("tr[data-act]")) e.target.click();
+    if (e.key === "Enter" && e.target.id === "q-nova") { e.preventDefault(); document.querySelector('[data-act="q-add"]')?.click(); }
   });
   document.addEventListener("input", e => {
-    if (e.target.id === "h-q" || e.target.id === "h-cl") {
-      state.filtro.q = document.getElementById("h-q").value; state.filtro.cl = document.getElementById("h-cl").value;
-      document.getElementById("h-body").innerHTML = histRows(filtered());
+    const t = e.target;
+    if (t.id === "h-q" || t.id === "h-setor") {
+      state.filtro.q = document.getElementById("h-q").value; state.filtro.setor = document.getElementById("h-setor").value;
+      document.getElementById("h-body").innerHTML = histRows(filtered()); return;
     }
+    if (state.view !== "setores" || !state.cfgDraft) return;
+    const st = state.cfgDraft.setores.find(s => s.id === state.cfgSetor);
+    const sec = state.cfgDraft.secoes.find(s => s.id === state.cfgSecao);
+    if (t.dataset.cfg === "nome") { st.nome = t.value; cfgChanged(false); }
+    else if (t.dataset.cfg === "generico") { st.generico = t.checked; cfgChanged(false); }
+    else if (t.dataset.cfg === "secao") {
+      const ids = [...document.querySelectorAll('[data-cfg="secao"]:checked')].map(x => x.value);
+      st.secoes = state.cfgDraft.secoes.map(s => s.id).filter(id => ids.includes(id)); cfgChanged();
+    }
+    else if (t.dataset.sec) { sec[t.dataset.sec] = t.value; cfgChanged(false); }
+    else if (t.dataset.q) { sec.perguntas[+t.dataset.i][t.dataset.q] = t.value; cfgChanged(false); }
   });
 
-  try { const h = location.hash.slice(1); if (["painel", "nova", "historico"].includes(h)) state.view = h; } catch {}
+  try { const h = location.hash.slice(1); if (["painel", "nova", "historico", "setores"].includes(h)) state.view = h; } catch {}
   document.querySelectorAll("nav.tabs button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.view === state.view)));
   initStore();
 })();

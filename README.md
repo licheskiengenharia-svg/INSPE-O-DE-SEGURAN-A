@@ -1,7 +1,8 @@
 # Inspeção de Segurança
 
-Sistema web de inspeções de segurança do trabalho com checklists das NRs (NR-06, NR-10, NR-12, NR-18, NR-23, NR-24, NR-26 e NR-35).
+Sistema web de inspeções de segurança do trabalho organizado por setor (Usinagem, Fusão, Macharia, Savelli, Cura Frio, Rebarbação e jateamento, Pintura e outros). Cada setor recebe as seções de perguntas que se aplicam a ele (EPI, elétrica, máquinas, químicos, frentes de trabalho, fornos, cargas, ambiente, incêndio, áreas comuns e 5S).
 
+- Tela "Setores e perguntas" para criar setores e editar seções e perguntas
 - Registro de inspeções com itens Conforme / Não conforme / N/A
 - Não conformidades com ação corretiva, responsável e prazo
 - Painel com conformidade média e pendências
