@@ -222,6 +222,11 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
 .grid2.even { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 @media (max-width: 760px) { .grid2.even { grid-template-columns: minmax(0, 1fr); } .hrow { grid-template-columns: minmax(0, 1fr) auto; } .hrow .htrack { grid-column: 1 / -1; grid-row: 2; } }
 
+/* Assinatura */
+.sig-pad { display: block; width: 100%; max-width: 100%; aspect-ratio: 900 / 240; background: #fff; border: 1px dashed var(--muted); border-radius: 6px; touch-action: none; cursor: crosshair; }
+.sig-img { display: block; max-width: 100%; height: 110px; object-fit: contain; background: #fff; border-radius: 6px; }
+.sig-line { border-top: 1px solid var(--fg); margin-top: 6px; padding-top: 4px; font-size: 13px; color: var(--muted); max-width: 420px; }
+
 /* Setores e perguntas */
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .pill { font: 500 14px var(--f-body); border: 1px solid var(--line); background: var(--surface); color: var(--fg); border-radius: 999px; padding: 7px 14px; cursor: pointer; }
@@ -632,7 +637,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
     for (const sid of st.secoes) { const sec = secById(cfg, sid); if (!sec) continue;
       for (const p of sec.perguntas) itens.push({ secaoId: sec.id, secao: sec.nome, nr: sec.nr, texto: p.texto, ref: p.ref, status: "", obs: "", acao: "", prazo: "", respAcao: "" }); }
     const tst = lsGet(LS_TST, {});
-    return { setorId, setorNome: st.generico ? "" : st.nome, generico: st.generico, local: "", responsavel: tst.nome || "", registroTst: tst.registro || "", data: today(), horaInicio: nowHM(), horaFim: "", turno: "", acompanhante: "", observacoes: "", itens };
+    return { setorId, setorNome: st.generico ? "" : st.nome, generico: st.generico, local: "", responsavel: tst.nome || "", registroTst: tst.registro || "", data: today(), horaInicio: nowHM(), horaFim: "", turno: "", acompanhante: "", cargoLider: "", assinaturaLider: "", observacoes: "", itens };
   }
 
   function viewNova() {
@@ -669,7 +674,13 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
         <div class="fields">
           ${d.generico ? `<label class="field"><span class="label">Nome do setor *</span><input id="f-setor-nome" required value="${esc(d.setorNome)}" placeholder="Ex.: Manutenção"></label>` : ""}
           <label class="field ${d.generico ? "" : "span2"}"><span class="label">Local / área</span><input id="f-local" value="${esc(d.local)}" placeholder="Ex.: Célula 3, forno 2"></label>
-          <label class="field"><span class="label">Acompanhante</span><input id="f-acomp" value="${esc(d.acompanhante)}" placeholder="Ex.: Supervisor do setor"></label>
+        </div>
+      </section>
+      <section class="panel">
+        <div class="panel-head"><h3>Liderança que acompanhou</h3></div>
+        <div class="fields">
+          <label class="field span2"><span class="label">Nome da liderança *</span><input id="f-acomp" required value="${esc(d.acompanhante)}" placeholder="Nome de quem acompanhou a inspeção"></label>
+          <label class="field"><span class="label">Cargo / função</span><input id="f-cargo" value="${esc(d.cargoLider)}" placeholder="Ex.: Supervisor, Líder de turno"></label>
         </div>
       </section>
       <section class="panel">
@@ -679,6 +690,12 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
       </section>
       <section class="panel">
         <label class="field"><span class="label">Observações gerais</span><textarea id="f-obs" placeholder="Condições encontradas, orientações dadas no local…">${esc(d.observacoes)}</textarea></label>
+      </section>
+      <section class="panel">
+        <div class="panel-head"><h3>Assinatura da liderança *</h3><button type="button" class="btn small" data-act="sig-clear">Limpar assinatura</button></div>
+        <p class="lead" style="margin:-4px 0 10px">${d.acompanhante ? esc(d.acompanhante) : "A liderança"} assina com o dedo ou o mouse no quadro abaixo, ao final da inspeção.</p>
+        <canvas id="sig-pad" class="sig-pad" width="900" height="240" aria-label="Quadro de assinatura da liderança"></canvas>
+        <div class="sig-line"><span>${esc(d.acompanhante || "Nome da liderança")}${d.cargoLider ? " · " + esc(d.cargoLider) : ""}</span></div>
       </section>
       <div class="sticky-actions">
         <span class="label" id="f-msg">Todas as perguntas precisam de resposta.</span>
@@ -705,12 +722,24 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
     const g = id => document.getElementById(id);
     if (!g("f-data")) return;
     if (g("f-setor-nome")) d.setorNome = g("f-setor-nome").value;
-    d.local = g("f-local").value; d.data = g("f-data").value; d.responsavel = g("f-resp").value; d.acompanhante = g("f-acomp").value; d.observacoes = g("f-obs").value;
+    d.local = g("f-local").value; d.data = g("f-data").value; d.responsavel = g("f-resp").value; d.acompanhante = g("f-acomp").value; d.cargoLider = g("f-cargo").value; d.observacoes = g("f-obs").value;
     d.registroTst = g("f-reg").value; d.horaInicio = g("f-hini").value; d.horaFim = g("f-hfim").value; d.turno = g("f-turno").value;
   }
 
   function bindNova() {
     const f = document.getElementById("f-insp"); if (!f) return;
+    const pad = document.getElementById("sig-pad");
+    if (pad) {
+      const ctx = pad.getContext("2d");
+      ctx.lineWidth = 3.2; ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.strokeStyle = "#1d211c";
+      if (state.draft.assinaturaLider) { const img = new Image(); img.onload = () => ctx.drawImage(img, 0, 0); img.src = state.draft.assinaturaLider; }
+      let drawing = false, last = null;
+      const pt = e => { const r = pad.getBoundingClientRect(); return [(e.clientX - r.left) * pad.width / r.width, (e.clientY - r.top) * pad.height / r.height]; };
+      pad.addEventListener("pointerdown", e => { drawing = true; last = pt(e); pad.setPointerCapture(e.pointerId); ctx.beginPath(); ctx.arc(last[0], last[1], 1.4, 0, Math.PI * 2); ctx.fillStyle = "#1d211c"; ctx.fill(); });
+      pad.addEventListener("pointermove", e => { if (!drawing) return; const p = pt(e); ctx.beginPath(); ctx.moveTo(last[0], last[1]); ctx.lineTo(p[0], p[1]); ctx.stroke(); last = p; });
+      const end = () => { if (!drawing) return; drawing = false; state.draft.assinaturaLider = pad.toDataURL("image/png"); };
+      pad.addEventListener("pointerup", end); pad.addEventListener("pointercancel", end);
+    }
     f.addEventListener("input", e => {
       const k = e.target.dataset.k, i = e.target.dataset.i;
       if (k != null && i != null) state.draft.itens[+i][k] = e.target.value;
@@ -722,8 +751,10 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
       if (d.generico && !d.setorNome.trim()) return fail("Digite o nome do setor.", "f-setor-nome");
       if (!d.data) return fail("Preencha a data.", "f-data");
       if (!d.responsavel.trim()) return fail("Preencha o nome do TST.", "f-resp");
+      if (!d.acompanhante.trim()) return fail("Preencha o nome da liderança que acompanhou.", "f-acomp");
       const faltando = d.itens.findIndex(i => !i.status);
       if (faltando >= 0) { fail(`Responda a pergunta "${d.itens[faltando].texto.slice(0, 50)}…"`); document.getElementById("item-" + faltando).scrollIntoView({ block: "center" }); return; }
+      if (!d.assinaturaLider) { fail("Colha a assinatura da liderança no quadro de assinatura."); document.getElementById("sig-pad").scrollIntoView({ block: "center" }); return; }
       if (!d.horaFim) d.horaFim = nowHM();
       if (!d.horaInicio) d.horaInicio = d.horaFim;
       const insp = { id: uid(), ...structuredClone(d), setorNome: d.setorNome.trim(), criadoEm: Date.now(), itens: d.itens.map(i => ({ ...i, corrigido: false, corrigidoEm: "" })) };
@@ -847,12 +878,14 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
           <div><span class="label">TST</span><b>${esc(i.responsavel)}</b>${i.registroTst ? `<span class="label">${esc(i.registroTst)}</span>` : ""}</div>
           <div><span class="label">Horário</span><b>${i.horaInicio || i.horaFim ? `${esc(i.horaInicio || "?")} – ${esc(i.horaFim || "?")}` : "—"}</b></div>
           <div><span class="label">Turno</span><b>${esc(i.turno || "—")}</b></div>
-          <div><span class="label">Acompanhante</span><b>${esc(i.acompanhante || "—")}</b></div>
+          <div><span class="label">Liderança</span><b>${esc(i.acompanhante || "—")}</b>${i.cargoLider ? `<span class="label">${esc(i.cargoLider)}</span>` : ""}</div>
           <div><span class="label">Resultado</span><b><span class="chip ok">${s.c} C</span> <span class="chip bad">${s.nc} NC</span> <span class="chip na">${s.na} N/A</span></b></div>
         </div>
         ${i.observacoes ? `<p style="margin:16px 0 0;max-width:65ch"><span class="label">Observações gerais</span><br>${esc(i.observacoes)}</p>` : ""}
       </section>
       <section class="panel">${itens}</section>
+      ${i.assinaturaLider ? `<section class="panel"><div class="panel-head"><h3>Assinatura da liderança</h3><span class="label">${fmtDate(i.data)} ${esc(i.horaFim || "")}</span></div>
+        <img class="sig-img" src="${i.assinaturaLider}" alt="Assinatura de ${esc(i.acompanhante)}"><div class="sig-line"><span>${esc(i.acompanhante)}${i.cargoLider ? " · " + esc(i.cargoLider) : ""}</span></div></section>` : ""}
       <div class="row-actions">
         <button class="btn" data-act="relatorio">Baixar relatório (HTML)</button>
         <button class="btn" data-act="csv-one">Exportar CSV</button>
@@ -867,10 +900,10 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
 
   // ---------- Exportação ----------
   function toCSV(list) {
-    const head = ["Data", "Setor", "Local", "TST", "Registro TST", "Turno", "Seção", "Norma", "Nº", "Pergunta", "Ref.", "Resultado", "Observação", "Ação corretiva", "Responsável ação", "Prazo", "Corrigido"];
+    const head = ["Data", "Setor", "Local", "TST", "Registro TST", "Turno", "Liderança", "Cargo liderança", "Seção", "Norma", "Nº", "Pergunta", "Ref.", "Resultado", "Observação", "Ação corretiva", "Responsável ação", "Prazo", "Corrigido"];
     const qq = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
     const rows = [head.map(qq).join(";")];
-    for (const i of list) i.itens.forEach((it, n) => rows.push([fmtDate(i.data), setorLabel(i), i.local, i.responsavel, i.registroTst, i.turno, it.secao, it.nr || i.nr, n + 1, it.texto, it.ref,
+    for (const i of list) i.itens.forEach((it, n) => rows.push([fmtDate(i.data), setorLabel(i), i.local, i.responsavel, i.registroTst, i.turno, i.acompanhante, i.cargoLider, it.secao, it.nr || i.nr, n + 1, it.texto, it.ref,
       { C: "Conforme", NC: "Não conforme", NA: "N/A" }[it.status], it.obs, it.acao, it.respAcao, it.prazo ? fmtDate(it.prazo) : "", it.status === "NC" ? (it.corrigido ? "Sim " + fmtDate(it.corrigidoEm) : "Não") : ""].map(qq).join(";")));
     return "﻿" + rows.join("\r\n");
   }
@@ -883,14 +916,14 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
       return h + `<tr><td>${n + 1}</td><td>${esc(it.texto)}${it.ref ? ` <small>(${esc(it.ref)})</small>` : ""}</td><td class="${it.status}">${lab[it.status]}</td><td>${esc(it.obs)}</td><td>${it.status === "NC" ? `${esc(it.acao)}${it.respAcao ? " / " + esc(it.respAcao) : ""}${it.prazo ? " / " + fmtDate(it.prazo) : ""}${it.corrigido ? " — corrigido em " + fmtDate(it.corrigidoEm) : ""}` : ""}</td></tr>`;
     }).join("");
     return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Inspeção – ${esc(setorLabel(i))} – ${fmtDate(i.data)}</title>
-<style>body{font-family:Arial,sans-serif;color:#1d211c;max-width:900px;margin:24px auto;padding:0 16px;font-size:13px}h1{font-size:20px;margin:0}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{border:1px solid #bbb;padding:6px;text-align:left;vertical-align:top}th{background:#eee}.C{color:#1f7a3d}.NC{color:#c0281e;font-weight:bold}.meta td{border:0;padding:2px 12px 2px 0}.sig{display:flex;gap:48px;margin-top:48px}.sig div{flex:1;border-top:1px solid #000;padding-top:4px;text-align:center}</style></head><body>
+<style>body{font-family:Arial,sans-serif;color:#1d211c;max-width:900px;margin:24px auto;padding:0 16px;font-size:13px}h1{font-size:20px;margin:0}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{border:1px solid #bbb;padding:6px;text-align:left;vertical-align:top}th{background:#eee}.C{color:#1f7a3d}.NC{color:#c0281e;font-weight:bold}.meta td{border:0;padding:2px 12px 2px 0}.sig{display:flex;gap:48px;margin-top:96px}.sig div{flex:1;border-top:1px solid #000;padding-top:4px;text-align:center}</style></head><body>
 <div style="height:6px;background:repeating-linear-gradient(-45deg,#e8b500 0 12px,#1d211c 12px 24px)"></div>
 <h1 style="margin-top:12px">Relatório de Inspeção de Segurança</h1><p>Setor: <b>${esc(setorLabel(i))}</b></p>
 <table class="meta"><tr><td><b>Local:</b> ${esc(i.local || "—")}</td><td><b>Data:</b> ${fmtDate(i.data)}</td><td><b>Conformidade:</b> ${s.pct ?? "—"}% (${s.c} C · ${s.nc} NC · ${s.na} N/A)</td></tr>
-<tr><td><b>TST:</b> ${esc(i.responsavel)}${i.registroTst ? " (" + esc(i.registroTst) + ")" : ""}</td><td><b>Horário:</b> ${esc(i.horaInicio || "—")} – ${esc(i.horaFim || "—")}${i.turno ? " · " + esc(i.turno) : ""}</td><td><b>Acompanhante:</b> ${esc(i.acompanhante || "—")}</td></tr></table>
+<tr><td><b>TST:</b> ${esc(i.responsavel)}${i.registroTst ? " (" + esc(i.registroTst) + ")" : ""}</td><td><b>Horário:</b> ${esc(i.horaInicio || "—")} – ${esc(i.horaFim || "—")}${i.turno ? " · " + esc(i.turno) : ""}</td><td><b>Liderança:</b> ${esc(i.acompanhante || "—")}${i.cargoLider ? " (" + esc(i.cargoLider) + ")" : ""}</td></tr></table>
 <table><thead><tr><th>Nº</th><th>Pergunta</th><th>Resultado</th><th>Observação</th><th>Ação corretiva / Resp. / Prazo</th></tr></thead><tbody>${rows}</tbody></table>
 ${i.observacoes ? `<p><b>Observações gerais:</b> ${esc(i.observacoes)}</p>` : ""}
-<div class="sig"><div>${esc(i.responsavel)}${i.registroTst ? "<br>" + esc(i.registroTst) : ""}<br>Técnico de Segurança do Trabalho</div><div>${esc(i.acompanhante || "")}<br>Responsável do setor</div></div></body></html>`;
+<div class="sig"><div>${esc(i.responsavel)}${i.registroTst ? "<br>" + esc(i.registroTst) : ""}<br>Técnico de Segurança do Trabalho</div><div>${i.assinaturaLider ? `<img src="${i.assinaturaLider}" alt="Assinatura" style="display:block;max-width:100%;height:70px;object-fit:contain;margin:-78px auto 4px">` : ""}${esc(i.acompanhante || "")}<br>${esc(i.cargoLider || "Liderança do setor")}</div></div></body></html>`;
   }
   async function offer(filename, data) {
     if (downloads) {
@@ -918,7 +951,7 @@ ${i.observacoes ? `<p><b>Observações gerais:</b> ${esc(i.observacoes)}</p>` : 
     if (el.dataset.setor && !el.dataset.act) {
       readHeader();
       const old = state.draft; state.draft = newDraft(el.dataset.setor);
-      if (old) Object.assign(state.draft, { local: old.local, responsavel: old.responsavel, registroTst: old.registroTst, data: old.data, horaInicio: old.horaInicio, horaFim: old.horaFim, turno: old.turno, acompanhante: old.acompanhante, observacoes: old.observacoes });
+      if (old) Object.assign(state.draft, { local: old.local, responsavel: old.responsavel, registroTst: old.registroTst, data: old.data, horaInicio: old.horaInicio, horaFim: old.horaFim, turno: old.turno, acompanhante: old.acompanhante, cargoLider: old.cargoLider, assinaturaLider: old.assinaturaLider, observacoes: old.observacoes });
       render(); return;
     }
     if (el.matches(".seg button")) {
@@ -938,6 +971,7 @@ ${i.observacoes ? `<p><b>Observações gerais:</b> ${esc(i.observacoes)}</p>` : 
       case "abrir": go("detalhe", { selected: el.dataset.id }); break;
       case "voltar": go("historico"); break;
       case "descartar": state.draft = null; render(); break;
+      case "sig-clear": { state.draft.assinaturaLider = ""; const pad = document.getElementById("sig-pad"); pad.getContext("2d").clearRect(0, 0, pad.width, pad.height); break; }
       case "sec-c": readHeader(); state.draft.itens.forEach(i => { if (i.secaoId === el.dataset.sec && !i.status) i.status = "C"; }); keepY(); break;
       case "corrigir": case "reabrir": {
         const i = structuredClone(cur()); const it = i.itens[+el.dataset.idx];
@@ -949,7 +983,7 @@ ${i.observacoes ? `<p><b>Observações gerais:</b> ${esc(i.observacoes)}</p>` : 
       case "excluir": state.confirmDelete = true; render(); break;
       case "excluir-nao": state.confirmDelete = false; render(); break;
       case "excluir-sim": try { await deleteInsp(state.selected); toast("Inspeção excluída"); go("historico"); } catch { toast("Não foi possível excluir. Tente novamente."); } break;
-      case "duplicar": { const i = cur(); state.draft = newDraft(i.setorId); Object.assign(state.draft, { setorNome: i.setorNome, local: i.local, responsavel: i.responsavel, registroTst: i.registroTst || state.draft.registroTst, acompanhante: i.acompanhante }); go("nova"); break; }
+      case "duplicar": { const i = cur(); state.draft = newDraft(i.setorId); Object.assign(state.draft, { setorNome: i.setorNome, local: i.local, responsavel: i.responsavel, registroTst: i.registroTst || state.draft.registroTst, acompanhante: i.acompanhante, cargoLider: i.cargoLider || "" }); go("nova"); break; }
       case "relatorio": { const i = cur(); offer(`inspecao-${slug(setorLabel(i))}-${i.data}.html`, reportHTML(i)); break; }
       case "csv-one": { const i = cur(); offer(`inspecao-${slug(setorLabel(i))}-${i.data}.csv`, toCSV([i])); break; }
       case "csv": offer(`inspecoes-${today()}.csv`, toCSV(filtered())); break;
