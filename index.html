@@ -1,0 +1,726 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>Inspeção de Segurança</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: prancheta de campo. Barra superior com abas, conteúdo em coluna única de até 1040px; faixas de sinalização NR-26 (amarelo/preto) só no cabeçalho. */
+:root {
+  --bg: #f3f4f1;
+  --surface: #ffffff;
+  --surface-2: #e9ebe6;
+  --fg: #1d211c;
+  --muted: #5d645a;
+  --line: #d3d7cf;
+  --accent: #e8b500;      /* amarelo segurança */
+  --accent-ink: #1d211c;
+  --ok: #1f7a3d;
+  --ok-bg: #e2f2e6;
+  --bad: #c0281e;
+  --bad-bg: #fbe5e2;
+  --na: #6b7068;
+  --na-bg: #ebece8;
+  --warn: #9a6a00;
+  --warn-bg: #fdf1cf;
+  --focus: #1b5fd1;
+  --f-display: "Barlow Condensed", "Arial Narrow", "Helvetica Neue", sans-serif;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #151814; --surface: #1e221d; --surface-2: #272c26; --fg: #e9ece6; --muted: #a2a99e; --line: #353b33;
+    --accent: #f2c21b; --accent-ink: #151814;
+    --ok: #5cc27e; --ok-bg: #1b3323; --bad: #ff7a6e; --bad-bg: #3d1d1a; --na: #a2a99e; --na-bg: #2b302a;
+    --warn: #f2c21b; --warn-bg: #3a3116; --focus: #7aa8ff; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #151814; --surface: #1e221d; --surface-2: #272c26; --fg: #e9ece6; --muted: #a2a99e; --line: #353b33;
+  --accent: #f2c21b; --accent-ink: #151814;
+  --ok: #5cc27e; --ok-bg: #1b3323; --bad: #ff7a6e; --bad-bg: #3d1d1a; --na: #a2a99e; --na-bg: #2b302a;
+  --warn: #f2c21b; --warn-bg: #3a3116; --focus: #7aa8ff; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--f-body); font-size: 15px; line-height: 1.5; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--fg); }
+.wrap { max-width: 1040px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+/* Cabeçalho */
+header.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--fg); color: var(--bg); }
+.hazard { height: 6px; background: repeating-linear-gradient(-45deg, var(--accent) 0 12px, var(--fg) 12px 24px); }
+.top .wrap { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding-block: 10px; }
+.brand { display: flex; align-items: center; gap: 10px; margin-right: auto; }
+.brand-mark { width: 30px; height: 30px; flex: none; }
+.brand h1 { font-family: var(--f-display); font-weight: 700; font-size: 24px; letter-spacing: .02em; text-transform: uppercase; margin: 0; line-height: 1; }
+.brand small { display: block; font-family: var(--f-mono); font-size: 11px; opacity: .7; letter-spacing: .04em; }
+nav.tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+nav.tabs button { font: 600 14px var(--f-body); background: transparent; color: var(--bg); border: 1px solid transparent; padding: 7px 12px; border-radius: 6px; cursor: pointer; }
+nav.tabs button:hover { border-color: color-mix(in srgb, var(--bg) 35%, transparent); }
+nav.tabs button[aria-selected="true"] { background: var(--accent); color: var(--accent-ink); }
+
+main { padding-block: 24px 64px; }
+.store-note { font-size: 13px; color: var(--warn); background: var(--warn-bg); border-radius: 6px; padding: 8px 12px; margin-bottom: 16px; }
+h2 { font-family: var(--f-display); font-weight: 700; font-size: 30px; text-transform: uppercase; letter-spacing: .01em; margin: 0 0 4px; line-height: 1.05; text-wrap: balance; }
+h3 { font-family: var(--f-display); font-weight: 600; font-size: 20px; text-transform: uppercase; letter-spacing: .02em; margin: 0; }
+.lead { color: var(--muted); margin: 0 0 20px; max-width: 65ch; }
+.label { font-family: var(--f-mono); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.stack { display: flex; flex-direction: column; gap: 20px; }
+
+/* Painel */
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.kpi { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; display: flex; flex-direction: column; gap: 2px; }
+.kpi .num { font-family: var(--f-display); font-weight: 700; font-size: 38px; line-height: 1; font-variant-numeric: tabular-nums; }
+.kpi .sub { font-size: 12px; color: var(--muted); }
+.kpi.alert .num { color: var(--bad); }
+.grid2 { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 20px; align-items: start; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px; min-width: 0; }
+.panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+.nc-list { display: flex; flex-direction: column; gap: 0; }
+.nc-row { display: grid; grid-template-columns: 4px minmax(0, 1fr) auto; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); align-items: center; }
+.nc-row:first-child { border-top: 0; }
+.nc-row .bar { align-self: stretch; background: var(--bad); border-radius: 2px; }
+.nc-row.late .bar { background: var(--bad); }
+.nc-row.ontime .bar { background: var(--accent); }
+.nc-row .t { font-weight: 500; }
+.nc-row .m { font-size: 12px; color: var(--muted); }
+.bars { display: flex; flex-direction: column; gap: 10px; }
+.barrow { display: grid; grid-template-columns: minmax(0, 1fr) 48px; gap: 4px 10px; align-items: center; font-size: 13px; }
+.barrow .track { grid-column: 1 / -1; height: 8px; background: var(--surface-2); border-radius: 4px; overflow: hidden; }
+.barrow .fill { height: 100%; border-radius: 4px; }
+.barrow .pct { text-align: right; font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+
+/* Botões e campos */
+.btn { font: 600 14px var(--f-body); border: 1px solid var(--line); background: var(--surface); color: var(--fg); padding: 8px 14px; border-radius: 6px; cursor: pointer; white-space: nowrap; }
+.btn:hover { border-color: var(--muted); }
+.btn.primary { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.btn.primary:hover { opacity: .9; }
+.btn.danger { color: var(--bad); }
+.btn.small { padding: 5px 10px; font-size: 13px; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 16px; }
+.field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.field.span2 { grid-column: span 2; }
+.field.span3 { grid-column: 1 / -1; }
+input, select, textarea { font: 400 15px var(--f-body); color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; width: 100%; }
+textarea { resize: vertical; min-height: 60px; }
+
+/* Seleção de checklist */
+.cl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.cl-card { text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; cursor: pointer; color: var(--fg); font: inherit; display: flex; flex-direction: column; gap: 4px; }
+.cl-card:hover { border-color: var(--muted); }
+.cl-card[aria-pressed="true"] { border-color: var(--fg); box-shadow: inset 0 0 0 1px var(--fg); background: var(--surface-2); }
+.cl-card .nr { font-family: var(--f-mono); font-size: 12px; color: var(--muted); }
+.cl-card .nm { font-weight: 600; }
+
+/* Itens do checklist */
+.items { display: flex; flex-direction: column; }
+.item { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; gap: 8px 12px; padding: 12px 0; border-top: 1px solid var(--line); align-items: start; }
+.item:first-child { border-top: 0; }
+.item .n { font-family: var(--f-mono); font-size: 13px; color: var(--muted); padding-top: 6px; font-variant-numeric: tabular-nums; }
+.item .txt { padding-top: 5px; }
+.item .ref { font-family: var(--f-mono); font-size: 11px; color: var(--muted); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.seg button { font: 600 13px var(--f-body); border: 0; background: var(--surface); color: var(--muted); padding: 7px 11px; cursor: pointer; border-left: 1px solid var(--line); }
+.seg button:first-child { border-left: 0; }
+.seg button[aria-pressed="true"][data-v="C"] { background: var(--ok); color: #fff; }
+.seg button[aria-pressed="true"][data-v="NC"] { background: var(--bad); color: #fff; }
+.seg button[aria-pressed="true"][data-v="NA"] { background: var(--na); color: var(--surface); }
+.item .extra { grid-column: 2 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 12px; background: var(--bad-bg); border-radius: 6px; padding: 10px 12px; }
+.item .extra .field.span3 { grid-column: 1 / -1; }
+.item .obs { grid-column: 2 / -1; }
+.progress { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.progress b { color: var(--fg); }
+.sticky-actions { position: sticky; bottom: 0; background: var(--bg); border-top: 1px solid var(--line); padding-block: 12px calc(12px + env(safe-area-inset-bottom, 0px)); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: space-between; z-index: 3; }
+
+/* Chips */
+.chip { display: inline-flex; align-items: center; gap: 4px; font: 600 12px var(--f-body); padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.chip.ok { background: var(--ok-bg); color: var(--ok); }
+.chip.bad { background: var(--bad-bg); color: var(--bad); }
+.chip.na { background: var(--na-bg); color: var(--na); }
+.chip.warn { background: var(--warn-bg); color: var(--warn); }
+.chip.ex { background: var(--surface-2); color: var(--muted); font-family: var(--f-mono); font-weight: 500; text-transform: uppercase; letter-spacing: .06em; font-size: 10px; }
+
+/* Histórico */
+.filters { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+.filters input { flex: 1 1 220px; width: auto; }
+.filters select { width: auto; flex: 0 1 220px; }
+.table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th { text-align: left; font-family: var(--f-mono); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 500; padding: 10px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+td { padding: 10px 12px; border-top: 1px solid var(--line); vertical-align: middle; }
+tr:first-child td { border-top: 0; }
+tbody tr { cursor: pointer; }
+tbody tr:hover td { background: var(--surface-2); }
+td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* Detalhe */
+.detail-head { display: flex; gap: 16px; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; }
+.meta { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px 16px; margin-top: 12px; }
+.meta div { display: flex; flex-direction: column; min-width: 0; }
+.meta b { font-weight: 500; overflow-wrap: anywhere; }
+.score { font-family: var(--f-display); font-weight: 700; font-size: 56px; line-height: 1; font-variant-numeric: tabular-nums; }
+.d-item { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; gap: 4px 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+.d-item:first-child { border-top: 0; }
+.d-item .note { grid-column: 2 / -1; font-size: 13px; color: var(--muted); }
+.d-item .act { grid-column: 2 / -1; font-size: 13px; background: var(--bad-bg); border-radius: 6px; padding: 8px 10px; display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; }
+.d-item .act.done { background: var(--ok-bg); }
+.row-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.confirm { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; background: var(--bad-bg); color: var(--bad); padding: 8px 12px; border-radius: 6px; font-size: 14px; }
+
+.empty { text-align: center; padding: 40px 16px; color: var(--muted); }
+.empty h3 { color: var(--fg); margin-bottom: 6px; }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(20px + env(safe-area-inset-bottom, 0px)); background: var(--fg); color: var(--bg); padding: 10px 16px; border-radius: 6px; font-size: 14px; z-index: 20; max-width: calc(100% - 32px); }
+.copybox { width: 100%; min-height: 160px; font-family: var(--f-mono); font-size: 12px; }
+
+@media (max-width: 760px) {
+  .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .grid2 { grid-template-columns: minmax(0, 1fr); }
+  .fields { grid-template-columns: minmax(0, 1fr); }
+  .field.span2 { grid-column: auto; }
+  .item { grid-template-columns: 26px minmax(0, 1fr); }
+  .item .seg { grid-column: 2; justify-self: start; }
+  .item .extra { grid-template-columns: minmax(0, 1fr); }
+  .hide-sm { display: none; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .toast { animation: rise .18s ease-out; }
+  @keyframes rise { from { transform: translate(-50%, 8px); opacity: 0; } }
+}
+</style>
+
+<header class="top">
+  <div class="hazard" aria-hidden="true"></div>
+  <div class="wrap">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3 30 28H2Z" fill="var(--accent)"/><path d="M16 3 30 28H2Z" fill="none" stroke="var(--fg)" stroke-width="1.5"/><rect x="14.6" y="11" width="2.8" height="9" rx="1" fill="var(--fg)"/><circle cx="16" cy="23.5" r="1.7" fill="var(--fg)"/></svg>
+      <div><h1>Inspeção de Segurança</h1><small>Checklists de campo · NRs MTE</small></div>
+    </div>
+    <nav class="tabs" role="tablist" aria-label="Seções">
+      <button role="tab" id="tab-painel" data-view="painel" aria-selected="true">Painel</button>
+      <button role="tab" id="tab-nova" data-view="nova" aria-selected="false">Nova inspeção</button>
+      <button role="tab" id="tab-historico" data-view="historico" aria-selected="false">Histórico</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap" id="app">
+  <div class="empty"><h3>Carregando inspeções…</h3><p>Conectando ao banco de dados do sistema.</p></div>
+</main>
+
+<script>
+(() => {
+  // ---------- Checklists (Normas Regulamentadoras) ----------
+  const CHECKLISTS = [
+    { id: "nr06", nr: "NR-06", nome: "Equipamentos de Proteção Individual", itens: [
+      ["EPIs adequados aos riscos da atividade disponíveis e em uso", "6.3"],
+      ["EPIs com Certificado de Aprovação (CA) válido", "6.2"],
+      ["Fichas de entrega de EPI assinadas e atualizadas", "6.5.1"],
+      ["EPIs em bom estado de conservação e higienização", "6.6.1"],
+      ["Trabalhadores orientados sobre uso, guarda e conservação", "6.5.1"],
+      ["Local adequado para guarda dos EPIs", ""],
+    ]},
+    { id: "nr10", nr: "NR-10", nome: "Instalações e serviços em eletricidade", itens: [
+      ["Quadros elétricos fechados, sinalizados e com acesso desobstruído", "10.10"],
+      ["Diagrama unifilar atualizado disponível", "10.2.3"],
+      ["Ausência de fios expostos, emendas improvisadas ou gambiarras", "10.4"],
+      ["Instalações e equipamentos aterrados", "10.2.8"],
+      ["Bloqueio e etiquetagem (LOTO) aplicados nas intervenções", "10.5"],
+      ["Trabalhadores autorizados com treinamento NR-10 válido", "10.8"],
+      ["Prontuário das instalações elétricas disponível (carga > 75 kW)", "10.2.4"],
+      ["Tomadas e plugues no padrão e sem danos", ""],
+    ]},
+    { id: "nr12", nr: "NR-12", nome: "Máquinas e equipamentos", itens: [
+      ["Proteções fixas ou móveis instaladas nas zonas de perigo", "12.5"],
+      ["Botão de parada de emergência acessível e funcionando", "12.6"],
+      ["Dispositivos de intertravamento operantes", "12.5"],
+      ["Sinalização de segurança nas máquinas", "12.12"],
+      ["Manual e procedimentos de operação disponíveis", "12.13"],
+      ["Operadores capacitados e autorizados", "12.16"],
+      ["Manutenção preventiva registrada e em dia", "12.11"],
+      ["Área de circulação demarcada ao redor das máquinas", "12.2"],
+    ]},
+    { id: "nr23", nr: "NR-23", nome: "Proteção contra incêndios", itens: [
+      ["Extintores no local, sinalizados e desobstruídos", "23.1"],
+      ["Extintores com carga e inspeção dentro da validade", ""],
+      ["Saídas de emergência sinalizadas e desobstruídas", "23.3"],
+      ["Iluminação de emergência funcionando", ""],
+      ["Hidrantes e mangueiras em condições de uso", ""],
+      ["Rotas de fuga sinalizadas", "23.3"],
+      ["Alarme de incêndio testado", ""],
+      ["Brigada de incêndio formada e treinada", ""],
+    ]},
+    { id: "nr35", nr: "NR-35", nome: "Trabalho em altura", itens: [
+      ["Análise de Risco (AR) e Permissão de Trabalho (PT) emitidas", "35.4.5"],
+      ["Trabalhadores com treinamento NR-35 válido", "35.3"],
+      ["ASO com aptidão para trabalho em altura", "35.4.1.2"],
+      ["Cinto paraquedista e talabarte inspecionados", "35.5"],
+      ["Ponto de ancoragem definido e resistente", "35.5"],
+      ["Área abaixo isolada e sinalizada", "35.4.6"],
+      ["Plano de emergência e resgate disponível", "35.6"],
+      ["Condições climáticas adequadas", "35.4.5"],
+    ]},
+    { id: "nr18", nr: "NR-18", nome: "Canteiro de obras", itens: [
+      ["Proteção coletiva contra quedas (guarda-corpo e rodapé)", "18.9"],
+      ["Aberturas no piso protegidas", "18.9"],
+      ["Andaimes montados conforme projeto e inspecionados", "18.10"],
+      ["Escavações escoradas e sinalizadas", "18.6"],
+      ["Instalações elétricas provisórias protegidas", "18.5"],
+      ["Áreas de vivência em condições adequadas", "18.5"],
+      ["PGR da obra disponível", "18.4"],
+    ]},
+    { id: "nr24", nr: "NR-24 / NR-26", nome: "Ordem, limpeza e sinalização", itens: [
+      ["Áreas de circulação limpas e desobstruídas", ""],
+      ["Sinalização de segurança conforme NR-26", "26.1"],
+      ["Produtos químicos rotulados e com FDS disponível", "26.4"],
+      ["Instalações sanitárias limpas e em condições", "24.2"],
+      ["Água potável disponível", "24.7"],
+      ["Resíduos descartados em local adequado", ""],
+      ["Iluminação adequada nos postos de trabalho", ""],
+    ]},
+  ];
+  const clById = Object.fromEntries(CHECKLISTS.map(c => [c.id, c]));
+
+  // ---------- Estado ----------
+  const state = {
+    view: "painel",
+    inspecoes: [],
+    loaded: false,
+    store: "db",          // "db" | "local"
+    canWrite: true,
+    selected: null,       // id em detalhe
+    confirmDelete: false,
+    filtro: { q: "", cl: "" },
+    draft: null,
+  };
+  let db = null, downloads = null;
+  const app = document.getElementById("app");
+
+  const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const today = () => new Date().toISOString().slice(0, 10);
+  const fmtDate = d => d ? d.split("-").reverse().join("/") : "—";
+  const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+
+  function toast(msg) {
+    const t = document.createElement("div");
+    t.className = "toast"; t.textContent = msg; t.setAttribute("role", "status");
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 2600);
+  }
+
+  function score(insp) {
+    const c = insp.itens.filter(i => i.status === "C").length;
+    const nc = insp.itens.filter(i => i.status === "NC").length;
+    return { c, nc, na: insp.itens.filter(i => i.status === "NA").length, pct: c + nc ? Math.round(c / (c + nc) * 100) : null };
+  }
+  const pctColor = p => p == null ? "var(--na)" : p >= 90 ? "var(--ok)" : p >= 70 ? "var(--accent)" : "var(--bad)";
+  const pctChip = p => p == null ? `<span class="chip na">—</span>` : `<span class="chip ${p >= 90 ? "ok" : p >= 70 ? "warn" : "bad"}">${p}%</span>`;
+
+  // ---------- Armazenamento ----------
+  const LS_KEY = "inspecoes-seguranca-v1";
+  function lsLoad() { try { return JSON.parse(localStorage.getItem(LS_KEY) || "[]"); } catch { return []; } }
+  function lsSave() { try { localStorage.setItem(LS_KEY, JSON.stringify(state.inspecoes)); } catch {} }
+
+  async function saveInsp(insp) {
+    if (state.store === "db") {
+      const { id, ...body } = insp;
+      await db.collection("inspecoes").doc(id).set(body);
+    } else {
+      const i = state.inspecoes.findIndex(x => x.id === insp.id);
+      if (i >= 0) state.inspecoes[i] = insp; else state.inspecoes.push(insp);
+      sortInsp(); lsSave(); render();
+    }
+  }
+  async function deleteInsp(id) {
+    if (state.store === "db") await db.collection("inspecoes").doc(id).delete();
+    else { state.inspecoes = state.inspecoes.filter(x => x.id !== id); lsSave(); render(); }
+  }
+  function sortInsp() { state.inspecoes.sort((a, b) => (b.data || "").localeCompare(a.data || "") || (b.criadoEm || 0) - (a.criadoEm || 0)); }
+
+  async function initStore() {
+    try {
+      db = await claude.use("db");
+      const user = await claude.use("user");
+      if (user && user.can) { const w = await user.can("data.write"); if (w === false) state.canWrite = false; }
+    } catch { db = null; }
+    try { downloads = await claude.use("downloads"); } catch { downloads = null; }
+    if (!db) {
+      state.store = "local"; state.inspecoes = lsLoad(); sortInsp(); state.loaded = true; render(); return;
+    }
+    db.collection("inspecoes").onSnapshot(snap => {
+      state.inspecoes = snap.docs.map(d => ({ id: d.id, ...structuredClone(d.data()) }));
+      sortInsp(); state.loaded = true; render();
+    }, () => {
+      state.store = "local"; state.inspecoes = lsLoad(); sortInsp(); state.loaded = true; render();
+    });
+  }
+
+  // ---------- Navegação ----------
+  function go(view, opts = {}) {
+    state.view = view; state.confirmDelete = false;
+    if ("selected" in opts) state.selected = opts.selected;
+    document.querySelectorAll("nav.tabs button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.view === (view === "detalhe" ? "historico" : view))));
+    render(); window.scrollTo(0, 0);
+  }
+  document.querySelector("nav.tabs").addEventListener("click", e => {
+    const b = e.target.closest("button[data-view]"); if (b) go(b.dataset.view);
+  });
+
+  // ---------- Render ----------
+  function render() {
+    if (!state.loaded) return;
+    if (state.view === "nova") readHeader();
+    const note = state.store === "local"
+      ? `<div class="store-note">As inspeções ficam salvas neste navegador. Use Exportar CSV para guardar uma cópia.</div>` : "";
+    const v = { painel: viewPainel, nova: viewNova, historico: viewHistorico, detalhe: viewDetalhe }[state.view] || viewPainel;
+    app.innerHTML = note + v();
+    if (state.view === "nova") bindNova();
+  }
+
+  function pendencias() {
+    const out = [];
+    for (const insp of state.inspecoes) insp.itens.forEach((it, idx) => {
+      if (it.status === "NC" && !it.corrigido) out.push({ insp, it, idx });
+    });
+    return out.sort((a, b) => (a.it.prazo || "9999").localeCompare(b.it.prazo || "9999"));
+  }
+
+  function emptyState(title, text) {
+    return `<div class="panel empty"><h3>${title}</h3><p>${text}</p><button class="btn primary" data-act="nova">Iniciar inspeção</button></div>`;
+  }
+
+  function viewPainel() {
+    const L = state.inspecoes;
+    if (!L.length) return `<h2>Painel</h2><p class="lead">Resumo das inspeções, não conformidades abertas e conformidade por checklist.</p>` +
+      emptyState("Nenhuma inspeção registrada", "Escolha um checklist, marque cada item como conforme, não conforme ou não aplicável e salve. Os resultados aparecem aqui.");
+    const pend = pendencias();
+    const t = today();
+    const atrasadas = pend.filter(p => p.it.prazo && p.it.prazo < t).length;
+    const scores = L.map(score).filter(s => s.pct != null);
+    const media = scores.length ? Math.round(scores.reduce((a, s) => a + s.pct, 0) / scores.length) : null;
+    const mes = t.slice(0, 7);
+    const doMes = L.filter(i => (i.data || "").startsWith(mes)).length;
+
+    const porCl = CHECKLISTS.map(cl => {
+      const s = L.filter(i => i.checklistId === cl.id).map(score).filter(s => s.pct != null);
+      return { cl, n: s.length, pct: s.length ? Math.round(s.reduce((a, x) => a + x.pct, 0) / s.length) : null };
+    }).filter(x => x.n);
+
+    return `<h2>Painel</h2><p class="lead">Resumo das inspeções, não conformidades abertas e conformidade por checklist.</p>
+    <div class="stack">
+      <div class="kpis">
+        <div class="kpi"><span class="label">Inspeções</span><span class="num">${L.length}</span><span class="sub">${doMes} neste mês</span></div>
+        <div class="kpi"><span class="label">Conformidade média</span><span class="num" style="color:${pctColor(media)}">${media ?? "—"}${media != null ? "%" : ""}</span><span class="sub">C ÷ (C + NC)</span></div>
+        <div class="kpi ${pend.length ? "alert" : ""}"><span class="label">NC em aberto</span><span class="num">${pend.length}</span><span class="sub">${atrasadas} com prazo vencido</span></div>
+        <div class="kpi"><span class="label">Última inspeção</span><span class="num" style="font-size:28px">${fmtDate(L[0].data)}</span><span class="sub">${esc(L[0].local)}</span></div>
+      </div>
+      <div class="grid2">
+        <section class="panel">
+          <div class="panel-head"><h3>Ações corretivas pendentes</h3><span class="label">por prazo</span></div>
+          ${pend.length ? `<div class="nc-list">${pend.slice(0, 12).map(p => {
+            const late = p.it.prazo && p.it.prazo < t;
+            return `<div class="nc-row ${late ? "late" : "ontime"}">
+              <div class="bar"></div>
+              <div style="min-width:0"><div class="t">${esc(p.it.texto)}</div>
+                <div class="m">${esc(p.insp.local)} · ${esc(clById[p.insp.checklistId]?.nr || p.insp.checklistNome)} · ${p.it.respAcao ? "Resp.: " + esc(p.it.respAcao) + " · " : ""}${p.it.prazo ? (late ? `<span class="chip bad">vencido ${fmtDate(p.it.prazo)}</span>` : "prazo " + fmtDate(p.it.prazo)) : "sem prazo"}</div></div>
+              <button class="btn small" data-act="abrir" data-id="${p.insp.id}">Ver</button>
+            </div>`; }).join("")}</div>${pend.length > 12 ? `<p class="label" style="margin:8px 0 0">+ ${pend.length - 12} pendências no histórico</p>` : ""}`
+          : `<p class="lead" style="margin:0">Nenhuma não conformidade em aberto.</p>`}
+        </section>
+        <section class="panel">
+          <div class="panel-head"><h3>Conformidade por checklist</h3><span class="label">média</span></div>
+          <div class="bars">${porCl.map(x => `<div class="barrow"><span>${esc(x.cl.nr)} · ${esc(x.cl.nome)} <span class="label">(${x.n})</span></span><span class="pct">${x.pct}%</span>
+            <div class="track"><div class="fill" style="width:${x.pct}%;background:${pctColor(x.pct)}"></div></div></div>`).join("")}</div>
+        </section>
+      </div>
+    </div>`;
+  }
+
+  // ---------- Nova inspeção ----------
+  function newDraft(clId) {
+    const cl = clById[clId];
+    return {
+      checklistId: clId, local: "", setor: "", responsavel: "", data: today(), acompanhante: "", observacoes: "",
+      itens: cl ? cl.itens.map(([texto, ref]) => ({ texto, ref, status: "", obs: "", acao: "", prazo: "", respAcao: "" })) : [],
+    };
+  }
+
+  function viewNova() {
+    if (!state.canWrite) return `<h2>Nova inspeção</h2><div class="panel empty"><h3>Somente leitura</h3><p>Seu acesso a esta página permite consultar as inspeções, mas não registrar novas.</p></div>`;
+    const d = state.draft;
+    const cards = CHECKLISTS.map(c => `<button type="button" class="cl-card" data-cl="${c.id}" aria-pressed="${d?.checklistId === c.id}">
+      <span class="nr">${c.nr} · ${c.itens.length} itens</span><span class="nm">${esc(c.nome)}</span></button>`).join("");
+    if (!d) return `<h2>Nova inspeção</h2><p class="lead">Escolha o checklist da norma que será verificada.</p><div class="cl-grid">${cards}</div>`;
+    const cl = clById[d.checklistId];
+    const s = score(d);
+    const answered = d.itens.filter(i => i.status).length;
+    return `<h2>Nova inspeção</h2><p class="lead">${esc(cl.nr)} · ${esc(cl.nome)}</p>
+    <form id="f-insp" class="stack" novalidate>
+      <details class="panel"><summary class="label" style="cursor:pointer">Trocar checklist</summary><div class="cl-grid" style="margin-top:12px">${cards}</div></details>
+      <section class="panel">
+        <div class="panel-head"><h3>Identificação</h3></div>
+        <div class="fields">
+          <label class="field span2"><span class="label">Local / unidade *</span><input id="f-local" name="local" required value="${esc(d.local)}" placeholder="Ex.: Galpão 2 – Linha de envase"></label>
+          <label class="field"><span class="label">Data *</span><input id="f-data" name="data" type="date" required value="${esc(d.data)}"></label>
+          <label class="field"><span class="label">Setor</span><input id="f-setor" name="setor" value="${esc(d.setor)}" placeholder="Ex.: Produção"></label>
+          <label class="field"><span class="label">Inspetor responsável *</span><input id="f-resp" name="responsavel" required value="${esc(d.responsavel)}" placeholder="Nome do técnico"></label>
+          <label class="field"><span class="label">Acompanhante</span><input id="f-acomp" name="acompanhante" value="${esc(d.acompanhante)}" placeholder="Ex.: Supervisor da área"></label>
+        </div>
+      </section>
+      <section class="panel">
+        <div class="panel-head"><h3>Itens verificados</h3>
+          <div class="progress" id="prog"><span><b>${answered}</b>/${d.itens.length} respondidos</span><span class="chip ok">${s.c} C</span><span class="chip bad">${s.nc} NC</span><span class="chip na">${s.na} N/A</span></div></div>
+        <div class="items">${d.itens.map((it, i) => itemRow(it, i)).join("")}</div>
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+          <input id="f-novo-item" placeholder="Adicionar item extra a este checklist" style="flex:1 1 240px;width:auto">
+          <button type="button" class="btn" data-act="add-item">Adicionar item</button>
+          <button type="button" class="btn" data-act="todos-c">Marcar pendentes como conforme</button>
+        </div>
+      </section>
+      <section class="panel">
+        <label class="field"><span class="label">Observações gerais</span><textarea id="f-obs" name="observacoes" placeholder="Condições encontradas, orientações dadas no local…">${esc(d.observacoes)}</textarea></label>
+      </section>
+      <div class="sticky-actions">
+        <span class="label" id="f-msg">Itens sem resposta não podem ficar em branco.</span>
+        <div class="row-actions"><button type="button" class="btn" data-act="descartar">Descartar</button><button type="submit" class="btn primary">Salvar inspeção</button></div>
+      </div>
+    </form>`;
+  }
+
+  function itemRow(it, i) {
+    const seg = ["C", "NC", "NA"].map(v => `<button type="button" data-v="${v}" data-i="${i}" aria-pressed="${it.status === v}" aria-label="${{ C: "Conforme", NC: "Não conforme", NA: "Não aplicável" }[v]}">${v === "NA" ? "N/A" : v}</button>`).join("");
+    const extra = it.status === "NC" ? `<div class="extra">
+        <label class="field span3"><span class="label">Descrição da não conformidade</span><textarea id="nc-obs-${i}" data-k="obs" data-i="${i}" placeholder="O que foi encontrado">${esc(it.obs)}</textarea></label>
+        <label class="field span3"><span class="label">Ação corretiva</span><input id="nc-acao-${i}" data-k="acao" data-i="${i}" value="${esc(it.acao)}" placeholder="O que deve ser feito"></label>
+        <label class="field"><span class="label">Responsável pela ação</span><input id="nc-resp-${i}" data-k="respAcao" data-i="${i}" value="${esc(it.respAcao)}"></label>
+        <label class="field"><span class="label">Prazo</span><input id="nc-prazo-${i}" type="date" data-k="prazo" data-i="${i}" value="${esc(it.prazo)}"></label>
+      </div>` : (it.status ? `<input class="obs" id="it-obs-${i}" data-k="obs" data-i="${i}" value="${esc(it.obs)}" placeholder="Observação (opcional)">` : "");
+    return `<div class="item" id="item-${i}"><span class="n">${String(i + 1).padStart(2, "0")}</span>
+      <div class="txt">${esc(it.texto)}${it.ref ? `<div class="ref">item ${esc(it.ref)}</div>` : ""}</div>
+      <div class="seg" role="group" aria-label="Resultado do item ${i + 1}">${seg}</div>${extra}</div>`;
+  }
+
+  function readHeader() {
+    const d = state.draft; if (!d) return;
+    const g = id => document.getElementById(id);
+    if (g("f-local")) { d.local = g("f-local").value; d.data = g("f-data").value; d.setor = g("f-setor").value; d.responsavel = g("f-resp").value; d.acompanhante = g("f-acomp").value; d.observacoes = g("f-obs").value; }
+  }
+
+  function bindNova() {
+    const f = document.getElementById("f-insp");
+    if (!f) return;
+    f.addEventListener("input", e => {
+      const k = e.target.dataset.k, i = e.target.dataset.i;
+      if (k != null && i != null) state.draft.itens[+i][k] = e.target.value;
+    });
+    f.addEventListener("submit", async e => {
+      e.preventDefault(); readHeader();
+      const d = state.draft, msg = document.getElementById("f-msg");
+      const faltando = d.itens.findIndex(i => !i.status);
+      if (!d.local.trim() || !d.responsavel.trim() || !d.data) { msg.textContent = "Preencha local, data e inspetor responsável."; msg.style.color = "var(--bad)"; document.getElementById(!d.local.trim() ? "f-local" : !d.data ? "f-data" : "f-resp").focus(); return; }
+      if (faltando >= 0) { msg.textContent = `Responda o item ${faltando + 1} (C, NC ou N/A).`; msg.style.color = "var(--bad)"; document.getElementById("item-" + faltando).scrollIntoView({ block: "center" }); return; }
+      const cl = clById[d.checklistId];
+      const insp = { id: uid(), ...structuredClone(d), checklistNome: cl.nome, nr: cl.nr, criadoEm: Date.now(),
+        itens: d.itens.map(i => ({ ...i, corrigido: false, corrigidoEm: "" })) };
+      const btn = f.querySelector("button[type=submit]"); btn.disabled = true; btn.textContent = "Salvando…";
+      try {
+        await saveInsp(insp); state.draft = null; toast("Inspeção salva"); go("detalhe", { selected: insp.id });
+      } catch (err) {
+        btn.disabled = false; btn.textContent = "Salvar inspeção";
+        msg.style.color = "var(--bad)";
+        msg.textContent = err?.code === "invalid_argument" ? "Seu acesso não permite salvar inspeções nesta página." : err?.code === "quota_exceeded" ? "O banco atingiu o limite de registros. Exclua inspeções antigas para continuar." : "Não foi possível salvar agora. Tente novamente em instantes.";
+      }
+    });
+  }
+
+  // ---------- Histórico ----------
+  function filtered() {
+    const q = state.filtro.q.trim().toLowerCase();
+    return state.inspecoes.filter(i => (!state.filtro.cl || i.checklistId === state.filtro.cl) &&
+      (!q || [i.local, i.setor, i.responsavel, i.checklistNome, i.nr].join(" ").toLowerCase().includes(q)));
+  }
+  function viewHistorico() {
+    if (!state.inspecoes.length) return `<h2>Histórico</h2><p class="lead">Todas as inspeções registradas.</p>` + emptyState("Nenhuma inspeção ainda", "Registre a primeira inspeção para montar o histórico.");
+    const L = filtered();
+    return `<h2>Histórico</h2><p class="lead">Todas as inspeções registradas. Clique em uma linha para ver o relatório.</p>
+      <div class="filters">
+        <input id="h-q" type="search" placeholder="Buscar por local, setor ou inspetor" value="${esc(state.filtro.q)}">
+        <select id="h-cl"><option value="">Todos os checklists</option>${CHECKLISTS.map(c => `<option value="${c.id}" ${state.filtro.cl === c.id ? "selected" : ""}>${c.nr} · ${esc(c.nome)}</option>`).join("")}</select>
+        <button class="btn" data-act="csv">Exportar CSV</button>
+      </div>
+      <div class="table-wrap"><table><thead><tr><th>Data</th><th>Local</th><th class="hide-sm">Checklist</th><th class="hide-sm">Inspetor</th><th>Conformidade</th><th>NC abertas</th></tr></thead>
+      <tbody id="h-body">${histRows(L)}</tbody></table></div>
+      <div id="copy-area"></div>`;
+  }
+  function histRows(L) {
+    if (!L.length) return `<tr><td colspan="6" class="empty">Nenhuma inspeção corresponde à busca.</td></tr>`;
+    return L.map(i => { const s = score(i); const ab = i.itens.filter(x => x.status === "NC" && !x.corrigido).length;
+      return `<tr data-act="abrir" data-id="${i.id}" tabindex="0"><td class="num">${fmtDate(i.data)}</td><td>${esc(i.local)}${i.exemplo ? ` <span class="chip ex">exemplo</span>` : ""}${i.setor ? `<div class="label">${esc(i.setor)}</div>` : ""}</td>
+      <td class="hide-sm">${esc(i.nr)} · ${esc(i.checklistNome)}</td><td class="hide-sm">${esc(i.responsavel)}</td><td>${pctChip(s.pct)}</td><td class="num">${ab ? `<span class="chip bad">${ab}</span>` : "0"}</td></tr>`; }).join("");
+  }
+
+  // ---------- Detalhe ----------
+  function viewDetalhe() {
+    const i = state.inspecoes.find(x => x.id === state.selected);
+    if (!i) return `<h2>Inspeção não encontrada</h2><p class="lead">Ela pode ter sido excluída.</p><button class="btn" data-act="voltar">Voltar ao histórico</button>`;
+    const s = score(i);
+    return `<div class="stack">
+      <div><button class="btn small" data-act="voltar">← Histórico</button></div>
+      <section class="panel">
+        <div class="detail-head">
+          <div style="min-width:0"><span class="label">${esc(i.nr)} · ${esc(i.checklistNome)}</span><h2 style="margin-top:4px">${esc(i.local)}</h2>${i.exemplo ? `<span class="chip ex">registro de exemplo</span>` : ""}</div>
+          <div style="text-align:right"><div class="score" style="color:${pctColor(s.pct)}">${s.pct ?? "—"}${s.pct != null ? "%" : ""}</div><span class="label">conformidade</span></div>
+        </div>
+        <div class="meta">
+          <div><span class="label">Data</span><b>${fmtDate(i.data)}</b></div>
+          <div><span class="label">Setor</span><b>${esc(i.setor || "—")}</b></div>
+          <div><span class="label">Inspetor</span><b>${esc(i.responsavel)}</b></div>
+          <div><span class="label">Acompanhante</span><b>${esc(i.acompanhante || "—")}</b></div>
+          <div><span class="label">Resultado</span><b><span class="chip ok">${s.c} C</span> <span class="chip bad">${s.nc} NC</span> <span class="chip na">${s.na} N/A</span></b></div>
+        </div>
+        ${i.observacoes ? `<p style="margin:16px 0 0;max-width:65ch"><span class="label">Observações gerais</span><br>${esc(i.observacoes)}</p>` : ""}
+      </section>
+      <section class="panel"><div class="panel-head"><h3>Itens</h3></div>
+        ${i.itens.map((it, idx) => `<div class="d-item"><span class="n label" style="padding-top:2px">${String(idx + 1).padStart(2, "0")}</span>
+          <div>${esc(it.texto)}${it.ref ? ` <span class="label">${esc(it.ref)}</span>` : ""}</div>
+          <span class="chip ${it.status === "C" ? "ok" : it.status === "NC" ? "bad" : "na"}">${{ C: "Conforme", NC: "Não conforme", NA: "N/A" }[it.status]}</span>
+          ${it.obs ? `<div class="note">${esc(it.obs)}</div>` : ""}
+          ${it.status === "NC" ? `<div class="act ${it.corrigido ? "done" : ""}">
+            <span><span class="label">Ação</span> ${esc(it.acao || "não definida")}</span>
+            ${it.respAcao ? `<span><span class="label">Resp.</span> ${esc(it.respAcao)}</span>` : ""}
+            <span><span class="label">Prazo</span> ${fmtDate(it.prazo)}</span>
+            ${it.corrigido ? `<span class="chip ok">Corrigido em ${fmtDate(it.corrigidoEm)}</span>${state.canWrite ? `<button class="btn small" data-act="reabrir" data-idx="${idx}">Reabrir</button>` : ""}`
+              : state.canWrite ? `<button class="btn small" data-act="corrigir" data-idx="${idx}">Marcar como corrigido</button>` : `<span class="chip bad">Em aberto</span>`}
+          </div>` : ""}
+        </div>`).join("")}
+      </section>
+      <div class="row-actions">
+        <button class="btn" data-act="relatorio">Baixar relatório (HTML)</button>
+        <button class="btn" data-act="csv-one">Exportar CSV</button>
+        <button class="btn" data-act="duplicar">Nova inspeção neste local</button>
+        ${state.canWrite ? (state.confirmDelete
+          ? `<div class="confirm">Excluir esta inspeção definitivamente? <button class="btn small danger" data-act="excluir-sim">Excluir</button><button class="btn small" data-act="excluir-nao">Cancelar</button></div>`
+          : `<button class="btn danger" data-act="excluir">Excluir</button>`) : ""}
+      </div>
+      <div id="copy-area"></div>
+    </div>`;
+  }
+
+  // ---------- Exportação ----------
+  function toCSV(list) {
+    const head = ["Data", "Local", "Setor", "Inspetor", "Norma", "Checklist", "Nº", "Item", "Ref.", "Resultado", "Observação", "Ação corretiva", "Responsável ação", "Prazo", "Corrigido"];
+    const q = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const rows = [head.map(q).join(";")];
+    for (const i of list) i.itens.forEach((it, n) => rows.push([fmtDate(i.data), i.local, i.setor, i.responsavel, i.nr, i.checklistNome, n + 1, it.texto, it.ref,
+      { C: "Conforme", NC: "Não conforme", NA: "N/A" }[it.status], it.obs, it.acao, it.respAcao, it.prazo ? fmtDate(it.prazo) : "", it.status === "NC" ? (it.corrigido ? "Sim " + fmtDate(it.corrigidoEm) : "Não") : ""].map(q).join(";")));
+    return "﻿" + rows.join("\r\n");
+  }
+  function reportHTML(i) {
+    const s = score(i);
+    const lab = { C: "Conforme", NC: "Não conforme", NA: "N/A" };
+    return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Inspeção ${esc(i.nr)} – ${esc(i.local)} – ${fmtDate(i.data)}</title>
+<style>body{font-family:Arial,sans-serif;color:#1d211c;max-width:900px;margin:24px auto;padding:0 16px;font-size:13px}h1{font-size:20px;margin:0}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{border:1px solid #bbb;padding:6px;text-align:left;vertical-align:top}th{background:#eee}.C{color:#1f7a3d}.NC{color:#c0281e;font-weight:bold}.meta td{border:0;padding:2px 12px 2px 0}.sig{display:flex;gap:48px;margin-top:48px}.sig div{flex:1;border-top:1px solid #000;padding-top:4px;text-align:center}</style></head><body>
+<div style="height:6px;background:repeating-linear-gradient(-45deg,#e8b500 0 12px,#1d211c 12px 24px)"></div>
+<h1 style="margin-top:12px">Relatório de Inspeção de Segurança</h1><p>${esc(i.nr)} · ${esc(i.checklistNome)}</p>
+<table class="meta"><tr><td><b>Local:</b> ${esc(i.local)}</td><td><b>Setor:</b> ${esc(i.setor || "—")}</td><td><b>Data:</b> ${fmtDate(i.data)}</td></tr>
+<tr><td><b>Inspetor:</b> ${esc(i.responsavel)}</td><td><b>Acompanhante:</b> ${esc(i.acompanhante || "—")}</td><td><b>Conformidade:</b> ${s.pct ?? "—"}% (${s.c} C · ${s.nc} NC · ${s.na} N/A)</td></tr></table>
+<table><thead><tr><th>Nº</th><th>Item</th><th>Resultado</th><th>Observação</th><th>Ação corretiva / Resp. / Prazo</th></tr></thead><tbody>
+${i.itens.map((it, n) => `<tr><td>${n + 1}</td><td>${esc(it.texto)}${it.ref ? ` <small>(${esc(it.ref)})</small>` : ""}</td><td class="${it.status}">${lab[it.status]}</td><td>${esc(it.obs)}</td><td>${it.status === "NC" ? `${esc(it.acao)}${it.respAcao ? " / " + esc(it.respAcao) : ""}${it.prazo ? " / " + fmtDate(it.prazo) : ""}${it.corrigido ? " — corrigido em " + fmtDate(it.corrigidoEm) : ""}` : ""}</td></tr>`).join("")}
+</tbody></table>${i.observacoes ? `<p><b>Observações gerais:</b> ${esc(i.observacoes)}</p>` : ""}
+<div class="sig"><div>${esc(i.responsavel)}<br>Inspetor</div><div>${esc(i.acompanhante || "")}<br>Responsável da área</div></div></body></html>`;
+  }
+  async function offer(filename, data) {
+    if (downloads) {
+      try { await downloads.save({ filename, data }); toast("Arquivo salvo"); return; }
+      catch (e) { if (e?.code === "declined") return; }
+    }
+    if (!window.claude) {
+      const url = URL.createObjectURL(new Blob([data], { type: filename.endsWith(".csv") ? "text/csv;charset=utf-8" : "text/html;charset=utf-8" }));
+      const a = document.createElement("a"); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2000); toast("Arquivo baixado"); return;
+    }
+    const area = document.getElementById("copy-area");
+    if (area) {
+      area.innerHTML = `<div class="panel" style="margin-top:12px"><div class="panel-head"><h3>Copiar conteúdo</h3><button class="btn small" data-act="copiar">Copiar</button></div>
+        <p class="lead" style="margin:0 0 8px">O download não está disponível nesta visualização. Copie o conteúdo abaixo e salve como <b>${esc(filename)}</b>.</p><textarea class="copybox" id="copy-text" readonly></textarea></div>`;
+      document.getElementById("copy-text").value = data;
+    }
+  }
+  const slug = s => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, "").toLowerCase().slice(0, 40);
+
+  // ---------- Ações ----------
+  document.addEventListener("click", async e => {
+    const el = e.target.closest("[data-act], .cl-card, .seg button");
+    if (!el) return;
+    if (el.classList.contains("cl-card")) {
+      readHeader();
+      const old = state.draft; state.draft = newDraft(el.dataset.cl);
+      if (old) Object.assign(state.draft, { local: old.local, setor: old.setor, responsavel: old.responsavel, data: old.data, acompanhante: old.acompanhante, observacoes: old.observacoes });
+      render(); return;
+    }
+    if (el.matches(".seg button")) {
+      readHeader();
+      const it = state.draft.itens[+el.dataset.i]; it.status = it.status === el.dataset.v ? "" : el.dataset.v;
+      const y = window.scrollY; render(); window.scrollTo(0, y);
+      if (it.status === "NC") document.getElementById("nc-obs-" + el.dataset.i)?.focus({ preventScroll: true });
+      return;
+    }
+    const act = el.dataset.act;
+    const cur = () => state.inspecoes.find(x => x.id === state.selected);
+    switch (act) {
+      case "nova": go("nova"); break;
+      case "abrir": go("detalhe", { selected: el.dataset.id }); break;
+      case "voltar": go("historico"); break;
+      case "descartar": state.draft = null; render(); break;
+      case "add-item": {
+        readHeader(); const inp = document.getElementById("f-novo-item"); const t = inp.value.trim(); if (!t) { inp.focus(); break; }
+        state.draft.itens.push({ texto: t, ref: "", status: "", obs: "", acao: "", prazo: "", respAcao: "" }); render(); break;
+      }
+      case "todos-c": readHeader(); state.draft.itens.forEach(i => { if (!i.status) i.status = "C"; }); { const y = window.scrollY; render(); window.scrollTo(0, y); } break;
+      case "corrigir": case "reabrir": {
+        const i = structuredClone(cur()); const it = i.itens[+el.dataset.idx];
+        it.corrigido = act === "corrigir"; it.corrigidoEm = it.corrigido ? today() : "";
+        el.disabled = true;
+        try { await saveInsp(i); toast(it.corrigido ? "Ação marcada como corrigida" : "Pendência reaberta"); } catch { el.disabled = false; toast("Não foi possível atualizar. Tente novamente."); }
+        break;
+      }
+      case "excluir": state.confirmDelete = true; render(); break;
+      case "excluir-nao": state.confirmDelete = false; render(); break;
+      case "excluir-sim": try { await deleteInsp(state.selected); toast("Inspeção excluída"); go("historico"); } catch { toast("Não foi possível excluir. Tente novamente."); } break;
+      case "duplicar": { const i = cur(); state.draft = newDraft(i.checklistId); Object.assign(state.draft, { local: i.local, setor: i.setor, responsavel: i.responsavel, acompanhante: i.acompanhante }); go("nova"); break; }
+      case "relatorio": { const i = cur(); offer(`inspecao-${slug(i.nr)}-${slug(i.local)}-${i.data}.html`, reportHTML(i)); break; }
+      case "csv-one": { const i = cur(); offer(`inspecao-${slug(i.local)}-${i.data}.csv`, toCSV([i])); break; }
+      case "csv": offer(`inspecoes-${today()}.csv`, toCSV(filtered())); break;
+      case "copiar": {
+        const ta = document.getElementById("copy-text");
+        try { await navigator.clipboard.writeText(ta.value); toast("Copiado"); } catch { ta.select(); toast("Texto selecionado. Use Ctrl+C para copiar."); }
+        break;
+      }
+    }
+  });
+  document.addEventListener("keydown", e => {
+    if (e.key === "Enter" && e.target.matches("tr[data-act]")) e.target.click();
+  });
+  document.addEventListener("input", e => {
+    if (e.target.id === "h-q" || e.target.id === "h-cl") {
+      state.filtro.q = document.getElementById("h-q").value; state.filtro.cl = document.getElementById("h-cl").value;
+      document.getElementById("h-body").innerHTML = histRows(filtered());
+    }
+  });
+
+  try { const h = location.hash.slice(1); if (["painel", "nova", "historico"].includes(h)) state.view = h; } catch {}
+  document.querySelectorAll("nav.tabs button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.view === state.view)));
+  initStore();
+})();
+</script>
+
+</body>
+</html>
