@@ -85,6 +85,13 @@ h3 { font-family: var(--f-display); font-weight: 600; font-size: 20px; text-tran
 .grid2 { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 20px; align-items: start; }
 .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px; min-width: 0; }
 .panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+.live { display: inline-flex; align-items: center; gap: 6px; font: 600 12px var(--f-body); color: var(--ok); }
+.live::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); animation: pulse 2s ease-in-out infinite; }
+.live.off { color: var(--muted); } .live.off::before { background: var(--muted); animation: none; }
+@keyframes pulse { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .live::before { animation: none; } }
+.feed .day { font: 600 11px var(--f-body); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: 12px 0 2px; }
+.feed .nc-row .when { font: 500 12px var(--f-mono, monospace); color: var(--muted); white-space: nowrap; }
 .nc-list { display: flex; flex-direction: column; gap: 0; }
 .nc-row { display: grid; grid-template-columns: 4px minmax(0, 1fr) auto; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); align-items: center; }
 .nc-row:first-child { border-top: 0; }
@@ -295,6 +302,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
       <button role="tab" id="tab-painel" data-view="painel" aria-selected="true">Painel</button>
       <button role="tab" id="tab-nova" data-view="nova" aria-selected="false">Nova inspeção</button>
       <button role="tab" id="tab-historico" data-view="historico" aria-selected="false">Histórico</button>
+      <button role="tab" id="tab-monitor" data-view="monitor" aria-selected="false">Monitoramento</button>
       <button role="tab" id="tab-setores" data-view="setores" aria-selected="false" hidden>Setores e perguntas</button>
     </nav>
   </div>
@@ -709,7 +717,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
     }, () => {});
     db.collection("inspecoes").onSnapshot(snap => {
       state.inspecoes = snap.docs.map(d => ({ id: d.id, ...structuredClone(d.data()) }));
-      sortInsp(); state.loaded = true; render();
+      state.syncAt = Date.now(); sortInsp(); state.loaded = true; render();
     }, () => useLocal());
   }
 
@@ -732,11 +740,84 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
       ? `<div class="store-note">As inspeções e a configuração dos setores ficam salvas neste navegador. Use Exportar CSV para guardar uma cópia.</div>` : "";
     const tabSet = document.getElementById("tab-setores"); if (tabSet) tabSet.hidden = !state.isAdmin;
     if (state.view === "setores" && !state.isAdmin) state.view = "painel";
-    const v = { painel: viewPainel, nova: viewNova, historico: viewHistorico, detalhe: viewDetalhe, setores: viewSetores }[state.view] || viewPainel;
+    const v = { painel: viewPainel, nova: viewNova, historico: viewHistorico, detalhe: viewDetalhe, setores: viewSetores, monitor: viewMonitor }[state.view] || viewPainel;
     app.innerHTML = note + v();
     hydrateFotos();
     if (state.view === "nova") bindNova();
   }
+
+  // ---------- Monitoramento ----------
+  const fmtHora = ts => new Date(ts).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  const diaKey = ts => { const d = new Date(ts); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+  function haQuanto(ts) {
+    const m = Math.round((Date.now() - ts) / 6e4);
+    if (m < 1) return "agora"; if (m < 60) return `há ${m} min`;
+    const h = Math.round(m / 60); return h < 24 ? `há ${h} h` : `há ${Math.round(h / 24)} d`;
+  }
+  function viewMonitor() {
+    const t = today(), hojeLocal = diaKey(Date.now());
+    const em7 = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10);
+    const ev = [], acoes = [];
+    for (const insp of state.inspecoes) {
+      if (insp.exemplo) continue;
+      const nc = insp.itens.filter(x => x.status === "NC").length;
+      const tsI = insp.criadoEm > 1e12 ? insp.criadoEm : insp.data ? new Date(insp.data + "T12:00").getTime() : 0;
+      if (tsI) ev.push({ ts: tsI, exato: insp.criadoEm > 1e12, insp, cor: nc ? "var(--s-reg)" : "var(--ok)",
+        t: `Inspeção registrada · ${setorLabel(insp)}`,
+        m: `${esc(insp.responsavel || "TST não informado")}${insp.horaInicio ? ` · ${esc(insp.horaInicio)}${insp.horaFim ? "–" + esc(insp.horaFim) : ""}` : ""} · ${nc ? `<span class="chip bad">${nc} NC</span>` : `<span class="chip ok">sem NC</span>`}` });
+      insp.itens.forEach(it => { if (it.status !== "NC") return;
+        acoesDe(it).forEach((a, k) => {
+          acoes.push({ insp, it, a, k, resp: (a.resp || "").trim() || "Sem responsável" });
+          if (!a.corrigido) return;
+          const ts = a.corrigidoTs || (a.corrigidoEm ? new Date(a.corrigidoEm + "T12:00").getTime() : 0);
+          if (ts) ev.push({ ts, exato: !!a.corrigidoTs, insp, cor: "var(--s-done)",
+            t: `Ação ${k + 1} concluída: ${esc(a.texto || it.texto)}`,
+            m: `${esc(setorLabel(insp))}${it.localNC ? " · " + esc(it.localNC) : ""} · Executado por ${esc(a.corrigidoPor || a.resp || "—")}${a.prazo ? (a.corrigidoEm && a.corrigidoEm <= a.prazo ? ` · <span class="chip ok">no prazo</span>` : ` · <span class="chip bad">fora do prazo</span>`) : ""}${a.fotoConclusao ? " · com foto" : ""}` });
+        }); });
+    }
+    ev.sort((a, b) => b.ts - a.ts);
+    const abertas = acoes.filter(x => !x.a.corrigido);
+    const atras = abertas.filter(x => x.a.prazo && x.a.prazo < t), hoje = abertas.filter(x => x.a.prazo === t);
+    const prox = abertas.filter(x => x.a.prazo > t && x.a.prazo <= em7);
+    const evHoje = ev.filter(e => diaKey(e.ts) === hojeLocal);
+    const inspHoje = evHoje.filter(e => e.t.startsWith("Inspeção")).length, concHoje = evHoje.length - inspHoje;
+    const ncHoje = state.inspecoes.filter(i => !i.exemplo && i.criadoEm > 1e12 && diaKey(i.criadoEm) === hojeLocal).reduce((n, i) => n + i.itens.filter(x => x.status === "NC").length, 0);
+    const live = state.store === "db"
+      ? `<span class="live">Ao vivo</span> <span class="label" style="text-transform:none;letter-spacing:0">Aparece aqui assim que um TST salva uma inspeção ou finaliza uma ação${state.syncAt ? ` · última atualização às ${fmtHora(state.syncAt)}` : ""}</span>`
+      : `<span class="live off">Só este aparelho</span> <span class="label" style="text-transform:none;letter-spacing:0">Nesta versão os dados ficam no navegador; para acompanhar a equipe use o link do Claude.</span>`;
+    const row = (x, cls) => `<div class="nc-row"><div class="bar" style="background:${cls}"></div>
+      <div style="min-width:0"><div class="t">Ação ${x.k + 1}: ${esc(x.a.texto || x.it.texto)}</div>
+      <div class="m">${esc(setorLabel(x.insp))}${x.it.localNC ? " · " + esc(x.it.localNC) : ""} · Resp.: ${esc(x.resp)} · ${x.a.prazo ? (x.a.prazo < t ? `<span class="chip bad">vencida em ${fmtDate(x.a.prazo)}</span>` : x.a.prazo === t ? `<span class="chip warn">vence hoje</span>` : "prazo " + fmtDate(x.a.prazo)) : "sem prazo"}</div></div>
+      <button class="btn small" data-act="abrir" data-id="${x.insp.id}">Ver</button></div>`;
+    const lista = (arr, cor, vazio) => arr.length ? `<div class="nc-list">${arr.sort((a, b) => (a.a.prazo || "").localeCompare(b.a.prazo || "")).slice(0, 20).map(x => row(x, cor)).join("")}</div>${arr.length > 20 ? `<p class="label" style="margin:8px 0 0">+ ${arr.length - 20} ações</p>` : ""}` : `<p class="lead" style="margin:0">${vazio}</p>`;
+    let dia = "";
+    const feed = ev.slice(0, 40).map(e => { const d = diaKey(e.ts); const head = d !== dia ? `<div class="day">${d === hojeLocal ? "Hoje" : fmtDate(d)}</div>` : ""; dia = d;
+      return head + `<div class="nc-row"><div class="bar" style="background:${e.cor}"></div>
+        <div style="min-width:0"><div class="t">${e.t}</div><div class="m">${e.m}</div></div>
+        <div style="text-align:right"><div class="when" title="${new Date(e.ts).toLocaleString("pt-BR")}">${e.exato ? fmtHora(e.ts) + `<br>${haQuanto(e.ts)}` : "sem hora"}</div><button class="btn small" data-act="abrir" data-id="${e.insp.id}" style="margin-top:4px">Ver</button></div></div>`; }).join("");
+    return `<h2>Monitoramento</h2><p class="lead">O que a equipe está registrando e fechando, atualizado sozinho, sem recarregar a página.</p>
+    <div class="stack"><div>${live}</div>
+      <div class="kpis kpis7">
+        <div class="kpi"><span class="label">Inspeções hoje</span><span class="num">${inspHoje}</span><span class="sub">${ncHoje} não conformidades</span></div>
+        <div class="kpi"><span class="label">Ações concluídas hoje</span><span class="num" style="color:var(--ok)">${concHoje}</span><span class="sub">finalizadas pelos responsáveis</span></div>
+        <div class="kpi ${hoje.length ? "alert" : ""}"><span class="label">Vencem hoje</span><span class="num">${hoje.length}</span><span class="sub">ainda em aberto</span></div>
+        <div class="kpi ${atras.length ? "alert" : ""}"><span class="label">Atrasadas</span><span class="num" style="color:${atras.length ? "var(--bad)" : "inherit"}">${atras.length}</span><span class="sub">prazo vencido</span></div>
+        <div class="kpi"><span class="label">Próximos 7 dias</span><span class="num">${prox.length}</span><span class="sub">ações a vencer</span></div>
+        <div class="kpi"><span class="label">Em aberto</span><span class="num">${abertas.length}</span><span class="sub">de ${acoes.length} ações no plano</span></div>
+      </div>
+      <div class="grid2 even">
+        <section class="panel"><div class="panel-head"><h3>Últimas atividades</h3><span class="label">${ev.length} registros</span></div>
+          ${feed ? `<div class="nc-list feed">${feed}</div>` : `<p class="lead" style="margin:0">Nenhuma atividade ainda. Quando um TST salvar uma inspeção, ela aparece aqui.</p>`}</section>
+        <div class="stack">
+          <section class="panel"><div class="panel-head"><h3>Atrasadas e vencendo hoje</h3><span class="label">${atras.length + hoje.length}</span></div>
+            ${lista([...atras, ...hoje], "var(--s-late)", "Nenhuma ação atrasada ou vencendo hoje.")}</section>
+          <section class="panel"><div class="panel-head"><h3>Vencem nos próximos 7 dias</h3><span class="label">${prox.length}</span></div>
+            ${lista(prox, "var(--s-open)", "Nenhuma ação vence nos próximos 7 dias.")}</section>
+        </div>
+      </div></div>`;
+  }
+  // atualiza horários e prazos da tela de monitoramento mesmo sem novas gravações
+  setInterval(() => { if (state.view === "monitor" && state.loaded && !document.activeElement?.matches?.("input, textarea, select")) render(); }, 30000);
 
   function pendencias() {
     const out = [];
@@ -1742,14 +1823,14 @@ ${i.observacoes ? `<p><b>Observações gerais:</b> ${esc(i.observacoes)}</p>` : 
         el.disabled = true;
         try {
         it.acoes = structuredClone(acoesDe(it));
-        Object.assign(it.acoes[c.k || 0], { corrigido: true, corrigidoEm: c.data, corrigidoPor: c.por.trim(), descricaoConclusao: c.desc.trim(), fotoConclusao: await persistFoto(c.foto) }); syncNC(it); await saveInsp(i); state.closing = null; toast("Ação finalizada"); keepY(); }
+        Object.assign(it.acoes[c.k || 0], { corrigido: true, corrigidoEm: c.data, corrigidoTs: Date.now(), corrigidoPor: c.por.trim(), descricaoConclusao: c.desc.trim(), fotoConclusao: await persistFoto(c.foto) }); syncNC(it); await saveInsp(i); state.closing = null; toast("Ação finalizada"); keepY(); }
         catch (err) { el.disabled = false; bad(err?.code === "invalid_argument" ? "Não foi possível salvar. Se anexou foto, tente uma imagem menor." : "Não foi possível salvar. Tente novamente."); }
         break;
       }
       case "reabrir": {
         const i = structuredClone(cur()); const it = i.itens[+el.dataset.idx];
         it.acoes = structuredClone(acoesDe(it));
-        Object.assign(it.acoes[+el.dataset.k || 0], { corrigido: false, corrigidoEm: "", corrigidoPor: "", descricaoConclusao: "", fotoConclusao: "" }); syncNC(it);
+        Object.assign(it.acoes[+el.dataset.k || 0], { corrigido: false, corrigidoEm: "", corrigidoTs: 0, corrigidoPor: "", descricaoConclusao: "", fotoConclusao: "" }); syncNC(it);
         el.disabled = true;
         try { await saveInsp(i); toast("Ação reaberta"); } catch { el.disabled = false; toast("Não foi possível atualizar. Tente novamente."); }
         break;
@@ -1853,7 +1934,7 @@ ${i.observacoes ? `<p><b>Observações gerais:</b> ${esc(i.observacoes)}</p>` : 
     else if (t.dataset.tst) { state.cfgDraft.tsts[+t.dataset.i][t.dataset.tst] = t.value; cfgChanged(false); }
   });
 
-  try { const h = location.hash.slice(1); if (["painel", "nova", "historico", "setores"].includes(h)) state.view = h; } catch {}
+  try { const h = location.hash.slice(1); if (["painel", "nova", "historico", "setores", "monitor"].includes(h)) state.view = h; } catch {}
   document.querySelectorAll("nav.tabs button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.view === state.view)));
   initStore();
 })();
