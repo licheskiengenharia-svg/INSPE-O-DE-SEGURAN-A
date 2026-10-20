@@ -267,6 +267,13 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
 .check-card { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 2px 10px; align-items: start; background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 12px; cursor: pointer; }
 .check-card input { width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--bad); }
 .check-card .nm { font-weight: 600; }
+.vis-sec { border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; margin-bottom: 8px; background: var(--surface-2); }
+.vis-sec summary { cursor: pointer; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.vis-q { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 8px; padding: 6px 0; border-top: 1px solid var(--line); font-size: 14px; cursor: pointer; }
+.vis-q input, .sug input { width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--ok); }
+.sug-list { display: grid; gap: 8px; }
+.sug { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; background: var(--surface-2); cursor: pointer; }
+.sug span { display: grid; gap: 3px; } .sug small { color: var(--muted); font-size: 12px; }
 .check-card .sub { grid-column: 2; font-size: 12px; color: var(--muted); }
 .inline-check { display: flex; gap: 10px; align-items: flex-start; background: var(--surface-2); border-radius: 6px; padding: 8px 12px; cursor: pointer; }
 .inline-check input { width: 18px; height: 18px; flex: none; margin-top: 2px; accent-color: var(--bad); }
@@ -527,6 +534,29 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
     { id: "pintura", nome: "Pintura", generico: false, secoes: ["epi","ele","maq","inf","fre","5s","inc","amb","ica","gas","emg","esp-pintura"] },
     { id: "outro", nome: "Outro setor (todas as seções)", generico: true, secoes: ["epi","ele","maq","inf","fre","5s","for","inc","vaz","amb","ica","reb","gas","emg"] },
   ];
+  // perguntas sugeridas a partir das inspeções reais da empresa (o responsável escolhe quais entram)
+  const SUGESTOES = [
+    { id: "s1", sec: "5s", texto: "O piso, as chapas e as tampas de canaletas, caixas de passagem e fossos estão íntegros, nivelados e sem buracos ou desníveis?", nr: "NR-08", motivo: "Piso do Jateamento, Pressenger, Ferramentaria e Savelli; tampa do fosso da Cura Frio abaulada; tampa de caixa de passagem quebrada" },
+    { id: "s2", sec: "fre", texto: "Passarelas, plataformas, escadas fixas e aberturas de fosso têm guarda-corpo, rodapé e tampas íntegros e fechados?", nr: "NR-12 / NR-08", motivo: "Guarda-corpo faltando nas passarelas de óxido de ferro e do misturador; escada marinheiro do Jato e fosso do Jateamento abertos" },
+    { id: "s3", sec: "fre", texto: "As atividades em altura ou fora do piso são feitas com plataforma ou escada adequada e cinto paraquedista ancorado, sem subir em equipamentos, trilhos ou montes de material?", nr: "NR-35", motivo: "Manutenção sobre o equipamento Renk sem proteção; escada de mão no forno; colaboradores subindo no trilho e no monte de areia" },
+    { id: "s4", sec: "maq", texto: "As áreas de acesso restrito (desmoldador, quebra de canal, área superior das sopradoras, áreas com partes em movimento) estão isoladas com corrente ou barreira e sinalização, e o isolamento está mantido?", nr: "NR-12 / NR-26", motivo: "Área das sopradoras sem corrente e placa; espaço controlado da quebra de canal aberto; corrente do desmoldador fora de posição" },
+    { id: "s5", sec: "maq", texto: "Máquinas de bancada (esmeril, serra, policorte, serra vai e vem, lixadeira) têm proteção do disco e das transmissões e dispositivo que impede o uso por pessoas não autorizadas (cadeado ou chave)?", nr: "NR-12", motivo: "Esmeril e serra da Macharia sem coifa/cadeado; policorte e lixadeira de coquilhas com correia exposta" },
+    { id: "s6", sec: "maq", texto: "Não há improvisos em máquinas e dispositivos (calços, pedras, parafusos, pedaços de madeira) substituindo componentes ou forçando o funcionamento?", nr: "NR-12", motivo: "Parafuso para reduzir a corrente; improviso com pedra; porta do Jato CMV aberta a golpes de madeira" },
+    { id: "s7", sec: "ica", texto: "As empilhadeiras e transpaleteiras estão em bom estado (pneus, garfos, retrovisor, freio, sinal sonoro e luminoso, sem vazamentos)?", nr: "NR-11", motivo: "Pneus rachado e desgastado; empilhadeira 772 sem retrovisor; vazamento no radiador; garfos tortos" },
+    { id: "s8", sec: "ica", texto: "Ganchos, gaiolas, berços e dispositivos de movimentação feitos na empresa têm capacidade de carga definida e identificada e estão sem deformação, trincas ou improviso?", nr: "NR-11 / NR-12", motivo: "Gaiola do Jato tombando; ganchos finos e tortos; estrutura de ferro abaixo da espessura; gancho que escapou do latão" },
+    { id: "s9", sec: "ica", texto: "Nenhuma carga fica parada suspensa na talha ou ponte (carga suspensa abandonada) e ninguém passa ou trabalha sob carga suspensa?", nr: "NR-11", motivo: "Peças mantidas suspensas aguardando posicionamento na Cura Frio" },
+    { id: "s10", sec: "5s", texto: "As estruturas (muros, baias de areia, racks e prateleiras) estão íntegras, sem trincas, deformação, corrosão ou sobrecarga, e com travamento entre os níveis?", nr: "NR-08 / NR-11", motivo: "Muro da central de areia rachado; racks corroídos sem travamento; portas da baia de areia cedendo" },
+    { id: "s11", sec: "5s", texto: "Caçambas, latões e baias de resíduos são esvaziados antes de atingir a capacidade, sem transbordo?", nr: "NR-25", motivo: "Caçamba da Savelli transbordando; latões acumulados na Macharia" },
+    { id: "s12", sec: "5s", texto: "O telhado e as instalações estão sem goteiras ou infiltrações, principalmente perto de fornos, painéis e eletrodutos?", nr: "NR-08 / NR-10", motivo: "Goteira a 1 m do Forno 03; goteira nos eletrodutos do PCP; infiltração no Acabamento" },
+    { id: "s13", sec: "amb", texto: "Os postos expostos a calor têm ventilação ou climatização funcionando (ventiladores instalados e em uso)?", nr: "NR-17 / NR-15", motivo: "Falta de ventilação na Cura Frio e na Savelli; ventilador retirado; calor extremo no Tratamento Térmico" },
+    { id: "s14", sec: "amb", texto: "A sílica e a areia derramadas ou aguardando descarte são recolhidas e guardadas em recipiente fechado, sem acúmulo que espalhe poeira?", nr: "NR-09 / NR-15", motivo: "Sílica exposta na Cura Frio T12; acúmulo na quebra de canal e no desmoldador Ecosand" },
+    { id: "s15", sec: "reb", texto: "Quem usa esmerilhadeira ou lixadeira usa protetor facial e luva adequada ao corte e à abrasão (não luva de PU ou tecido)?", nr: "NR-06 / NR-12", motivo: "Disco rompeu e atingiu o rosto; luva de PU no setor Renk; esmerilhadeira sem luva" },
+    { id: "s16", sec: "ele", texto: "As ferramentas elétricas portáteis (esmerilhadeiras, retíficas, lixadeiras, extensões) estão com cabo, plugue e carcaça íntegros, sem emendas, e fora de piso molhado?", nr: "NR-10 / NR-12", motivo: "Esmerilhadeira com cabo emendado; retífica com fiação irregular; extensões no piso úmido da Pintura" },
+    { id: "s17", sec: "for", texto: "Os tambores de areia seca para combate a princípio de incêndio e contenção de metal junto aos fornos estão completos, íntegros e acessíveis?", nr: "NR-23 / NR-14", motivo: "Tambor de areia dos fornos danificado e vazio" },
+    { id: "s18", sec: "vaz", texto: "Durante o vazamento não há atividades simultâneas nem circulação de veículos (retroescavadeira, caminhão, empilhadeira) na área de risco do metal líquido?", nr: "NR-11 / NR-14", motivo: "Desmoldagem, retroescavadeira e caminhão operando em frente aos fornos durante o envase" },
+    { id: "s19", sec: "esp-macharia", texto: "O elevador de óxido de ferro tem proteção lateral, capacidade identificada, sinalização de uso exclusivo para material e acesso restrito, e o abastecimento é feito sem esforço manual inadequado?", nr: "NR-12 / NR-17", motivo: "Elevador sem proteção lateral e sinalização; abastecimento manual incorreto" },
+    { id: "s20", sec: "esp-pintura", texto: "O transportador aéreo (carrossel) e os ganchos de pendurar peças estão em bom estado, com trava que impede o giro ou a queda das peças?", nr: "NR-11 / NR-12", motivo: "Roldanas abrindo e trolley quebrado; ganchos da família Renk girando 360°" },
+  ];
 
   // ---------- Estado ----------
   const state = {
@@ -566,7 +596,9 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
   const fmtDate = d => d ? d.split("-").reverse().join("/") : "—";
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   const secById = (cfg, id) => cfg.secoes.find(s => s.id === id);
-  const countQ = (cfg, setor) => setor.secoes.reduce((n, id) => n + (secById(cfg, id)?.perguntas.length || 0), 0);
+  const qKey = (secId, texto) => secId + "::" + String(texto || "").trim();
+  const visivel = (setor, secId, p) => !(setor.ocultas || []).includes(qKey(secId, p.texto));
+  const countQ = (cfg, setor) => setor.secoes.reduce((n, id) => n + (secById(cfg, id)?.perguntas.filter(p => visivel(setor, id, p)).length || 0), 0);
   const setorLabel = i => i.setorNome || [i.nr, i.checklistNome].filter(Boolean).join(" · ") || "—";
 
   function toast(msg) {
@@ -905,7 +937,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
     const cfg = state.config, st = cfg.setores.find(s => s.id === setorId);
     const itens = [];
     for (const sid of st.secoes) { const sec = secById(cfg, sid); if (!sec) continue;
-      for (const p of sec.perguntas) itens.push({ secaoId: sec.id, secao: sec.nome, nr: /^NR-\d/.test(p.ref || "") ? p.ref : sec.nr, texto: p.texto, ref: /^NR-\d/.test(p.ref || "") ? "" : p.ref, status: "", obs: "", nota: "", foto: "", analiseFoto: "", enquadramento: "", risco: "", acao: "", prazo: "", respAcao: "" }); }
+      for (const p of sec.perguntas) if (visivel(st, sec.id, p)) itens.push({ secaoId: sec.id, secao: sec.nome, nr: /^NR-\d/.test(p.ref || "") ? p.ref : sec.nr, texto: p.texto, ref: /^NR-\d/.test(p.ref || "") ? "" : p.ref, status: "", obs: "", nota: "", foto: "", analiseFoto: "", enquadramento: "", risco: "", acao: "", prazo: "", respAcao: "" }); }
     const tst = lsGet(LS_TST, {});
     return { setorId, setorNome: st.generico ? "" : st.nome, generico: st.generico, local: "", responsavel: tst.nome || "", registroTst: tst.registro || "", data: today(), horaInicio: nowHM(), horaFim: "", turno: "", acompanhante: "", cargoLider: "", assinaturaLider: "", observacoes: "", itens };
   }
@@ -1134,6 +1166,10 @@ Responda só com JSON neste formato:
   }
 
   // ---------- Setores e perguntas ----------
+  function sugPendentes(cfg) {
+    const desc = new Set(cfg.sugDescartadas || []);
+    return SUGESTOES.filter(g => !desc.has(g.id) && !(secById(cfg, g.sec)?.perguntas || []).some(p => p.texto.trim() === g.texto));
+  }
   function viewSetores() {
     if (!state.cfgDraft) state.cfgDraft = { ...structuredClone(state.config), tsts: structuredClone(state.equipe.tsts || []), metaTst: state.equipe.metaTst || 0 };
     const cfg = state.cfgDraft;
@@ -1154,9 +1190,21 @@ Responda só com JSON neste formato:
         <div><h3>Seções de perguntas</h3><p class="lead" style="margin:2px 0 10px">Marque as seções que se aplicam a este setor.</p>
           <div class="check-grid">${cfg.secoes.map(s => `<label class="check-card"><input type="checkbox" data-cfg="secao" value="${esc(s.id)}" ${st.secoes.includes(s.id) ? "checked" : ""} ${ro ? "disabled" : ""}>
             <span class="nm">${esc(s.nome)}</span><span class="sub">${s.perguntas.length} perguntas${s.nr ? " · " + esc(s.nr) : ""}</span></label>`).join("")}</div></div>
+        <div><h3>Perguntas que aparecem neste setor</h3><p class="lead" style="margin:2px 0 10px">Desmarque as perguntas que não devem aparecer na inspeção nem no relatório deste setor. Elas não são apagadas; dá para marcar de novo quando quiser.</p>
+          ${st.secoes.map(id => secById(cfg, id)).filter(Boolean).map(s => { const vis = s.perguntas.filter(p => visivel(st, s.id, p)).length; return `<details class="vis-sec" data-sec-open="${esc(s.id)}" ${state.cfgOpen?.has(s.id) ? "open" : ""}><summary><b>${esc(s.nome)}</b> <span class="label" id="vis-c-${esc(s.id)}">${vis} de ${s.perguntas.length} aparecem</span></summary>
+            ${s.perguntas.map(p => `<label class="vis-q"><input type="checkbox" data-cfg="vis" data-secid="${esc(s.id)}" value="${esc(qKey(s.id, p.texto))}" ${visivel(st, s.id, p) ? "checked" : ""} ${ro ? "disabled" : ""}><span>${esc(p.texto)}${p.ref ? ` <small class="label">${esc(p.ref)}</small>` : ""}</span></label>`).join("")}</details>`; }).join("")}</div>
         ${ro ? "" : (state.cfgConfirmDel ? `<div class="confirm">Excluir o setor "${esc(st.nome)}"? As inspeções já registradas não são apagadas. <button class="btn small danger" data-act="cfg-del-sim">Excluir</button><button class="btn small" data-act="cfg-del-nao">Cancelar</button></div>`
           : `<div><button type="button" class="btn danger small" data-act="cfg-del">Excluir setor</button></div>`)}
       </section>` : ""}
+      ${(() => { const pend = sugPendentes(cfg); const desc = (cfg.sugDescartadas || []).length;
+        return pend.length || desc ? `<section class="panel stack" style="gap:12px">
+        <div class="panel-head" style="margin:0"><h3>Perguntas sugeridas pelas inspeções da empresa</h3><span class="label">${pend.length} para avaliar</span></div>
+        ${pend.length ? `<p class="lead" style="margin:0">Deixe marcadas as que devem entrar no checklist e desmarque as que não quer. Depois clique em <b>Aplicar escolha</b> e em <b>Salvar alterações</b>. As desmarcadas são descartadas e não aparecem na inspeção nem no relatório.</p>
+        <div class="sug-list">${pend.map(g => { const sc = secById(cfg, g.sec); return `<label class="sug"><input type="checkbox" data-sug="${g.id}" ${state.sugOff?.has(g.id) ? "" : "checked"} ${ro ? "disabled" : ""}>
+          <span><b>${esc(g.texto)}</b><span class="label">${esc(sc ? sc.nome : g.sec)} · ${esc(g.nr)}</span><small>Motivo: ${esc(g.motivo)}</small></span></label>`; }).join("")}</div>
+        ${ro ? "" : `<div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn primary" data-act="sug-aplicar">Aplicar escolha</button><button type="button" class="btn small" data-act="sug-todas">Marcar todas</button><button type="button" class="btn small" data-act="sug-nenhuma">Desmarcar todas</button></div>`}` : `<p class="lead" style="margin:0">Todas as sugestões já foram avaliadas.</p>`}
+        ${desc && !ro ? `<div><button type="button" class="btn small" data-act="sug-restaurar">Mostrar de novo as ${desc} descartadas</button></div>` : ""}
+      </section>` : ""; })()}
       <section class="panel stack" style="gap:12px">
         <div class="panel-head" style="margin:0"><h3>Perguntas das seções</h3>${ro ? "" : `<button type="button" class="btn small" data-act="cfg-nova-secao">+ Nova seção</button>`}</div>
         <div class="chips">${cfg.secoes.map(s => `<button type="button" class="pill" data-act="cfg-secao" data-id="${esc(s.id)}" aria-pressed="${s.id === state.cfgSecao}">${esc(s.nome)} <span class="c">(${s.perguntas.length})</span></button>`).join("")}</div>
@@ -1711,6 +1759,20 @@ ${i.observacoes ? `<p><b>Observações gerais:</b> ${esc(i.observacoes)}</p>` : 
       case "cfg-padrao": state.cfgDraft = { secoes: structuredClone(DEFAULT_SECOES), setores: structuredClone(DEFAULT_SETORES), tsts: structuredClone(cfg.tsts || []), metaTst: cfg.metaTst || 0 }; cfgChanged(); toast("Padrão carregado. Clique em Salvar alterações para aplicar."); break;
       case "tst-add": (cfg.tsts ||= []).push({ nome: "", registro: "" }); cfgChanged(); document.getElementById(`tst-n-${cfg.tsts.length - 1}`)?.focus(); break;
       case "tst-del": cfg.tsts.splice(+el.dataset.i, 1); cfgChanged(); break;
+      case "sug-todas": state.sugOff = new Set(); keepY(); break;
+      case "sug-nenhuma": state.sugOff = new Set(SUGESTOES.map(g => g.id)); keepY(); break;
+      case "sug-restaurar": cfg.sugDescartadas = []; cfgChanged(); break;
+      case "sug-aplicar": {
+        const off = state.sugOff || new Set(); let n = 0;
+        for (const g of sugPendentes(cfg)) {
+          if (off.has(g.id)) { (cfg.sugDescartadas ||= []).push(g.id); continue; }
+          let sc = secById(cfg, g.sec);
+          if (!sc && g.sec.startsWith("esp-")) { const st = cfg.setores.find(x => "esp-" + x.id === g.sec); if (!st) continue; sc = { id: g.sec, nome: "Perguntas específicas – " + st.nome, nr: "", perguntas: [] }; cfg.secoes.push(sc); if (!st.secoes.includes(sc.id)) st.secoes.push(sc.id); }
+          if (!sc) continue;
+          sc.perguntas.push({ texto: g.texto, ref: g.nr }); n++;
+        }
+        state.sugOff = new Set(); cfgChanged(); toast(`${n} ${n === 1 ? "pergunta incluída" : "perguntas incluídas"}. Clique em Salvar alterações para valer nas próximas inspeções.`); break;
+      }
       case "cfg-descartar": state.cfgDraft = null; state.cfgDirty = false; keepY(); break;
       case "cfg-salvar": {
         const usados = new Set(cfg.setores.flatMap(s => s.secoes));
@@ -1725,6 +1787,7 @@ ${i.observacoes ? `<p><b>Observações gerais:</b> ${esc(i.observacoes)}</p>` : 
       }
     }
   });
+  document.addEventListener("toggle", e => { const d = e.target; if (d?.dataset?.secOpen) { state.cfgOpen ||= new Set(); d.open ? state.cfgOpen.add(d.dataset.secOpen) : state.cfgOpen.delete(d.dataset.secOpen); } }, true);
   document.addEventListener("change", async e => {
     if (e.target.id === "f-tst-sel") {
       const o = e.target.selectedOptions[0], r = document.getElementById("f-resp"), g = document.getElementById("f-reg"), outro = e.target.value === "__outro";
@@ -1767,6 +1830,13 @@ ${i.observacoes ? `<p><b>Observações gerais:</b> ${esc(i.observacoes)}</p>` : 
     const sec = state.cfgDraft.secoes.find(s => s.id === state.cfgSecao);
     if (t.dataset.cfg === "nome") { st.nome = t.value; cfgChanged(false); }
     else if (t.dataset.cfg === "generico") { st.generico = t.checked; cfgChanged(false); }
+    else if (t.dataset.sug) { (state.sugOff ||= new Set()); t.checked ? state.sugOff.delete(t.dataset.sug) : state.sugOff.add(t.dataset.sug); return; }
+    else if (t.dataset.cfg === "vis") {
+      const set = new Set(st.ocultas || []); t.checked ? set.delete(t.value) : set.add(t.value); st.ocultas = [...set];
+      const sc = state.cfgDraft.secoes.find(x => x.id === t.dataset.secid); const c = document.getElementById("vis-c-" + t.dataset.secid);
+      if (sc && c) c.textContent = `${sc.perguntas.filter(p => visivel(st, sc.id, p)).length} de ${sc.perguntas.length} aparecem`;
+      cfgChanged(false); return;
+    }
     else if (t.dataset.cfg === "secao") {
       const ids = [...document.querySelectorAll('[data-cfg="secao"]:checked')].map(x => x.value);
       st.secoes = state.cfgDraft.secoes.map(s => s.id).filter(id => ids.includes(id)); cfgChanged();
