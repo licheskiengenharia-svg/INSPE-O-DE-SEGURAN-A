@@ -399,12 +399,15 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
       q("O chuveiro de emergência e o lava-olhos estão funcionando corretamente?"),
       q("A equipe está treinada para o manuseio seguro de produtos químicos e com as carteirinhas de treinamento em dia?"),
       q("Há kits de emergência (absorventes, EPI, neutralizantes etc.) para derramamentos?"),
-      q("O armazenamento de inflamáveis respeita a quantidade permitida na área (150 L)?"),
       q("Os equipamentos inspecionados estão sem vazamento de produtos químicos (resina, catalisador etc.)?"),
       q("No uso de produtos químicos (tintas, solventes, lubrificantes), o local é impermeável ou protegido contra contaminação do solo?"),
       q("O local está sem vazamentos de água, produtos químicos ou gases?"),
       q("O local de armazenamento de resíduos é adequado (bombonas, tambores, baias) e tem contenção quando necessário?", "NR-25"),
       q("Os resíduos estão adequadamente identificados?", "NR-25"),
+    ]},
+    { id: "infv", nome: "Inflamáveis no setor: volume e armazenamento", nr: "NR-20", perguntas: [
+      q("O volume de inflamáveis no setor (tintas, solventes, óleos, resinas e combustíveis) está dentro do limite permitido para a área (150 L) e limitado ao consumo da jornada?"),
+      q("Os inflamáveis do setor estão armazenados em recipientes fechados, identificados e apropriados, em armário ou local com contenção, ventilado e afastado de fontes de ignição?"),
     ]},
     { id: "fre", nome: "Frentes de trabalho", nr: "NR-33 / NR-35", perguntas: [
       q("Se houver espaços confinados no setor, eles estão sinalizados com placa de identificação e com acesso fechado?", "NR-33"),
@@ -602,19 +605,19 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
     ]},
   ];
   const DEFAULT_SETORES = [
-    { id: "usinagem", nome: "Usinagem", generico: false, secoes: ["epi","ele","maq","inf","fre","5s","inc","amb","ica","gas","emg","esp-usinagem"] },
-    { id: "fusao", nome: "Fusão", generico: false, secoes: ["epi","ele","maq","fre","5s","for","inc","vaz","amb","ica","gas","emg","esp-fusao"] },
-    { id: "macharia", nome: "Macharia", generico: false, secoes: ["epi","ele","maq","inf","fre","5s","inc","amb","ica","gas","emg","esp-macharia"] },
-    { id: "savelli", nome: "Savelli (areia verde)", generico: false, secoes: ["epi","ele","maq","fre","5s","inc","amb","ica","gas","emg","esp-savelli"] },
-    { id: "curafrio", nome: "Cura Frio", generico: false, secoes: ["epi","ele","maq","inf","fre","5s","inc","amb","ica","emg","esp-curafrio"] },
-    { id: "rebarbacao", nome: "Rebarbação e jateamento", generico: false, secoes: ["epi","ele","maq","fre","5s","inc","amb","ica","reb","gas","emg","esp-rebarbacao"] },
-    { id: "pintura", nome: "Pintura", generico: false, secoes: ["epi","ele","maq","inf","fre","5s","inc","amb","ica","gas","emg","esp-pintura"] },
-    { id: "almoxarifado", nome: "Almoxarifado", generico: false, secoes: ["epi","ele","inf","5s","inc","ica","gas","emg","esp-almoxarifado"] },
-    { id: "sucata", nome: "Sucata", generico: false, secoes: ["epi","ele","maq","5s","inc","amb","ica","gas","emg","esp-sucata"] },
-    { id: "manutencao", nome: "Manutenção", generico: false, secoes: ["epi","ele","maq","inf","fre","5s","inc","amb","ica","reb","gas","emg","esp-manutencao"] },
-    { id: "tratamento", nome: "Tratamento térmico", generico: false, secoes: ["epi","ele","maq","fre","5s","for","inc","amb","ica","gas","emg","esp-tratamento"] },
-    { id: "cq", nome: "Controle de qualidade", generico: false, secoes: ["epi","ele","maq","inf","5s","inc","amb","ica","reb","emg","esp-cq"] },
-    { id: "outro", nome: "Outro setor (todas as seções)", generico: true, secoes: ["epi","ele","maq","inf","fre","5s","for","inc","vaz","amb","ica","reb","gas","emg"] },
+    { id: "usinagem", nome: "Usinagem", generico: false, secoes: ["epi","ele","maq","inf","infv","fre","5s","inc","amb","ica","gas","emg","esp-usinagem"] },
+    { id: "fusao", nome: "Fusão", generico: false, secoes: ["epi","ele","maq","infv","fre","5s","for","inc","vaz","amb","ica","gas","emg","esp-fusao"] },
+    { id: "macharia", nome: "Macharia", generico: false, secoes: ["epi","ele","maq","inf","infv","fre","5s","inc","amb","ica","gas","emg","esp-macharia"] },
+    { id: "savelli", nome: "Savelli (areia verde)", generico: false, secoes: ["epi","ele","maq","infv","fre","5s","inc","amb","ica","gas","emg","esp-savelli"] },
+    { id: "curafrio", nome: "Cura Frio", generico: false, secoes: ["epi","ele","maq","inf","infv","fre","5s","inc","amb","ica","emg","esp-curafrio"] },
+    { id: "rebarbacao", nome: "Rebarbação e jateamento", generico: false, secoes: ["epi","ele","maq","infv","fre","5s","inc","amb","ica","reb","gas","emg","esp-rebarbacao"] },
+    { id: "pintura", nome: "Pintura", generico: false, secoes: ["epi","ele","maq","inf","infv","fre","5s","inc","amb","ica","gas","emg","esp-pintura"] },
+    { id: "almoxarifado", nome: "Almoxarifado", generico: false, secoes: ["epi","ele","inf","infv","5s","inc","ica","gas","emg","esp-almoxarifado"] },
+    { id: "sucata", nome: "Sucata", generico: false, secoes: ["epi","ele","maq","infv","5s","inc","amb","ica","gas","emg","esp-sucata"] },
+    { id: "manutencao", nome: "Manutenção", generico: false, secoes: ["epi","ele","maq","inf","infv","fre","5s","inc","amb","ica","reb","gas","emg","esp-manutencao"] },
+    { id: "tratamento", nome: "Tratamento térmico", generico: false, secoes: ["epi","ele","maq","infv","fre","5s","for","inc","amb","ica","gas","emg","esp-tratamento"] },
+    { id: "cq", nome: "Controle de qualidade", generico: false, secoes: ["epi","ele","maq","inf","infv","5s","inc","amb","ica","reb","emg","esp-cq"] },
+    { id: "outro", nome: "Outro setor (todas as seções)", generico: true, secoes: ["epi","ele","maq","inf","infv","fre","5s","for","inc","vaz","amb","ica","reb","gas","emg"] },
   ];
   // perguntas incluídas em out/2026 a partir das inspeções reais; entram também em configurações já salvas
   const NOVAS = [
@@ -664,6 +667,14 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
       cfg.setores.splice(pos < 0 ? cfg.setores.length : pos, 0, structuredClone({ ...st, secoes: st.secoes.filter(x => cfg.secoes.some(y => y.id === x)) }));
     }
     cfg.setoresAplicados = [...setFeitos];
+    // out/2026: volume e armazenamento de inflamáveis passam a valer em todos os setores
+    if (!cfg.infvAplicada && cfg.secoes && cfg.setores) {
+      const inf = cfg.secoes.find(x => x.id === "inf");
+      if (inf) inf.perguntas = inf.perguntas.filter(p => p.texto.trim() !== "O armazenamento de inflamáveis respeita a quantidade permitida na área (150 L)?");
+      if (!cfg.secoes.some(x => x.id === "infv")) { const d = DEFAULT_SECOES.find(x => x.id === "infv"); const pos = cfg.secoes.findIndex(x => x.id === "inf"); cfg.secoes.splice(pos < 0 ? cfg.secoes.length : pos + 1, 0, structuredClone(d)); }
+      for (const st of cfg.setores) if (!st.secoes.includes("infv")) { const at = ["inf", "maq", "ele"].map(a => st.secoes.indexOf(a)).find(x => x >= 0); st.secoes.splice(at == null ? st.secoes.length : at + 1, 0, "infv"); }
+      cfg.infvAplicada = true;
+    }
     delete cfg.sugDescartadas;
     return cfg;
   }
@@ -673,7 +684,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
     view: "painel", inspecoes: [], loaded: false, store: "db", canWrite: true, isAdmin: false,
     selected: null, confirmDelete: false, filtro: { q: "", setor: "" }, draft: null, ai: {},
     pf: { periodo: "12", setor: "", tst: "" },
-    config: { secoes: structuredClone(DEFAULT_SECOES), setores: structuredClone(DEFAULT_SETORES), novasAplicadas: NOVAS.map(g => g.id), setoresAplicados: [...NOVOS_SETORES] },
+    config: { secoes: structuredClone(DEFAULT_SECOES), setores: structuredClone(DEFAULT_SETORES), novasAplicadas: NOVAS.map(g => g.id), setoresAplicados: [...NOVOS_SETORES], infvAplicada: true },
     equipe: { tsts: [], metaTst: 0 },
     cfgDraft: null, cfgSetor: "usinagem", cfgSecao: "epi", cfgDirty: false, cfgConfirmDel: false,
   };
@@ -2028,7 +2039,7 @@ ${i.observacoes ? `<p><b>Observações gerais:</b> ${esc(i.observacoes)}</p>` : 
       case "q-del": cfg.secoes.find(s => s.id === state.cfgSecao).perguntas.splice(+el.dataset.i, 1); cfgChanged(); break;
       case "q-add": { const inp = document.getElementById("q-nova"); const t = inp.value.trim(); if (!t) { inp.focus(); break; }
         cfg.secoes.find(s => s.id === state.cfgSecao).perguntas.push({ texto: t, ref: "" }); cfgChanged(); document.getElementById("q-nova")?.focus(); break; }
-      case "cfg-padrao": state.cfgDraft = { secoes: structuredClone(DEFAULT_SECOES), setores: structuredClone(DEFAULT_SETORES), novasAplicadas: NOVAS.map(g => g.id), setoresAplicados: [...NOVOS_SETORES], tsts: structuredClone(cfg.tsts || []), metaTst: cfg.metaTst || 0 }; cfgChanged(); toast("Padrão carregado. Clique em Salvar alterações para aplicar."); break;
+      case "cfg-padrao": state.cfgDraft = { secoes: structuredClone(DEFAULT_SECOES), setores: structuredClone(DEFAULT_SETORES), novasAplicadas: NOVAS.map(g => g.id), setoresAplicados: [...NOVOS_SETORES], infvAplicada: true, tsts: structuredClone(cfg.tsts || []), metaTst: cfg.metaTst || 0 }; cfgChanged(); toast("Padrão carregado. Clique em Salvar alterações para aplicar."); break;
       case "tst-add": (cfg.tsts ||= []).push({ nome: "", registro: "" }); cfgChanged(); document.getElementById(`tst-n-${cfg.tsts.length - 1}`)?.focus(); break;
       case "tst-del": cfg.tsts.splice(+el.dataset.i, 1); cfgChanged(); break;
       case "cfg-descartar": state.cfgDraft = null; state.cfgDirty = false; keepY(); break;
