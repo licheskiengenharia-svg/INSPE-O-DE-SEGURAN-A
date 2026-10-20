@@ -300,102 +300,227 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
   const q = (texto, ref = "") => ({ texto, ref });
   const DEFAULT_SECOES = [
     { id: "epi", nome: "EPI", nr: "NR-06", perguntas: [
-      q("EPIs adequados aos riscos do setor em uso por todos os trabalhadores", "6.3"),
-      q("EPIs com Certificado de Aprovação (CA) válido e em bom estado", "6.2"),
-      q("Ficha de entrega de EPI atualizada e assinada", "6.5.1"),
-      q("Protetor auricular em uso nas áreas com ruído"),
-      q("Proteção contra calor e respingos de metal (avental, perneira, protetor facial) em uso quando aplicável"),
-      q("Respiradores adequados em áreas com poeira ou vapores, com filtros dentro da validade"),
+      q("Existem sinalizações quanto ao uso obrigatório de EPI?"),
+      q("Todos os empregados da área utilizam o EPI necessário e de forma correta?"),
+      q("Os colaboradores descartam os EPI de forma correta no SESMT (sem descarte no setor nem nos tambores)?"),
     ]},
-    { id: "eletrica", nome: "Instalações elétricas", nr: "NR-10", perguntas: [
-      q("Quadros elétricos fechados, sinalizados e com acesso desobstruído", "10.10"),
-      q("Ausência de fios expostos, emendas improvisadas ou gambiarras", "10.4"),
-      q("Instalações e equipamentos aterrados", "10.2.8"),
-      q("Bloqueio e etiquetagem (LOTO) aplicados nas intervenções", "10.5"),
-      q("Intervenções feitas só por trabalhadores autorizados com NR-10 válida", "10.8"),
-      q("Tomadas, plugues e extensões no padrão e sem danos"),
-      q("Diagrama unifilar atualizado disponível", "10.2.3"),
+    { id: "ele", nome: "Instalações elétricas", nr: "NR-10", perguntas: [
+      q("Todos os botões do painel elétrico estão funcionando e identificados?"),
+      q("O painel elétrico está em bom estado, fechado e impedindo o acesso de pessoas não autorizadas?"),
+      q("Os dispositivos de intertravamento estão funcionando (ex.: sensores de porta ou tampa que impedem o funcionamento quando abertos)?", "NR-12"),
+      q("Os botões de emergência estão funcionando?", "NR-12"),
+      q("O dispositivo de bloqueio do botão de emergência está funcionando?", "NR-12"),
+      q("O acesso ao painel elétrico está desobstruído (mínimo de 1 metro)?"),
+      q("O operador da máquina tem cartão de bloqueio?"),
+      q("As instalações elétricas de máquinas e equipamentos são adequadas (sem fios expostos; plugue e tomada em boas condições)?"),
+      q("Existe registro atualizado de manutenção preventiva do painel? (verificar com a manutenção)"),
+      q("O painel elétrico está identificado com número ou código?"),
+      q("Há placa de advertência de risco elétrico (alta tensão etc.) visível no painel?"),
+      q("O aterramento do painel está presente e em bom estado?"),
+      q("Os controles das talhas e pontes rolantes estão funcionando corretamente?", "NR-12"),
+      q("Os equipamentos e tomadas possuem indicação de tensão?"),
+      q("Os equipamentos, máquinas e containers com inflamáveis (linha ou central de resina) estão aterrados?"),
+      q("As luminárias estão adequadamente instaladas (sem lâmpadas queimadas, bem fixas e com proteção contra queda de lâmpadas)?"),
+      q("Os equipamentos instalados em área classificada (cabine de pintura e preparação de tintas inflamáveis) são à prova de explosão?"),
+      q("A fiação elétrica está adequadamente isolada e instalada em calhas ou dutos?"),
+      q("A chave geral de desligamento do painel está identificada e acessível?"),
+      q("O alerta luminoso está funcionando?"),
+      q("Os disjuntores possuem dispositivos de bloqueio?"),
+      q("As instalações possuem sistema de iluminação de emergência?"),
+      q("Se houver manutenção nos painéis durante a inspeção, as instalações estão desenergizadas e bloqueadas para o trabalho?"),
+      q("Os isolamentos estão em bom estado para a realização de manutenção?"),
+      q("A área dos transformadores de alta tensão está sinalizada e com acesso bloqueado?"),
+      q("As caixas de passagem de energia estão no local correto, fixadas e em boas condições?"),
+      q("As sinalizações de acesso e de risco estão visíveis e em boas condições?"),
+      q("Se houver manutenção preventiva ou corretiva no setor, os manutentores têm cartões de bloqueio e cadeados?"),
+      q("O sistema de bloqueio e etiquetagem (lockout/tagout) está implantado e é usado durante manutenção e limpeza?"),
     ]},
-    { id: "maquinas", nome: "Máquinas e equipamentos", nr: "NR-12", perguntas: [
-      q("Proteções fixas ou móveis instaladas nas zonas de perigo", "12.5"),
-      q("Parada de emergência acessível e funcionando", "12.6"),
-      q("Dispositivos de intertravamento operantes", "12.5"),
-      q("Sinalização de segurança nas máquinas", "12.12"),
-      q("Procedimento de operação disponível no posto", "12.13"),
-      q("Operadores capacitados e autorizados", "12.16"),
-      q("Manutenção preventiva registrada e em dia", "12.11"),
-      q("Área de circulação demarcada ao redor das máquinas", "12.2"),
+    { id: "maq", nome: "Máquinas e equipamentos", nr: "NR-12", perguntas: [
+      q("As proteções fixas e móveis (grades, carenagens e barreiras) estão intactas?"),
+      q("Há sinalização de segurança visível nas áreas de risco das máquinas (partes móveis, superfícies quentes, pontos de esmagamento)?"),
+      q("Se houver talha, ponte rolante ou KBK no setor, o checklist do equipamento está preenchido? (marque N/A se não houver)"),
+      q("As inconsistências apontadas nesses checklists estão devidamente evidenciadas?"),
+      q("O entorno da máquina está livre de obstruções, resíduos, óleo, areia ou outros elementos que possam causar escorregões ou quedas?"),
+      q("Há iluminação adequada nas áreas de operação, ajuste e manutenção, sem zonas de sombra ou ofuscamento?"),
+      q("As máquinas possuem dispositivos que impedem o acionamento inesperado durante limpeza, manutenção ou ajustes?"),
+      q("O ambiente está livre de fontes de emissão de poeiras, gases ou vapores? (se já houver OS de manutenção, informe o número)"),
+      q("Há adesivos de proibição de acesso à área interna da máquina ou às partes móveis em funcionamento?"),
+      q("O checklist de operação das máquinas está sendo preenchido pelos operadores?"),
+      q("Os berços usados na movimentação de peças estão em boas condições, sem avarias (pé quebrado, falta de portas etc.)?", "NR-11"),
+      q("Os berços ou caixas de movimentação são do modelo e da capacidade corretos para a carga?", "NR-11"),
+      q("As tubulações de areia do setor estão em boas condições e sem vazamentos?"),
+      q("A passarela de envasamento está em boas condições de trânsito?"),
+      q("A passarela está limpa, sem restos de metal solidificado?"),
+      q("Os roletes da linha de produção estão em boas condições? (se não, informe quais e onde)"),
+      q("Os ganchos e engates das talhas têm trava de segurança compatível com a peça movimentada?", "NR-11"),
+      q("As mangueiras e tubulações de gás estão em perfeitas condições, sem vazamento, ressecamento ou cortes?"),
+      q("As mangueiras e tubulações estão identificadas com as cores corretas?", "NR-26"),
     ]},
-    { id: "quimicos", nome: "Inflamáveis, químicos e resíduos", nr: "NR-20", perguntas: [
-      q("Produtos químicos rotulados e com FDS disponível no setor", "26.4"),
-      q("Inflamáveis armazenados em local ventilado, sinalizado e com contenção"),
-      q("Quantidade de inflamáveis no setor limitada ao uso da jornada"),
-      q("Recipientes fechados e compatíveis com o produto"),
-      q("Fontes de ignição controladas perto de inflamáveis"),
-      q("Resíduos segregados e identificados (areia, borra, solventes, embalagens)"),
-      q("Kit de contenção de derramamento disponível"),
+    { id: "inf", nome: "Inflamáveis, químicos e resíduos", nr: "NR-20", perguntas: [
+      q("Os produtos inflamáveis e tóxicos estão armazenados em local apropriado, sinalizado, afastado de fontes de ignição e sem risco de vazamento ou infiltração?"),
+      q("Os produtos inflamáveis e tóxicos estão nas embalagens originais ou em embalagens apropriadas, identificadas e com informações de risco legíveis?", "NR-26"),
+      q("As FDS estão disponíveis e identificadas na área?", "NR-26"),
+      q("O acesso ao chuveiro de emergência e ao lava-olhos está fácil e sem obstrução?"),
+      q("O chuveiro de emergência e o lava-olhos estão funcionando corretamente?"),
+      q("A equipe está treinada para o manuseio seguro de produtos químicos e com as carteirinhas de treinamento em dia?"),
+      q("Há kits de emergência (absorventes, EPI, neutralizantes etc.) para derramamentos?"),
+      q("O armazenamento de inflamáveis respeita a quantidade permitida na área (150 L)?"),
+      q("Os equipamentos inspecionados estão sem vazamento de produtos químicos (resina, catalisador etc.)?"),
+      q("No uso de produtos químicos (tintas, solventes, lubrificantes), o local é impermeável ou protegido contra contaminação do solo?"),
+      q("O local está sem vazamentos de água, produtos químicos ou gases?"),
+      q("O local de armazenamento de resíduos é adequado (bombonas, tambores, baias) e tem contenção quando necessário?", "NR-25"),
+      q("Os resíduos estão adequadamente identificados?", "NR-25"),
     ]},
-    { id: "frentes", nome: "Frentes de trabalho", nr: "NR-33 / NR-35", perguntas: [
-      q("Permissão de Trabalho emitida para altura ou espaço confinado"),
-      q("Trabalhadores com treinamento NR-35 ou NR-33 válido"),
-      q("Cinto e talabarte inspecionados, ponto de ancoragem definido", "35.5"),
-      q("Espaço confinado sinalizado, com medição de gases e vigia", "33.3"),
-      q("Área isolada e sinalizada"),
-      q("Plano de resgate disponível"),
+    { id: "fre", nome: "Frentes de trabalho", nr: "NR-33 / NR-35", perguntas: [
+      q("Se houver espaços confinados no setor, eles estão sinalizados com placa de identificação e com acesso fechado?", "NR-33"),
+      q("Se houver trabalho em altura no setor, há escadas de acesso adequadas e placas de identificação visíveis?", "NR-35"),
+      q("Os trabalhadores que atuam em altura e/ou espaço confinado estão com as carteirinhas de treinamento atualizadas?"),
+      q("Existe Permissão de Trabalho (PT) para todas as atividades em execução?"),
+      q("A PT está preenchida corretamente e a tarefa corresponde ao que está descrito nela?"),
+      q("O local de trabalho está sinalizado e isolado?", "NR-26"),
     ]},
-    { id: "fornos", nome: "Fornos, metal líquido e calor", nr: "NR-13 / NR-14", perguntas: [
-      q("Fornos com inspeção e manutenção registradas", "NR-14"),
-      q("Panelas de vazamento secas, inspecionadas e com refratário em bom estado"),
-      q("Área de vazamento livre de umidade e água"),
-      q("Rotas de fuga livres ao redor dos fornos"),
-      q("Vasos de pressão e compressores com prontuário e inspeção", "NR-13"),
-      q("Pausas e hidratação para trabalho com calor", "NR-15 An. 3"),
-      q("Sistema de exaustão dos fornos funcionando"),
+    { id: "5s", nome: "Áreas comuns e 5S", nr: "", perguntas: [
+      q("Os resíduos gerados estão sendo segregados e descartados corretamente (recicláveis, entulho, sucata, embalagens de tinta, solventes, lubrificantes, borra de tinta, madeira e outros químicos)?", "NR-25"),
+      q("O ambiente está limpo e organizado, sem materiais ou equipamentos desnecessários acumulados?"),
+      q("As áreas de circulação estão livres de obstáculos que possam causar quedas e tropeços?", "NR-12"),
+      q("A área está limpa e livre de resíduos ou sujeira?"),
+      q("Há cronograma ou responsável definido para limpeza e organização da área?"),
+      q("As demarcações de caminho seguro e os espaços para paletes estão visíveis e respeitados?", "NR-12"),
+      q("As escadas portáteis são adequadas (travas, conservação geral)?"),
+      q("Os equipamentos e materiais fora de uso estão armazenados corretamente?", "NR-11"),
+      q("O local, de modo geral, está organizado e limpo?"),
+      q("Os funcionários participam periodicamente de treinamentos, reuniões e DDS?", "NR-01"),
+      q("As listas de presença de treinamentos, reuniões e DDS estão disponíveis?", "NR-01"),
     ]},
-    { id: "cargas", nome: "Movimentação de cargas", nr: "NR-11", perguntas: [
-      q("Ponte rolante e talhas com inspeção em dia e capacidade indicada"),
-      q("Cintas, correntes e ganchos inspecionados e identificados"),
-      q("Operadores de empilhadeira e ponte rolante habilitados", "11.1.5"),
-      q("Empilhadeira com checklist diário, sinal sonoro e luminoso"),
-      q("Ninguém sob carga suspensa; área de içamento isolada"),
-      q("Peças e materiais empilhados com altura e estabilidade seguras"),
+    { id: "for", nome: "Fornos", nr: "NR-14", perguntas: [
+      q("A porta de acesso à parte inferior do piso dos fornos está desobstruída?"),
+      q("Os fornos estão sem vazamento de óleo? (em caso de não conformidade, identifique o forno)"),
+      q("As panelas de envase estão com os parafusos presos? (em caso de não conformidade, identifique a avaria)"),
+      q("O piso próximo aos fornos está sem danos?"),
+      q("O sistema de exaustão está funcionando?"),
     ]},
-    { id: "ambiente", nome: "Ruído, poeira e ergonomia", nr: "NR-15 / NR-17", perguntas: [
-      q("Exaustão local funcionando nos pontos de poeira (jateamento, rebarbação, desmoldagem)"),
-      q("Cabines de jato e pintura com exaustão e filtros em bom estado"),
-      q("Fontes de ruído enclausuradas ou protegidas quando possível"),
-      q("Postos com altura e alcance adequados", "17.3"),
-      q("Levantamento manual de peças com auxílio mecânico quando necessário", "17.5"),
+    { id: "inc", nome: "Incêndio, brigada e CIPA", nr: "NR-23", perguntas: [
+      q("Os extintores estão sinalizados e visíveis para todos na fábrica?"),
+      q("Os equipamentos de combate a incêndio estão desobstruídos e com fácil acesso?"),
+      q("Os checklists mensais dos equipamentos de incêndio estão sendo feitos pelo brigadista responsável?"),
+      q("Os extintores estão dentro da validade e com o manômetro na faixa verde?"),
+      q("O mural de informações mostra as datas de reunião da CIPA e da brigada?", "NR-05"),
+      q("Os cipeiros e brigadistas estão com os uniformes de identificação?", "NR-05"),
     ]},
-    { id: "incendio", nome: "Prevenção e combate a incêndio", nr: "NR-23", perguntas: [
-      q("Extintores no local, sinalizados, desobstruídos e dentro da validade"),
-      q("Hidrantes e mangueiras em condições de uso"),
-      q("Saídas de emergência sinalizadas e desobstruídas", "23.3"),
-      q("Iluminação de emergência funcionando"),
-      q("Brigada de incêndio do turno identificada"),
+    { id: "vaz", nome: "Vazamento e metal líquido", nr: "", perguntas: [
+      q("As panelas, conchas e ferramentas que entram em contato com o metal líquido estão secas e pré-aquecidas antes do uso?"),
+      q("A área de vazamento está livre de água, poças, umidade e materiais úmidos?"),
+      q("Os trabalhadores do vazamento usam a vestimenta adequada (roupa aluminizada, protetor facial, polainas e luvas para altas temperaturas)?", "NR-06"),
+      q("O trajeto da panela está desobstruído e sem pessoas sob a carga suspensa?", "NR-11"),
+      q("Os moldes e caixas estão posicionados e travados de forma segura antes do vazamento?"),
+      q("Existe local ou recipiente adequado para o descarte de escória e sobras de metal?"),
     ]},
-    { id: "areas", nome: "Áreas comuns e 5S", nr: "NR-24 / NR-26", perguntas: [
-      q("Corredores e rotas desobstruídos e demarcados"),
-      q("Piso sem óleo, areia acumulada, buracos ou desníveis"),
-      q("Materiais organizados, sem itens desnecessários no setor"),
-      q("Sinalização de segurança visível", "NR-26"),
-      q("Iluminação adequada"),
-      q("Sanitários, vestiários e refeitório limpos", "NR-24"),
-      q("Água potável disponível", "24.7"),
-      q("Lixeiras e coleta seletiva identificadas"),
+    { id: "amb", nome: "Calor, ruído e poeira", nr: "NR-09", perguntas: [
+      q("Há água potável e fresca disponível perto dos postos de trabalho expostos ao calor?", "NR-24"),
+      q("As pausas para recuperação térmica estão sendo cumpridas nos postos expostos ao calor?", "NR-15"),
+      q("As áreas com ruído elevado estão sinalizadas e todos os presentes usam protetor auricular?", "NR-15"),
+      q("Os sistemas de exaustão e captação de poeira (moldagem, desmoldagem, jateamento, rebarbação) estão funcionando?"),
+      q("Os trabalhadores expostos a poeira usam proteção respiratória adequada e em bom estado?", "NR-06"),
+      q("A limpeza da área é feita sem varrição a seco e sem ar comprimido para remover poeira?"),
+    ]},
+    { id: "ica", nome: "Empilhadeiras e içamento de cargas", nr: "NR-11", perguntas: [
+      q("Os operadores de empilhadeira são habilitados e portam identificação de operador autorizado?"),
+      q("O checklist diário da empilhadeira está preenchido?"),
+      q("A circulação de pedestres está separada da circulação de empilhadeiras (faixas, barreiras ou sinalização)?"),
+      q("Pontes rolantes, talhas e dispositivos de içamento mostram a capacidade máxima de carga de forma visível?"),
+      q("Cintas, correntes, cabos de aço e manilhas estão em bom estado e identificados com a capacidade?"),
+    ]},
+    { id: "reb", nome: "Rebarbação e esmerilhamento", nr: "NR-12", perguntas: [
+      q("As esmerilhadeiras estão com a coifa de proteção do disco instalada?"),
+      q("Os discos são compatíveis com a rotação da máquina e estão dentro da validade?"),
+      q("Há anteparos que impedem que fagulhas e fragmentos atinjam outros trabalhadores?"),
+      q("As peças ficam apoiadas ou fixadas de forma estável durante o esmerilhamento?"),
+    ]},
+    { id: "gas", nome: "Cilindros, gases e ar comprimido", nr: "", perguntas: [
+      q("Os cilindros de gases estão presos, em pé e com capacete de proteção quando fora de uso?"),
+      q("Os cilindros de oxigênio estão armazenados separados dos cilindros de gases combustíveis?", "NR-20"),
+      q("Os equipamentos de oxicorte possuem válvulas corta-chamas (antirretrocesso) instaladas?"),
+      q("Compressores e vasos de pressão têm placa de identificação e inspeção de segurança em dia?", "NR-13"),
+      q("As mangueiras de ar comprimido estão em bom estado, com engates seguros e sem vazamentos?"),
+    ]},
+    { id: "emg", nome: "Emergência e ergonomia", nr: "", perguntas: [
+      q("As saídas de emergência e rotas de fuga estão sinalizadas e desobstruídas?", "NR-23"),
+      q("Há material de primeiros socorros disponível e em condições de uso no setor?", "NR-07"),
+      q("O levantamento e o transporte manual de peças são feitos com auxílio mecânico quando necessário, sem posturas forçadas repetitivas?", "NR-17"),
+      q("Os postos de trabalho têm altura adequada à tarefa e permitem alternar a postura?", "NR-17"),
+    ]},
+    { id: "esp-usinagem", nome: "Perguntas específicas – Usinagem", nr: "", perguntas: [
+      q("Os tornos possuem proteção móvel da placa com intertravamento que impede o giro com a proteção aberta?", "NR-12"),
+      q("A chave da placa é retirada antes de ligar o torno (nenhuma chave esquecida na placa)?", "NR-12"),
+      q("Os operadores trabalham sem luvas, anéis, relógios, cabelo solto ou roupas folgadas perto de partes rotativas?", "NR-12"),
+      q("Há proteção contra a projeção de cavacos e de fluido de corte (anteparos, óculos ou protetor facial)?", "NR-12"),
+      q("Os cavacos são removidos com ferramenta própria (gancho ou escova), nunca com as mãos ou com ar comprimido?", "NR-12"),
+      q("O botão de emergência do torno fica ao alcance do operador na posição de trabalho?", "NR-12"),
+      q("As peças pesadas são colocadas e retiradas do torno com dispositivo de içamento adequado?", "NR-11"),
+      q("O fluido de corte está em bom estado e o piso ao redor das máquinas está sem óleo?"),
+    ]},
+    { id: "esp-fusao", nome: "Perguntas específicas – Fusão", nr: "", perguntas: [
+      q("O sistema de água de refrigeração dos fornos de indução está funcionando, sem vazamentos e com o alarme de falha operante?", "NR-14"),
+      q("A carga (sucata e retornos) está seca, sem óleo, sem recipientes fechados e sem materiais estranhos antes de entrar no forno?", "NR-14"),
+      q("O revestimento refratário dos fornos está dentro do controle de desgaste, sem trincas ou infiltração aparente?", "NR-14"),
+      q("Os fossos de emergência abaixo dos fornos estão secos e livres de materiais?", "NR-14"),
+      q("O acesso à plataforma dos fornos está restrito a pessoas autorizadas durante a fusão?", "NR-14"),
+      q("Os trabalhadores mantêm distância segura das bobinas e dos barramentos energizados dos fornos de indução?", "NR-10"),
+      q("Há sinalização alertando portadores de marca-passo ou implantes metálicos sobre o campo eletromagnético dos fornos?", "NR-26"),
+    ]},
+    { id: "esp-macharia", nome: "Perguntas específicas – Macharia", nr: "", perguntas: [
+      q("As sopradoras de macho têm proteções e intertravamentos funcionando na área de fechamento da caixa de macho?", "NR-12"),
+      q("Os comandos bimanuais e demais dispositivos de segurança das sopradoras estão funcionando, sem estar burlados?", "NR-12"),
+      q("Quando há gás ou catalisador de cura do macho, a exaustão está funcionando e não há odor no ambiente?", "NR-09"),
+      q("O tanque de banho de tinta dos machos fica tampado quando fora de uso e com a quantidade de tinta permitida na área?", "NR-20"),
+      q("A estufa de secagem de machos tem controle de temperatura funcionando e exaustão dos vapores de solvente?", "NR-14"),
+      q("Há sinalização de superfície quente e uso de luvas térmicas na retirada dos machos da estufa?", "NR-06"),
+      q("Os machos ficam armazenados em prateleiras ou berços estáveis, sem risco de queda?", "NR-11"),
+    ]},
+    { id: "esp-savelli", nome: "Perguntas específicas – Savelli (areia verde)", nr: "", perguntas: [
+      q("As proteções e os intertravamentos da moldadora Savelli estão funcionando, sem dispositivos burlados?", "NR-12"),
+      q("As áreas de compactação e de movimento das caixas de moldar estão protegidas contra acesso durante o ciclo?", "NR-12"),
+      q("As correias transportadoras de areia têm proteção nos rolos e polias e dispositivo de parada de emergência ao longo do trajeto?", "NR-12"),
+      q("O misturador de areia tem tampa de inspeção intertravada e bloqueio para limpeza e manutenção?", "NR-12"),
+      q("A desmoldagem (grelha vibratória) tem enclausuramento ou exaustão funcionando?", "NR-09"),
+      q("A areia derramada é recolhida e o piso ao redor da moldadora está limpo?"),
+    ]},
+    { id: "esp-curafrio", nome: "Perguntas específicas – Cura Frio", nr: "", perguntas: [
+      q("A tinta inflamável é aplicada em área ventilada ou exaurida, sem fontes de ignição próximas (solda, esmeril, cigarro)?", "NR-20"),
+      q("A flambagem da tinta, quando feita, ocorre em local definido, com extintor próximo e sem materiais combustíveis ao redor?", "NR-20"),
+      q("Os recipientes de tinta e solvente ficam fechados e identificados quando fora de uso?", "NR-26"),
+      q("Os equipamentos elétricos próximos ao banho de tinta são adequados à área classificada (à prova de explosão)?", "NR-10"),
+      q("O misturador de areia com resina tem proteção nas partes móveis e intertravamento da tampa?", "NR-12"),
+      q("Quem manuseia resina e catalisador usa luvas nitrílicas e proteção respiratória adequadas?", "NR-06"),
+      q("A quantidade de tinta e solvente na área respeita o limite estabelecido pela empresa?", "NR-20"),
+    ]},
+    { id: "esp-rebarbacao", nome: "Perguntas específicas – Rebarbação e jateamento", nr: "", perguntas: [
+      q("A máquina ou cabine de jateamento fica fechada e intertravada durante o jateamento, sem vazamento de granalha?", "NR-12"),
+      q("A exaustão e o filtro de mangas do jateamento estão funcionando?", "NR-09"),
+      q("No jateamento manual, o operador usa capacete de jateamento com ar mandado e roupa de proteção?", "NR-06"),
+      q("O jateamento é feito sem areia seca como abrasivo (proibido pela Portaria MTE nº 99/2004)?"),
+      q("O corte de canais e massalotes (disco ou oxicorte) é feito com anteparo e sem materiais inflamáveis próximos?"),
+      q("As peças pesadas são viradas e movimentadas com talha ou dispositivo, sem esforço manual excessivo?", "NR-17"),
+    ]},
+    { id: "esp-pintura", nome: "Perguntas específicas – Pintura", nr: "", perguntas: [
+      q("A cabine de pintura tem exaustão funcionando e filtros sem saturação?", "NR-09"),
+      q("Os equipamentos elétricos e a iluminação da cabine são à prova de explosão?", "NR-10"),
+      q("Os pintores usam máscara com filtro para vapores orgânicos (ou ar mandado), luvas e macacão?", "NR-06"),
+      q("Pistolas, tanques de pressão e mangueiras de pintura estão aterrados e em bom estado?", "NR-20"),
+      q("Panos e estopas com tinta ou solvente são descartados em recipiente metálico com tampa?", "NR-25"),
+      q("A quantidade de tinta e solvente na área de preparação respeita o limite estabelecido pela empresa?", "NR-20"),
+      q("A proibição de fumar, soldar ou esmerilhar perto da cabine está sinalizada e é respeitada?", "NR-20"),
     ]},
   ];
-  const TODAS = DEFAULT_SECOES.map(s => s.id);
-  const sem = (...ex) => TODAS.filter(id => !ex.includes(id));
   const DEFAULT_SETORES = [
-    { id: "usinagem", nome: "Usinagem", generico: false, secoes: sem("fornos", "frentes") },
-    { id: "fusao", nome: "Fusão", generico: false, secoes: TODAS },
-    { id: "macharia", nome: "Macharia", generico: false, secoes: sem("fornos", "frentes") },
-    { id: "savelli", nome: "Savelli (areia verde)", generico: false, secoes: sem("fornos") },
-    { id: "curafrio", nome: "Cura Frio", generico: false, secoes: sem("fornos", "frentes") },
-    { id: "rebarbacao", nome: "Rebarbação e jateamento", generico: false, secoes: sem("fornos", "frentes") },
-    { id: "pintura", nome: "Pintura", generico: false, secoes: sem("fornos", "cargas") },
-    { id: "outro", nome: "Outro setor (todas as seções)", generico: true, secoes: TODAS },
+    { id: "usinagem", nome: "Usinagem", generico: false, secoes: ["epi","ele","maq","inf","fre","5s","inc","amb","ica","gas","emg","esp-usinagem"] },
+    { id: "fusao", nome: "Fusão", generico: false, secoes: ["epi","ele","maq","fre","5s","for","inc","vaz","amb","ica","gas","emg","esp-fusao"] },
+    { id: "macharia", nome: "Macharia", generico: false, secoes: ["epi","ele","maq","inf","fre","5s","inc","amb","ica","gas","emg","esp-macharia"] },
+    { id: "savelli", nome: "Savelli (areia verde)", generico: false, secoes: ["epi","ele","maq","fre","5s","inc","amb","ica","gas","emg","esp-savelli"] },
+    { id: "curafrio", nome: "Cura Frio", generico: false, secoes: ["epi","ele","maq","inf","fre","5s","inc","amb","ica","emg","esp-curafrio"] },
+    { id: "rebarbacao", nome: "Rebarbação e jateamento", generico: false, secoes: ["epi","ele","maq","fre","5s","inc","amb","ica","reb","gas","emg","esp-rebarbacao"] },
+    { id: "pintura", nome: "Pintura", generico: false, secoes: ["epi","ele","maq","inf","fre","5s","inc","amb","ica","gas","emg","esp-pintura"] },
+    { id: "outro", nome: "Outro setor (todas as seções)", generico: true, secoes: ["epi","ele","maq","inf","fre","5s","for","inc","vaz","amb","ica","reb","gas","emg"] },
   ];
 
   // ---------- Estado ----------
@@ -454,7 +579,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
   const pctChip = p => p == null ? `<span class="chip na">—</span>` : `<span class="chip ${p >= 90 ? "ok" : p >= 70 ? "warn" : "bad"}">${p}%</span>`;
 
   // ---------- Armazenamento ----------
-  const LS_KEY = "inspecoes-seguranca-v1", LS_CFG = "inspecoes-seguranca-config-v1", LS_TST = "inspecoes-seguranca-tst-v1";
+  const LS_KEY = "inspecoes-seguranca-v1", LS_CFG = "inspecoes-seguranca-config-v2", LS_TST = "inspecoes-seguranca-tst-v1";
   const lsGet = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
   const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
 
@@ -688,7 +813,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
     const cfg = state.config, st = cfg.setores.find(s => s.id === setorId);
     const itens = [];
     for (const sid of st.secoes) { const sec = secById(cfg, sid); if (!sec) continue;
-      for (const p of sec.perguntas) itens.push({ secaoId: sec.id, secao: sec.nome, nr: sec.nr, texto: p.texto, ref: p.ref, status: "", obs: "", nota: "", foto: "", analiseFoto: "", enquadramento: "", risco: "", acao: "", prazo: "", respAcao: "" }); }
+      for (const p of sec.perguntas) itens.push({ secaoId: sec.id, secao: sec.nome, nr: /^NR-\d/.test(p.ref || "") ? p.ref : sec.nr, texto: p.texto, ref: /^NR-\d/.test(p.ref || "") ? "" : p.ref, status: "", obs: "", nota: "", foto: "", analiseFoto: "", enquadramento: "", risco: "", acao: "", prazo: "", respAcao: "" }); }
     const tst = lsGet(LS_TST, {});
     return { setorId, setorNome: st.generico ? "" : st.nome, generico: st.generico, local: "", responsavel: tst.nome || "", registroTst: tst.registro || "", data: today(), horaInicio: nowHM(), horaFim: "", turno: "", acompanhante: "", cargoLider: "", assinaturaLider: "", observacoes: "", itens };
   }
@@ -699,14 +824,16 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
     const chips = `<div class="chips">${cfg.setores.map(s => `<button type="button" class="pill" data-setor="${esc(s.id)}" aria-pressed="${d?.setorId === s.id}">${esc(s.nome)} <span class="c">(${countQ(cfg, s)})</span></button>`).join("")}</div>`;
     if (!d) return `<h2>Nova inspeção</h2><p class="lead">Escolha o setor. Cada setor traz só as seções de perguntas que se aplicam a ele.</p>${chips}`;
     const s = score(d), answered = d.itens.filter(i => i.status).length;
-    let lastSec = null, n = 0, secN = 0;
+    let lastSec = null, n = 0, secN = 0, mixNr = false;
     const rows = d.itens.map((it, i) => {
       let head = "";
       if (it.secaoId !== lastSec) { lastSec = it.secaoId; secN++; n = 0;
         const total = d.itens.filter(x => x.secaoId === it.secaoId).length;
-        head = `<div class="sec-head"><h3>${esc(it.secao)}</h3><span class="label">${esc(it.nr || "")}${it.nr ? " · " : ""}${total} perguntas <button type="button" class="btn small" data-act="sec-c" data-sec="${esc(it.secaoId)}" style="margin-left:8px">Pendentes = C</button></span></div>`; }
+        const nrs = [...new Set(d.itens.filter(x => x.secaoId === it.secaoId).map(x => x.nr).filter(Boolean))];
+        mixNr = nrs.length > 1;
+        head = `<div class="sec-head"><h3>${esc(it.secao)}</h3><span class="label">${esc(nrs.join(" / "))}${nrs.length ? " · " : ""}${total} perguntas <button type="button" class="btn small" data-act="sec-c" data-sec="${esc(it.secaoId)}" style="margin-left:8px">Pendentes = C</button></span></div>`; }
       n++;
-      return head + itemRow(it, i, `${secN}.${n}`);
+      return head + itemRow(it, i, `${secN}.${n}`, mixNr);
     }).join("");
     return `<h2>Nova inspeção</h2><p class="lead">${esc(d.generico ? "Outro setor" : d.setorNome)} · ${d.itens.length} perguntas</p>
     <form id="f-insp" class="stack" novalidate>
@@ -757,7 +884,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
     </form>`;
   }
 
-  function itemRow(it, i, num) {
+  function itemRow(it, i, num, mixNr = false) {
     const seg = ["C", "NC", "NA"].map(v => `<button type="button" data-v="${v}" data-i="${i}" aria-pressed="${it.status === v}" aria-label="${{ C: "Conforme", NC: "Não conforme", NA: "Não aplicável" }[v]}">${v === "NA" ? "N/A" : v}</button>`).join("");
     const ai = state.ai[i];
     const aiBox = !sample ? `<div class="ai-note">A análise automática pelo Claude funciona quando o sistema é aberto dentro do Claude. Aqui, preencha os campos manualmente.</div>`
@@ -781,7 +908,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
         <label class="field"><span class="label">Prazo *</span><input id="nc-prazo-${i}" type="date" data-k="prazo" data-i="${i}" value="${esc(it.prazo)}"></label>
       </div>` : (it.status ? `<input class="obs" id="it-obs-${i}" data-k="obs" data-i="${i}" value="${esc(it.obs)}" placeholder="Observação (opcional)">` : "");
     return `<div class="item" id="item-${i}"><span class="n">${num}</span>
-      <div class="txt">${esc(it.texto)}${it.ref ? `<div class="ref">${esc(it.ref)}</div>` : ""}</div>
+      <div class="txt">${esc(it.texto)}${(mixNr && it.nr) || it.ref ? `<div class="ref">${esc([mixNr ? it.nr : "", it.ref].filter(Boolean).join(" · "))}</div>` : ""}</div>
       <div class="seg" role="group" aria-label="Resultado da pergunta ${num}">${seg}</div>${extra}</div>`;
   }
 
@@ -936,7 +1063,7 @@ Responda só com JSON neste formato:
         </div>
         <div>${sec.perguntas.map((p, i) => `<div class="q-row"><span class="n">${i + 1}</span>
           <input id="q-t-${i}" data-q="texto" data-i="${i}" value="${esc(p.texto)}" ${ro ? "disabled" : ""}>
-          <input class="ref-in" id="q-r-${i}" data-q="ref" data-i="${i}" value="${esc(p.ref)}" placeholder="Item da NR" ${ro ? "disabled" : ""}>
+          <input class="ref-in" id="q-r-${i}" data-q="ref" data-i="${i}" value="${esc(p.ref)}" placeholder="NR ou item (ex.: NR-12)" ${ro ? "disabled" : ""}>
           ${ro ? "" : `<button type="button" class="btn small danger" data-act="q-del" data-i="${i}" aria-label="Remover pergunta ${i + 1}">Remover</button>`}</div>`).join("")}</div>
         ${ro ? "" : `<div style="display:flex;gap:8px;flex-wrap:wrap"><input id="q-nova" placeholder="Nova pergunta para a seção ${esc(sec.nome)}" style="flex:1 1 260px;width:auto"><button type="button" class="btn" data-act="q-add">Adicionar pergunta</button></div>`}` : ""}
       </section>
