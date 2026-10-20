@@ -92,6 +92,7 @@ h3 { font-family: var(--f-display); font-weight: 600; font-size: 20px; text-tran
 @media (prefers-reduced-motion: reduce) { .live::before { animation: none; } }
 .feed .day { font: 600 11px var(--f-body); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: 12px 0 2px; }
 .feed .nc-row .when { font: 500 12px var(--f-mono, monospace); color: var(--muted); white-space: nowrap; }
+.extra-add { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--line); }
 .nc-list { display: flex; flex-direction: column; gap: 0; }
 .nc-row { display: grid; grid-template-columns: 4px minmax(0, 1fr) auto; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); align-items: center; }
 .nc-row:first-child { border-top: 0; }
@@ -368,7 +369,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
       q("Os berços usados na movimentação de peças estão em boas condições, sem avarias (pé quebrado, falta de portas etc.)?", "NR-11"),
       q("Os berços ou caixas de movimentação são do modelo e da capacidade corretos para a carga?", "NR-11"),
       q("As tubulações de areia do setor estão em boas condições e sem vazamentos?"),
-      q("A passarela de envasamento está em boas condições de trânsito?"),
+      q("As passarelas, inclusive a de envasamento, estão em boas condições de trânsito, com piso íntegro, sem buracos, chapas soltas, desníveis ou corrosão?", "NR-12"),
       q("A passarela está limpa, sem restos de metal solidificado?"),
       q("Os roletes da linha de produção estão em boas condições? (se não, informe quais e onde)"),
       q("Os ganchos e engates das talhas têm trava de segurança compatível com a peça movimentada?", "NR-11"),
@@ -541,6 +542,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
     ]},
     { id: "esp-pintura", nome: "Perguntas específicas – Pintura", nr: "", perguntas: [
       q("A cabine de pintura tem exaustão funcionando e filtros sem saturação?", "NR-09"),
+      q("A cabine de pintura está limpa, sem acúmulo de borra ou escória de tinta nas paredes, no piso, nas grelhas e nos filtros, e a limpeza é feita na frequência definida?", "NR-20 / NR-23"),
       q("Os equipamentos elétricos e a iluminação da cabine são à prova de explosão?", "NR-10"),
       q("Os pintores usam máscara com filtro para vapores orgânicos (ou ar mandado), luvas e macacão?", "NR-06"),
       q("Pistolas, tanques de pressão e mangueiras de pintura estão aterrados e em bom estado?", "NR-20"),
@@ -581,7 +583,9 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
     { id: "n17", sec: "for", texto: "Os recipientes de areia seca utilizados para contenção de metal líquido e atendimento a emergências nas proximidades dos fornos estão abastecidos, identificados, protegidos contra umidade e com acesso desobstruído?", nr: "NR-23 / NR-14", antigo: "Os tambores de areia seca para combate a princípio de incêndio e contenção de metal junto aos fornos estão completos, íntegros e acessíveis?" },
     { id: "n18", sec: "vaz", texto: "Durante o vazamento de metal líquido, a área de risco permanece isolada, sem circulação de veículos, equipamentos móveis ou execução de atividades simultâneas que possam comprometer a segurança da operação?", nr: "NR-11 / NR-14", antigo: "Durante o vazamento não há atividades simultâneas nem circulação de veículos (retroescavadeira, caminhão, empilhadeira) na área de risco do metal líquido?" },
     { id: "n19", sec: "esp-macharia", texto: "O elevador de óxido de ferro possui proteções laterais, capacidade nominal identificada, sinalização de uso exclusivo para materiais e controle de acesso, sendo o abastecimento realizado sem exposição a esforços físicos inadequados?", nr: "NR-12 / NR-17", antigo: "O elevador de óxido de ferro tem proteção lateral, capacidade identificada, sinalização de uso exclusivo para material e acesso restrito, e o abastecimento é feito sem esforço manual inadequado?" },
-    { id: "n20", sec: "esp-pintura", texto: "O transportador aéreo (carrossel) e os ganchos utilizados para suspensão de peças apresentam condições seguras de operação, com sistemas de retenção e dispositivos que impeçam o desprendimento, o giro descontrolado ou a queda das peças?", nr: "NR-11 / NR-12", antigo: "O transportador aéreo (carrossel) e os ganchos de pendurar peças estão em bom estado, com trava que impede o giro ou a queda das peças?" }
+    { id: "n20", sec: "esp-pintura", texto: "O transportador aéreo (carrossel) e os ganchos utilizados para suspensão de peças apresentam condições seguras de operação, com sistemas de retenção e dispositivos que impeçam o desprendimento, o giro descontrolado ou a queda das peças?", nr: "NR-11 / NR-12", antigo: "O transportador aéreo (carrossel) e os ganchos de pendurar peças estão em bom estado, com trava que impede o giro ou a queda das peças?" },
+    { id: "n21", sec: "maq", texto: "As passarelas, inclusive a de envasamento, estão em boas condições de trânsito, com piso íntegro, sem buracos, chapas soltas, desníveis ou corrosão?", nr: "NR-12", antigo: "A passarela de envasamento está em boas condições de trânsito?" },
+    { id: "n22", sec: "esp-pintura", texto: "A cabine de pintura está limpa, sem acúmulo de borra ou escória de tinta nas paredes, no piso, nas grelhas e nos filtros, e a limpeza é feita na frequência definida?", nr: "NR-20 / NR-23", antigo: "" }
   ];
   function migrarCfg(cfg) {
     const feitas = new Set(cfg.novasAplicadas || []);
@@ -632,6 +636,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
   const today = () => new Date().toISOString().slice(0, 10);
   const nowHM = () => new Date().toTimeString().slice(0, 5);
   const fmtDate = d => d ? d.split("-").reverse().join("/") : "—";
+  const nrDe = t => { const m = String(t || "").match(/NR[\s-]*0?(\d{1,2})/i); return m ? "NR-" + m[1].padStart(2, "0") : ""; };
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   const secById = (cfg, id) => cfg.secoes.find(s => s.id === id);
   const qKey = (secId, texto) => secId + "::" + String(texto || "").trim();
@@ -1070,11 +1075,11 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
         const total = d.itens.filter(x => x.secaoId === it.secaoId).length;
         const nrs = [...new Set(d.itens.filter(x => x.secaoId === it.secaoId).map(x => x.nr).filter(Boolean))];
         mixNr = nrs.length > 1;
-        head = `<div class="sec-head"><h3>${esc(it.secao)}</h3><span class="label">${esc(nrs.join(" / "))}${nrs.length ? " · " : ""}${total} perguntas <button type="button" class="btn small" data-act="sec-c" data-sec="${esc(it.secaoId)}" style="margin-left:8px">Pendentes = C</button></span></div>`; }
+        head = `<div class="sec-head"><h3>${esc(it.secao)}</h3><span class="label">${esc(nrs.join(" / "))}${nrs.length ? " · " : ""}${it.extra ? `${total} ${total === 1 ? "apontamento" : "apontamentos"}` : `${total} perguntas <button type="button" class="btn small" data-act="sec-c" data-sec="${esc(it.secaoId)}" style="margin-left:8px">Pendentes = C</button>`}</span></div>`; }
       n++;
-      return head + itemRow(it, i, `${secN}.${n}`, mixNr);
+      return head + itemRow(it, i, it.extra ? `E${n}` : `${secN}.${n}`, mixNr);
     }).join("");
-    return `<h2>Nova inspeção</h2><p class="lead">${esc(d.generico ? "Outro setor" : d.setorNome)} · ${d.itens.length} perguntas</p>
+    return `<h2>Nova inspeção</h2><p class="lead">${esc(d.generico ? "Outro setor" : d.setorNome)} · ${d.itens.filter(x => !x.extra).length} perguntas</p>
     <form id="f-insp" class="stack" novalidate>
       <details class="panel"><summary class="label" style="cursor:pointer">Trocar setor</summary><div style="margin-top:12px">${chips}</div></details>
       <section class="panel">
@@ -1109,6 +1114,8 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
         <div class="panel-head"><h3>Perguntas</h3>
           <div class="progress"><span><b>${answered}</b>/${d.itens.length} respondidas</span><span class="chip ok">${s.c} C</span><span class="chip bad">${s.nc} NC</span><span class="chip na">${s.na} N/A</span></div></div>
         <div class="items">${rows}</div>
+        <div class="extra-add"><button type="button" class="btn" data-act="extra-add">+ Apontar não conformidade fora do checklist</button>
+          <span class="label" style="text-transform:none;letter-spacing:0">Opcional. Use quando encontrar uma não conformidade que nenhuma pergunta cobre.</span></div>
       </section>
       <section class="panel">
         <label class="field"><span class="label">Observações gerais</span><textarea id="f-obs" placeholder="Condições encontradas, orientações dadas no local…">${esc(d.observacoes)}</textarea></label>
@@ -1154,6 +1161,9 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
             ${it.acoes.length > 1 ? `<button type="button" class="btn small danger" data-act="ac-del" data-i="${i}" data-k="${k}" aria-label="Remover ação ${k + 1}">Remover</button>` : ""}</div>`).join("")}</div>
           <div><button type="button" class="btn small" data-act="ac-add" data-i="${i}">+ Adicionar ação</button></div></div>
       </div>` : (it.status ? `<input class="obs" id="it-obs-${i}" data-k="obs" data-i="${i}" value="${esc(it.obs)}" placeholder="Observação (opcional)">` : "");
+    if (it.extra) return `<div class="item" id="item-${i}"><span class="n">${num}</span>
+      <label class="field txt"><span class="label">Qual é a não conformidade? *</span><input id="ex-txt-${i}" data-k="texto" data-i="${i}" value="${esc(it.texto)}" placeholder="Ex.: Vazamento de óleo no piso próximo à prensa"></label>
+      <div><button type="button" class="btn small danger" data-act="extra-del" data-i="${i}">Remover</button></div>${extra}</div>`;
     return `<div class="item" id="item-${i}"><span class="n">${num}</span>
       <div class="txt">${esc(it.texto)}${(mixNr && it.nr) || it.ref ? `<div class="ref">${esc([mixNr ? it.nr : "", it.ref].filter(Boolean).join(" · "))}</div>` : ""}</div>
       <div class="seg" role="group" aria-label="Resultado da pergunta ${num}">${seg}</div>${extra}</div>`;
@@ -1168,13 +1178,14 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
   async function runAI(i) {
     const d = state.draft, it = d?.itens[i];
     if (!sample || !it?.foto) return;
+    if (it.extra && !it.texto?.trim()) { state.ai[i] = { status: "erro", msg: "Escreva qual é a não conformidade e depois peça a análise." }; rerenderKeep(); return; }
     state.ai[i] = { status: "loading" }; rerenderKeep();
     const prompt = `Você é um Técnico de Segurança do Trabalho sênior no Brasil, numa fundição. Analise a foto anexada, tirada durante uma inspeção de segurança, e responda em português do Brasil.
 
 Setor: ${d.setorNome || "não informado"}
 Local da não conformidade: ${it.localNC?.trim() || "não informado"}
-Seção do checklist: ${it.secao} (${it.nr || "sem norma indicada"})
-Pergunta marcada como NÃO CONFORME: "${it.texto}"${it.ref ? ` (referência ${it.ref})` : ""}
+${it.extra ? `Não conformidade apontada pelo TST, não prevista no checklist: "${it.texto.trim()}". Identifique a NR e o item aplicáveis.` : `Seção do checklist: ${it.secao} (${it.nr || "sem norma indicada"})
+Pergunta marcada como NÃO CONFORME: "${it.texto}"${it.ref ? ` (referência ${it.ref})` : ""}`}
 Descrição/anotação do TST: ${it.nota?.trim() || "nenhuma"}
 ${it.obs?.trim() && it.analiseFoto ? `Descrição técnica atual: ${it.obs.trim()}\n` : ""}${(it.perguntasIA || []).filter(x => x.r?.trim()).length ? "Respostas do TST às suas perguntas anteriores:\n" + it.perguntasIA.filter(x => x.r?.trim()).map(x => `- ${x.q} → ${x.r.trim()}`).join("\n") + "\n" : ""}
 Tarefas:
@@ -1193,6 +1204,7 @@ Responda só com JSON neste formato:
       cur.analiseFoto = String(r.analiseFoto || "") + (r.fotoMostraNC === false ? " (Atenção: a foto não parece mostrar a não conformidade; confira ou troque a foto.)" : "");
       if (r.descricaoTecnica) cur.obs = semFoto(String(r.descricaoTecnica));
       if (r.enquadramento) cur.enquadramento = String(r.enquadramento);
+      if (cur.extra) cur.nr = nrDe(cur.enquadramento) || cur.nr;
       const lista = (Array.isArray(r.acoes) ? r.acoes : []).map(x => ({ texto: semFoto(String(x?.texto ?? x ?? "")).replace(/^\s*\d+\s*[.)-]\s*/, "").trim(), dias: Math.max(1, Math.min(90, parseInt(x?.prazoDias) || 15)) })).filter(x => x.texto).slice(0, 6);
       if (lista.length) { const old = cur.acoes || [];
         cur.acoes = lista.map((x, k) => { const dt = new Date(); dt.setDate(dt.getDate() + x.dias); return { ...novaAcao(), texto: x.texto, resp: old[k]?.resp || "", prazo: old[k]?.prazo || dt.toISOString().slice(0, 10) }; }); }
@@ -1250,6 +1262,8 @@ Responda só com JSON neste formato:
       if (!d.acompanhante.trim()) return fail("Preencha o nome da liderança que acompanhou.", "f-acomp");
       const faltando = d.itens.findIndex(i => !i.status);
       if (faltando >= 0) { fail(`Responda a pergunta "${d.itens[faltando].texto.slice(0, 50)}…"`); document.getElementById("item-" + faltando).scrollIntoView({ block: "center" }); return; }
+      const exSem = d.itens.findIndex(i => i.extra && !i.texto?.trim());
+      if (exSem >= 0) { fail("Escreva qual é a não conformidade apontada fora do checklist, ou remova o apontamento."); document.getElementById("ex-txt-" + exSem)?.focus(); return; }
       const semResp = d.itens.findIndex(i => i.status === "NC" && (i.perguntasIA || []).some(x => !x.r?.trim()));
       if (semResp >= 0) { fail("Responda as perguntas do Claude e clique em Responder e atualizar plano."); document.getElementById("item-" + semResp).scrollIntoView({ block: "center" }); return; }
       const acFalta = x => (x.acoes || []).findIndex(a => !a.texto.trim() || !a.resp.trim() || !a.prazo);
@@ -1260,7 +1274,7 @@ Responda só com JSON neste formato:
       if (!d.assinaturaLider) { fail("Colha a assinatura da liderança no quadro de assinatura."); document.getElementById("sig-pad").scrollIntoView({ block: "center" }); return; }
       if (!d.horaFim) d.horaFim = nowHM();
       if (!d.horaInicio) d.horaInicio = d.horaFim;
-      const insp = { id: uid(), ...structuredClone(d), setorNome: d.setorNome.trim(), criadoEm: Date.now(), itens: d.itens.map(i => { const x = { ...i, corrigido: false, corrigidoEm: "" }; if (x.status === "NC") syncNC(x); else delete x.acoes; return x; }) };
+      const insp = { id: uid(), ...structuredClone(d), setorNome: d.setorNome.trim(), criadoEm: Date.now(), itens: d.itens.map(i => { const x = { ...i, corrigido: false, corrigidoEm: "" }; if (x.extra) { x.texto = x.texto.trim(); x.nr = x.nr || nrDe(x.enquadramento) || "Fora do checklist"; } if (x.status === "NC") syncNC(x); else delete x.acoes; return x; }) };
       delete insp.generico; delete insp.tstOutro;
       const btn = f.querySelector("button[type=submit]"); btn.disabled = true; btn.textContent = "Salvando…";
       lsSet(LS_TST, { nome: insp.responsavel.trim(), registro: (insp.registroTst || "").trim() });
@@ -1806,6 +1820,11 @@ ${i.observacoes ? `<p><b>Observações gerais:</b> ${esc(i.observacoes)}</p>` : 
       case "voltar": go("historico"); break;
       case "descartar": state.draft = null; state.ai = {}; render(); break;
       case "ai-run": readHeader(); runAI(+el.dataset.i); break;
+      case "extra-add": { readHeader(); const d = state.draft;
+        d.itens.push({ secaoId: "extra", secao: "Não conformidades fora do checklist", extra: true, nr: "", texto: "", ref: "", status: "NC", obs: "", nota: "", foto: "", analiseFoto: "", enquadramento: "", risco: "", acao: "", prazo: "", respAcao: "", localNC: "", acoes: [novaAcao()] });
+        keepY(); document.getElementById("ex-txt-" + (d.itens.length - 1))?.focus(); break; }
+      case "extra-del": { readHeader(); const i = +el.dataset.i; state.draft.itens.splice(i, 1);
+        const ai = {}; for (const [k, v] of Object.entries(state.ai)) { const n = +k; if (n < i) ai[n] = v; else if (n > i) ai[n - 1] = v; } state.ai = ai; keepY(); break; }
       case "ac-add": { readHeader(); const it = state.draft.itens[+el.dataset.i]; it.acoes.push(novaAcao()); keepY(); document.getElementById(`ac-${el.dataset.i}-${it.acoes.length - 1}-texto`)?.focus({ preventScroll: true }); break; }
       case "ac-del": readHeader(); state.draft.itens[+el.dataset.i].acoes.splice(+el.dataset.k, 1); keepY(); break;
       case "sig-clear": { state.draft.assinaturaLider = ""; const pad = document.getElementById("sig-pad"); pad.getContext("2d").clearRect(0, 0, pad.width, pad.height); break; }
