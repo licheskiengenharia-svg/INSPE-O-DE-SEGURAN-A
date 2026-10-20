@@ -718,7 +718,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
     const pf = state.pf, t = today();
     const L = state.inspecoes.filter(i => (!pf.setor || setorLabel(i) === pf.setor) && (!pf.tst || (i.responsavel || "").trim() === pf.tst));
     const setores = [...new Set(state.inspecoes.map(setorLabel))].sort();
-    const tsts = [...new Set(state.inspecoes.map(i => (i.responsavel || "").trim()).filter(Boolean))].sort();
+    const tsts = tstList().map(x => x.nome);
     const filtros = `<div class="filters">
       <label class="field"><span class="label">Período dos gráficos mensais</span><select id="pf-periodo">${[["3", "Últimos 3 meses"], ["6", "Últimos 6 meses"], ["12", "Últimos 12 meses"], ["ano", "Este ano"], ["tudo", "Todo o período"]].map(([v, n]) => `<option value="${v}" ${pf.periodo === v ? "selected" : ""}>${n}</option>`).join("")}</select></label>
       <label class="field"><span class="label">Setor</span><select id="pf-setor"><option value="">Todos os setores</option>${setores.map(s => `<option ${pf.setor === s ? "selected" : ""}>${esc(s)}</option>`).join("")}</select></label>
@@ -738,6 +738,11 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
     const conclComPrazo = concl.filter(a => a.prazo), noPrazo = conclComPrazo.filter(a => a.doneAt && a.doneAt <= a.prazo);
     const pct = (a, b) => b ? Math.round(a / b * 100) + "%" : "—";
     const fmtPct = v => v == null ? "—" : v.toFixed(1).replace(".", ",") + "%";
+    const dias = (a, b) => Math.round((new Date(b + "T12:00") - new Date(a + "T12:00")) / 864e5);
+    const tempos = concl.filter(a => a.reg && a.doneAt).map(a => Math.max(0, dias(a.reg, a.doneAt)));
+    const tMedio = tempos.length ? tempos.reduce((x, y) => x + y, 0) / tempos.length : null;
+    const reinc = Object.values(acoes.reduce((m, a) => { const k = a.setor + "|" + a.it.texto; (m[k] ||= { setor: a.setor, texto: a.it.texto, insp: new Set() }).insp.add(a.insp.id); return m; }, {})).filter(r => r.insp.size > 1).sort((a, b) => b.insp.size - a.insp.size);
+    const porLocal = Object.values(acoes.filter(a => a.it.localNC?.trim()).reduce((m, a) => { const l = a.it.localNC.trim(), k = a.setor + "|" + l.toLowerCase(); const r = (m[k] ||= { setor: a.setor, local: l, n: 0, ab: 0, insp: new Set() }); r.n++; if (!a.done) r.ab++; r.insp.add(a.insp.id); return m; }, {})).sort((a, b) => b.n - a.n || b.ab - a.ab);
 
     const kpis = `<div class="kpis kpis7">
       <div class="kpi"><span class="label">Inspeções</span><span class="num">${L.length}</span><span class="sub">${L.filter(i => (i.data || "").startsWith(t.slice(0, 7))).length} neste mês</span></div>
@@ -747,6 +752,8 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
       <div class="kpi"><span class="label">Ações em aberto</span><span class="num">${abertas.length}</span><span class="sub">${semPrazo} sem prazo definido</span></div>
       <div class="kpi ${atras.length ? "alert" : ""}"><span class="label">Ações atrasadas</span><span class="num" style="color:${atras.length ? "var(--bad)" : "inherit"}">${atras.length}</span><span class="sub">prazo vencido e não concluídas</span></div>
       <div class="kpi"><span class="label">Concluídas no prazo</span><span class="num">${pct(noPrazo.length, conclComPrazo.length)}</span><span class="sub">${noPrazo.length} de ${conclComPrazo.length} com prazo</span></div>
+      <div class="kpi"><span class="label">Tempo médio para fechar</span><span class="num">${tMedio == null ? "—" : String(Math.round(tMedio * 10) / 10).replace(".", ",")}</span><span class="sub">${tMedio == null ? "nenhuma ação concluída" : "dias da inspeção à conclusão"}</span></div>
+      <div class="kpi ${reinc.length ? "alert" : ""}"><span class="label">NC reincidentes</span><span class="num" style="color:${reinc.length ? "var(--bad)" : "inherit"}">${reinc.length}</span><span class="sub">mesma pergunta NC no mesmo setor em 2+ inspeções</span></div>
     </div>`;
 
     const months = monthRange();
@@ -758,7 +765,10 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
     const maxS = Math.max(1, ...porSetor.map(r => r.c + r.p + r.l));
     const porNorma = Object.values(acoes.reduce((m, a) => { const r = (m[a.norma] ||= { nome: a.norma, n: 0, c: 0 }); r.n++; if (a.done) r.c++; return m; }, {})).sort((a, b) => b.n - a.n);
     const maxN = Math.max(1, ...porNorma.map(r => r.n));
-    const porTst = Object.values(L.reduce((m, i) => { const k = (i.responsavel || "—").trim(); const r = (m[k] ||= { nome: k, n: 0, ult: "", reg: i.registroTst || "", nc: 0, ps: [] }); r.n++; if ((i.data || "") > r.ult) { r.ult = i.data; r.reg = i.registroTst || r.reg; } const s = score(i); if (s.pct != null) r.ps.push(s.pct); r.nc += s.nc; return m; }, {})).sort((a, b) => b.n - a.n);
+    const porTst = Object.values(L.reduce((m, i) => { const k = (i.responsavel || "—").trim(); const r = (m[k] ||= { nome: k, n: 0, ult: "", reg: i.registroTst || "", nc: 0, ps: [] }); r.n++; if ((i.data || "") > r.ult) { r.ult = i.data; r.reg = i.registroTst || r.reg; } const s = score(i); if (s.pct != null) r.ps.push(s.pct); r.nc += s.nc; if ((i.data || "").startsWith(t.slice(0, 7))) r.mes = (r.mes || 0) + 1; return m; }, {}));
+    if (!pf.tst && !pf.setor) for (const c of state.config.tsts || []) if (c.nome?.trim() && !porTst.some(r => r.nome.toLowerCase() === c.nome.trim().toLowerCase())) porTst.push({ nome: c.nome.trim(), n: 0, ult: "", reg: c.registro || "", nc: 0, ps: [] });
+    porTst.sort((a, b) => b.n - a.n || a.nome.localeCompare(b.nome, "pt-BR"));
+    const meta = +state.config.metaTst || 0;
 
     const C_REG = "var(--s-reg)", C_DONE = "var(--s-done)", C_OPEN = "var(--s-open)", C_LATE = "var(--s-late)";
     const pend = abertas.sort((a, b) => (a.prazo || "9999").localeCompare(b.prazo || "9999"));
@@ -800,12 +810,39 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
           : `<p class="lead" style="margin:0">Nenhuma ação em aberto.</p>`}
         </section>
         <section class="panel"><div class="panel-head"><h3>Inspeções por TST</h3></div>
-          <div class="table-wrap" style="border:0"><table><thead><tr><th>TST</th><th>Inspeções</th><th>Última</th><th>Conf.</th><th>NC</th></tr></thead><tbody>
-          ${porTst.map(r => `<tr data-act="pf-tst" data-tst="${esc(r.nome)}" tabindex="0"><td>${esc(r.nome)}${r.reg ? `<div class="label">${esc(r.reg)}</div>` : ""}</td><td class="num">${r.n}</td><td class="num">${fmtDate(r.ult)}</td><td>${pctChip(r.ps.length ? Math.round(r.ps.reduce((a, b) => a + b, 0) / r.ps.length) : null)}</td><td class="num">${r.nc}</td></tr>`).join("")}
+          <div class="table-wrap" style="border:0"><table><thead><tr><th>TST</th><th>Inspeções</th><th>No mês${meta ? ` / meta ${meta}` : ""}</th><th>Última</th><th>Conf.</th><th>NC</th></tr></thead><tbody>
+          ${porTst.map(r => `<tr data-act="pf-tst" data-tst="${esc(r.nome)}" tabindex="0"><td>${esc(r.nome)}${r.reg ? `<div class="label">${esc(r.reg)}</div>` : ""}</td><td class="num">${r.n}</td><td class="num">${meta ? `<span class="chip ${(r.mes || 0) >= meta ? "ok" : "warn"}">${r.mes || 0}/${meta}</span>` : (r.mes || 0)}</td><td class="num">${r.ult ? fmtDate(r.ult) : "—"}</td><td>${pctChip(r.ps.length ? Math.round(r.ps.reduce((a, b) => a + b, 0) / r.ps.length) : null)}</td><td class="num">${r.nc}</td></tr>`).join("")}
           </tbody></table></div>
         </section>
       </div>
+      ${porLocal.length ? `<section class="panel"><div class="panel-head"><h3>Não conformidades por local / equipamento</h3><span class="label">pontos que mais se repetem</span></div>
+        <div class="table-wrap" style="border:0"><table><thead><tr><th>Setor</th><th>Local / equipamento</th><th>NC</th><th>Em aberto</th><th>Inspeções</th></tr></thead><tbody>
+        ${porLocal.slice(0, 15).map(r => `<tr><td>${esc(r.setor)}</td><td>${esc(r.local)}</td><td class="num">${r.n}</td><td class="num">${r.ab ? `<span class="chip bad">${r.ab}</span>` : "0"}</td><td class="num">${r.insp.size}</td></tr>`).join("")}
+        </tbody></table></div></section>` : ""}
+      ${reinc.length ? `<section class="panel"><div class="panel-head"><h3>Não conformidades reincidentes</h3><span class="label">mesmo setor, mesma pergunta</span></div>
+        <div class="table-wrap" style="border:0"><table><thead><tr><th>Setor</th><th>Pergunta</th><th>Inspeções com NC</th></tr></thead><tbody>
+        ${reinc.slice(0, 15).map(r => `<tr><td>${esc(r.setor)}</td><td>${esc(r.texto)}</td><td class="num">${r.insp.size}</td></tr>`).join("")}
+        </tbody></table></div></section>` : ""}
     </div>`;
+  }
+
+  // ---------- Locais das NCs (sugestões por setor) ----------
+  function locaisSetor(d) {
+    const set = new Map(), add = v => { const t = (v || "").trim(); if (t && !set.has(t.toLowerCase())) set.set(t.toLowerCase(), t); };
+    for (const i of state.inspecoes) if (i.setorId === d.setorId) i.itens.forEach(it => add(it.localNC));
+    (d.itens || []).forEach(it => add(it.localNC));
+    return [...set.values()].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }
+
+  const locaisNC = i => [...new Set(i.itens.filter(it => it.status === "NC" && it.localNC?.trim()).map(it => it.localNC.trim()))].join("; ") || i.local || "";
+
+  // ---------- TSTs ----------
+  function tstList() {
+    const m = new Map();
+    for (const t of state.config.tsts || []) { const n = (t.nome || "").trim(); if (n) m.set(n.toLowerCase(), { nome: n, registro: (t.registro || "").trim() }); }
+    for (const i of [...state.inspecoes].reverse()) { const n = (i.responsavel || "").trim(); if (!n) continue; const k = n.toLowerCase();
+      if (!m.has(k)) m.set(k, { nome: n, registro: (i.registroTst || "").trim() }); else if (!m.get(k).registro && i.registroTst) m.get(k).registro = i.registroTst.trim(); }
+    return [...m.values()].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
   }
 
   // ---------- Nova inspeção ----------
@@ -841,7 +878,9 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
       <section class="panel">
         <div class="panel-head"><h3>Dados do TST</h3><span class="label">quem realizou a inspeção</span></div>
         <div class="fields">
-          <label class="field span2"><span class="label">Nome do TST *</span><input id="f-resp" required value="${esc(d.responsavel)}" placeholder="Nome completo do técnico"></label>
+          ${(() => { const L = tstList(), cur = (d.responsavel || "").trim().toLowerCase(), known = L.some(t => t.nome.toLowerCase() === cur), outro = !L.length || (cur && !known) || d.tstOutro;
+            return `<label class="field span2"><span class="label">Nome do TST *</span>${L.length ? `<select id="f-tst-sel"><option value="">Selecione o TST</option>${L.map(t => `<option value="${esc(t.nome)}" data-reg="${esc(t.registro)}" ${!outro && t.nome.toLowerCase() === cur ? "selected" : ""}>${esc(t.nome)}</option>`).join("")}<option value="__outro" ${outro ? "selected" : ""}>Outro nome…</option></select>` : ""}
+              <input id="f-resp" required value="${esc(d.responsavel)}" placeholder="Nome completo do técnico" ${outro ? "" : "hidden"}></label>`; })()}
           <label class="field"><span class="label">Registro profissional</span><input id="f-reg" value="${esc(d.registroTst)}" placeholder="Ex.: MTE/SRTE nº 12345"></label>
           <label class="field"><span class="label">Data da inspeção *</span><input id="f-data" type="date" required value="${esc(d.data)}"></label>
           <label class="field"><span class="label">Hora de início</span><input id="f-hini" type="time" value="${esc(d.horaInicio)}"><span class="label" style="text-transform:none;letter-spacing:0">Registrada ao abrir a inspeção</span></label>
@@ -849,13 +888,13 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
           <label class="field"><span class="label">Turno</span><select id="f-turno"><option value="">—</option>${["1º turno", "2º turno", "3º turno", "Administrativo"].map(o => `<option ${d.turno === o ? "selected" : ""}>${o}</option>`).join("")}</select></label>
         </div>
       </section>
-      <section class="panel">
+      ${d.generico ? `<section class="panel">
         <div class="panel-head"><h3>Setor inspecionado</h3></div>
         <div class="fields">
-          ${d.generico ? `<label class="field"><span class="label">Nome do setor *</span><input id="f-setor-nome" required value="${esc(d.setorNome)}" placeholder="Ex.: Manutenção"></label>` : ""}
-          <label class="field ${d.generico ? "" : "span2"}"><span class="label">Local / área</span><input id="f-local" value="${esc(d.local)}" placeholder="Ex.: Célula 3, forno 2"></label>
+          <label class="field span2"><span class="label">Nome do setor *</span><input id="f-setor-nome" required value="${esc(d.setorNome)}" placeholder="Ex.: Manutenção"></label>
         </div>
-      </section>
+      </section>` : ""}
+      <datalist id="locs-dl">${locaisSetor(d).map(l => `<option value="${esc(l)}">`).join("")}</datalist>
       <section class="panel">
         <div class="panel-head"><h3>Liderança que acompanhou</h3></div>
         <div class="fields">
@@ -892,6 +931,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
       : ai?.status === "erro" ? `<div class="ai-note err">${esc(ai.msg)} <button type="button" class="btn small" data-act="ai-run" data-i="${i}">Tentar de novo</button></div>`
       : it.foto ? `<div class="ai-note">${it.analiseFoto ? "Texto gerado pelo Claude. Revise antes de salvar." : "Anexe a foto e, se quiser, escreva o que viu. O Claude completa o resto."} <button type="button" class="btn small" data-act="ai-run" data-i="${i}">${it.analiseFoto ? "Gerar de novo" : "Analisar com Claude"}</button></div>` : "";
     const extra = it.status === "NC" ? `<div class="extra">
+        <label class="field span3"><span class="label">Local da não conformidade *</span><input id="nc-local-${i}" data-k="localNC" data-i="${i}" list="locs-dl" autocomplete="off" value="${esc(it.localNC || "")}" placeholder="Máquina ou equipamento e ponto de referência. Ex.: Moldadora 2, lado do operador, próximo ao painel P-14"></label>
         <div class="field span3 foto-field"><span class="label">Foto da não conformidade *</span>
           <div class="foto-row">${it.foto ? imgTag(it.foto, "evid", "Foto da não conformidade") : `<div class="foto-empty">Sem foto</div>`}
             <label class="btn small"><input type="file" accept="image/*" capture="environment" data-nc-foto="${i}" hidden>${it.foto ? "Trocar foto" : "Tirar ou anexar foto"}</label></div></div>
@@ -925,7 +965,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
     const prompt = `Você é um Técnico de Segurança do Trabalho sênior no Brasil, numa fundição. Analise a foto anexada, tirada durante uma inspeção de segurança, e responda em português do Brasil.
 
 Setor: ${d.setorNome || "não informado"}
-Local: ${d.local || "não informado"}
+Local da não conformidade: ${it.localNC?.trim() || "não informado"}
 Seção do checklist: ${it.secao} (${it.nr || "sem norma indicada"})
 Pergunta marcada como NÃO CONFORME: "${it.texto}"${it.ref ? ` (referência ${it.ref})` : ""}
 Descrição/anotação do TST: ${it.nota?.trim() || "nenhuma"}
@@ -970,7 +1010,7 @@ Responda só com JSON neste formato:
     const g = id => document.getElementById(id);
     if (!g("f-data")) return;
     if (g("f-setor-nome")) d.setorNome = g("f-setor-nome").value;
-    d.local = g("f-local").value; d.data = g("f-data").value; d.responsavel = g("f-resp").value; d.acompanhante = g("f-acomp").value; d.cargoLider = g("f-cargo").value; d.observacoes = g("f-obs").value;
+    d.data = g("f-data").value; d.responsavel = g("f-resp").value; d.acompanhante = g("f-acomp").value; d.cargoLider = g("f-cargo").value; d.observacoes = g("f-obs").value;
     d.registroTst = g("f-reg").value; d.horaInicio = g("f-hini").value; d.horaFim = g("f-hfim").value; d.turno = g("f-turno").value;
   }
 
@@ -999,20 +1039,20 @@ Responda só com JSON neste formato:
       const fail = (t, id) => { msg.textContent = t; msg.style.color = "var(--bad)"; if (id) document.getElementById(id)?.focus(); };
       if (d.generico && !d.setorNome.trim()) return fail("Digite o nome do setor.", "f-setor-nome");
       if (!d.data) return fail("Preencha a data.", "f-data");
-      if (!d.responsavel.trim()) return fail("Preencha o nome do TST.", "f-resp");
+      if (!d.responsavel.trim()) return fail("Selecione ou digite o nome do TST.", document.getElementById("f-resp").hidden ? "f-tst-sel" : "f-resp");
       if (!d.acompanhante.trim()) return fail("Preencha o nome da liderança que acompanhou.", "f-acomp");
       const faltando = d.itens.findIndex(i => !i.status);
       if (faltando >= 0) { fail(`Responda a pergunta "${d.itens[faltando].texto.slice(0, 50)}…"`); document.getElementById("item-" + faltando).scrollIntoView({ block: "center" }); return; }
       const semResp = d.itens.findIndex(i => i.status === "NC" && (i.perguntasIA || []).some(x => !x.r?.trim()));
       if (semResp >= 0) { fail("Responda as perguntas do Claude e clique em Responder e atualizar plano."); document.getElementById("item-" + semResp).scrollIntoView({ block: "center" }); return; }
-      const ncFalta = d.itens.findIndex(i => i.status === "NC" && (!i.foto || !i.obs?.trim() || !i.acao?.trim() || !i.respAcao?.trim() || !i.prazo));
-      if (ncFalta >= 0) { const x = d.itens[ncFalta]; fail(`Não conformidade "${x.texto.slice(0, 40)}…": falta ${!x.foto ? "a foto" : !x.obs?.trim() ? "a descrição técnica" : !x.acao?.trim() ? "o plano de ação" : !x.respAcao?.trim() ? "o responsável pela execução" : "o prazo"}.`); document.getElementById("item-" + ncFalta).scrollIntoView({ block: "center" }); return; }
+      const ncFalta = d.itens.findIndex(i => i.status === "NC" && (!i.localNC?.trim() || !i.foto || !i.obs?.trim() || !i.acao?.trim() || !i.respAcao?.trim() || !i.prazo));
+      if (ncFalta >= 0) { const x = d.itens[ncFalta]; fail(`Não conformidade "${x.texto.slice(0, 40)}…": falta ${!x.localNC?.trim() ? "o local da não conformidade" : !x.foto ? "a foto" : !x.obs?.trim() ? "a descrição técnica" : !x.acao?.trim() ? "o plano de ação" : !x.respAcao?.trim() ? "o responsável pela execução" : "o prazo"}.`); document.getElementById("item-" + ncFalta).scrollIntoView({ block: "center" }); return; }
       if (Object.values(state.ai).some(a => a?.status === "loading")) return fail("Aguarde o Claude terminar a análise das fotos.");
       if (!d.assinaturaLider) { fail("Colha a assinatura da liderança no quadro de assinatura."); document.getElementById("sig-pad").scrollIntoView({ block: "center" }); return; }
       if (!d.horaFim) d.horaFim = nowHM();
       if (!d.horaInicio) d.horaInicio = d.horaFim;
       const insp = { id: uid(), ...structuredClone(d), setorNome: d.setorNome.trim(), criadoEm: Date.now(), itens: d.itens.map(i => ({ ...i, corrigido: false, corrigidoEm: "" })) };
-      delete insp.generico;
+      delete insp.generico; delete insp.tstOutro;
       const btn = f.querySelector("button[type=submit]"); btn.disabled = true; btn.textContent = "Salvando…";
       lsSet(LS_TST, { nome: insp.responsavel.trim(), registro: (insp.registroTst || "").trim() });
       try {
@@ -1067,6 +1107,15 @@ Responda só com JSON neste formato:
           ${ro ? "" : `<button type="button" class="btn small danger" data-act="q-del" data-i="${i}" aria-label="Remover pergunta ${i + 1}">Remover</button>`}</div>`).join("")}</div>
         ${ro ? "" : `<div style="display:flex;gap:8px;flex-wrap:wrap"><input id="q-nova" placeholder="Nova pergunta para a seção ${esc(sec.nome)}" style="flex:1 1 260px;width:auto"><button type="button" class="btn" data-act="q-add">Adicionar pergunta</button></div>`}` : ""}
       </section>
+      <section class="panel stack" style="gap:12px">
+        <div class="panel-head" style="margin:0"><h3>TSTs que realizam inspeções</h3>${ro ? "" : `<button type="button" class="btn small" data-act="tst-add">+ Adicionar TST</button>`}</div>
+        <p class="label" style="text-transform:none;letter-spacing:0;margin:0">Os nomes aparecem para seleção no campo do TST da nova inspeção, já com o registro profissional.</p>
+        <label class="field" style="max-width:280px"><span class="label">Meta mensal de inspeções por TST</span><input id="cfg-meta" type="number" min="0" step="1" data-cfgmeta="1" value="${esc(cfg.metaTst || "")}" placeholder="Ex.: 4" ${ro ? "disabled" : ""}></label>
+        ${(cfg.tsts || []).length ? `<div>${cfg.tsts.map((t, i) => `<div class="q-row"><span class="n">${i + 1}</span>
+          <input id="tst-n-${i}" data-tst="nome" data-i="${i}" value="${esc(t.nome)}" placeholder="Nome completo do TST" ${ro ? "disabled" : ""}>
+          <input class="ref-in" id="tst-r-${i}" data-tst="registro" data-i="${i}" value="${esc(t.registro)}" placeholder="Registro (MTE)" ${ro ? "disabled" : ""}>
+          ${ro ? "" : `<button type="button" class="btn small danger" data-act="tst-del" data-i="${i}" aria-label="Remover TST ${i + 1}">Remover</button>`}</div>`).join("")}</div>` : `<p class="label" style="text-transform:none;letter-spacing:0;margin:0">Nenhum TST cadastrado ainda.</p>`}
+      </section>
       ${ro ? "" : `<div class="save-bar"><button type="button" class="btn primary" data-act="cfg-salvar" ${state.cfgDirty ? "" : "disabled"}>Salvar alterações</button>
         <button type="button" class="btn" data-act="cfg-descartar" ${state.cfgDirty ? "" : "disabled"}>Descartar</button>
         <span class="label">${state.cfgDirty ? "Há alterações não salvas" : "Tudo salvo"}</span>
@@ -1083,7 +1132,7 @@ Responda só com JSON neste formato:
   function filtered() {
     const qq = state.filtro.q.trim().toLowerCase();
     return state.inspecoes.filter(i => (!state.filtro.setor || setorLabel(i) === state.filtro.setor) &&
-      (!qq || [setorLabel(i), i.local, i.responsavel].join(" ").toLowerCase().includes(qq)));
+      (!qq || [setorLabel(i), locaisNC(i), i.responsavel].join(" ").toLowerCase().includes(qq)));
   }
   function viewHistorico() {
     const lead = `<h2>Histórico</h2><p class="lead">Todas as inspeções registradas. Clique em uma linha para ver o relatório.</p>`;
@@ -1094,7 +1143,7 @@ Responda só com JSON neste formato:
         <select id="h-setor"><option value="">Todos os setores</option>${setores.map(s => `<option ${state.filtro.setor === s ? "selected" : ""}>${esc(s)}</option>`).join("")}</select>
         <button class="btn" data-act="csv">Exportar CSV</button>
       </div>
-      <div class="table-wrap"><table><thead><tr><th>Data</th><th>Setor</th><th class="hide-sm">Local</th><th class="hide-sm">TST</th><th>Conformidade</th><th>NC abertas</th></tr></thead>
+      <div class="table-wrap"><table><thead><tr><th>Data</th><th>Setor</th><th class="hide-sm">Locais com NC</th><th class="hide-sm">TST</th><th>Conformidade</th><th>NC abertas</th></tr></thead>
       <tbody id="h-body">${histRows(filtered())}</tbody></table></div>
       <div id="copy-area"></div>`;
   }
@@ -1102,7 +1151,7 @@ Responda só com JSON neste formato:
     if (!L.length) return `<tr><td colspan="6" class="empty">Nenhuma inspeção corresponde à busca.</td></tr>`;
     return L.map(i => { const s = score(i); const ab = i.itens.filter(x => x.status === "NC" && !x.corrigido).length;
       return `<tr data-act="abrir" data-id="${i.id}" tabindex="0"><td class="num">${fmtDate(i.data)}</td><td>${esc(setorLabel(i))}${i.exemplo ? ` <span class="chip ex">exemplo</span>` : ""}</td>
-      <td class="hide-sm">${esc(i.local || "—")}</td><td class="hide-sm">${esc(i.responsavel)}</td><td>${pctChip(s.pct)}</td><td class="num">${ab ? `<span class="chip bad">${ab}</span>` : "0"}</td></tr>`; }).join("");
+      <td class="hide-sm">${esc(locaisNC(i) || "—")}</td><td class="hide-sm">${esc(i.responsavel)}</td><td>${pctChip(s.pct)}</td><td class="num">${ab ? `<span class="chip bad">${ab}</span>` : "0"}</td></tr>`; }).join("");
   }
 
   // ---------- Detalhe ----------
@@ -1118,7 +1167,7 @@ Responda só com JSON neste formato:
         <div>${esc(it.texto)}${it.ref ? ` <span class="label">${esc(it.ref)}</span>` : ""}</div>
         <span class="chip ${it.status === "C" ? "ok" : it.status === "NC" ? "bad" : "na"}">${{ C: "Conforme", NC: "Não conforme", NA: "N/A" }[it.status]}</span>
         ${it.obs ? `<div class="note">${esc(it.obs)}</div>` : ""}
-        ${it.status === "NC" && (it.foto || it.enquadramento || it.risco) ? `<div class="note nc-info">${imgTag(it.foto, "evid", "Foto da não conformidade")}<div>${it.enquadramento ? `<div><span class="label">Enquadramento</span> ${esc(it.enquadramento)}</div>` : ""}${it.risco ? `<div><span class="label">Risco</span> ${esc(it.risco)}</div>` : ""}${it.analiseFoto ? `<div class="m">${esc(it.analiseFoto)}</div>` : ""}</div></div>` : ""}
+        ${it.status === "NC" && (it.foto || it.localNC || it.enquadramento || it.risco) ? `<div class="note nc-info">${imgTag(it.foto, "evid", "Foto da não conformidade")}<div>${it.localNC ? `<div><span class="label">Local</span> ${esc(it.localNC)}</div>` : ""}${it.enquadramento ? `<div><span class="label">Enquadramento</span> ${esc(it.enquadramento)}</div>` : ""}${it.risco ? `<div><span class="label">Risco</span> ${esc(it.risco)}</div>` : ""}</div></div>` : ""}
         ${it.status === "NC" ? `<div class="act ${it.corrigido ? "done" : ""}">
           <span><span class="label">Plano de ação</span> ${esc(it.acao || "não definido")}</span>
           ${it.respAcao ? `<span><span class="label">Responsável pela execução</span> ${esc(it.respAcao)}</span>` : ""}
@@ -1144,7 +1193,7 @@ Responda só com JSON neste formato:
         </div>
         <div class="meta">
           <div><span class="label">Data</span><b>${fmtDate(i.data)}</b></div>
-          <div><span class="label">Local / área</span><b>${esc(i.local || "—")}</b></div>
+          ${locaisNC(i) ? `<div><span class="label">Locais com NC</span><b>${esc(locaisNC(i))}</b></div>` : ""}
           <div><span class="label">TST</span><b>${esc(i.responsavel)}</b>${i.registroTst ? `<span class="label">${esc(i.registroTst)}</span>` : ""}</div>
           <div><span class="label">Horário</span><b>${i.horaInicio || i.horaFim ? `${esc(i.horaInicio || "?")} – ${esc(i.horaFim || "?")}` : "—"}</b></div>
           <div><span class="label">Turno</span><b>${esc(i.turno || "—")}</b></div>
@@ -1331,7 +1380,7 @@ Responda só com JSON neste formato:
     merge(r, 1, 11, setorLabel(i) + (i.local ? " – " + i.local : ""), { font: { bold: true, size: 14 } }); ws.getRow(r).height = 22; r += 2;
     const info = [
       [["Data e hora", `${fmtDate(i.data)}${i.horaInicio ? " " + i.horaInicio : ""}${i.horaFim ? " às " + i.horaFim : ""}`], ["Técnico de Segurança (TST)", i.responsavel + (i.registroTst ? ` (${i.registroTst})` : "")], ["Turno", i.turno || "—"]],
-      [["Setor", setorLabel(i)], ["Liderança que acompanhou", (i.acompanhante || "—") + (i.cargoLider ? ` – ${i.cargoLider}` : "")], ["Local / área", i.local || "—"]],
+      [["Setor", setorLabel(i)], ["Liderança que acompanhou", (i.acompanhante || "—") + (i.cargoLider ? ` – ${i.cargoLider}` : "")], ["Locais com NC", locaisNC(i) || "—"]],
     ];
     for (const row of info) {
       const spans = [[1, 2, 3, 3], [4, 4, 5, 8], [9, 9, 10, 11]];
@@ -1358,14 +1407,14 @@ Responda só com JSON neste formato:
     // Não conformidades
     const ncs = i.itens.map((it, n) => ({ it, n: n + 1 })).filter(x => x.it.status === "NC");
     band(`NÃO CONFORMIDADES (${ncs.length})`);
-    const hNC = ["Nº", "Seção", "Item verificado", "Constatação", "Referência normativa", "Risco", "Plano de ação", "Responsável pela execução", "Prazo", "Situação", "Registro fotográfico"];
+    const hNC = ["Nº", "Local da NC / seção", "Item verificado", "Constatação", "Referência normativa", "Risco", "Plano de ação", "Responsável pela execução", "Prazo", "Situação", "Registro fotográfico"];
     hNC.forEach((h, k) => Object.assign(ws.getCell(r, k + 1), { value: h, font: { bold: true, size: 9 }, fill: fill(GRAY), border, alignment: { vertical: "middle", wrapText: true } }));
     ws.getRow(r).height = 28; r++;
     if (!ncs.length) { merge(r, 1, 11, "Nenhuma não conformidade registrada nesta inspeção.", { font: { italic: true } }); r++; }
     for (const { it, n } of ncs) {
       const late = !it.corrigido && it.prazo && it.prazo < t;
       const sit = it.corrigido ? `Concluída em ${fmtDate(it.corrigidoEm)}${it.corrigidoPor ? " por " + it.corrigidoPor : ""}${it.prazo ? (it.corrigidoEm <= it.prazo ? " (no prazo)" : " (fora do prazo)") : ""}${it.descricaoConclusao ? "\n" + it.descricaoConclusao : ""}` : late ? "Atrasada" : "Em aberto";
-      const vals = [n, it.secao || "", it.texto, it.obs || "", it.enquadramento || [it.nr, it.ref].filter(Boolean).join(", "), it.risco || "", it.acao || "", it.respAcao || "", it.prazo ? fmtDate(it.prazo) : "", sit, it.foto ? "" : "Sem foto"];
+      const vals = [n, [it.localNC, it.secao].filter(Boolean).join("\n"), it.texto, it.obs || "", it.enquadramento || [it.nr, it.ref].filter(Boolean).join(", "), it.risco || "", it.acao || "", it.respAcao || "", it.prazo ? fmtDate(it.prazo) : "", sit, it.foto ? "" : "Sem foto"];
       vals.forEach((v, k) => Object.assign(ws.getCell(r, k + 1), { value: v, border, font: { size: 10, color: k === 9 ? { argb: it.corrigido ? "FF1F7A3D" : late ? "FFC0281E" : "FF9A6A00" } : undefined, bold: k === 9 }, alignment: { vertical: "top", wrapText: true, horizontal: k === 0 ? "center" : "left" } }));
       const lines = Math.max(3, ...vals.map((v, k) => Math.ceil(String(v).length / Math.max(8, (ws.getColumn(k + 1).width || 10) * 1.1))));
       ws.getRow(r).height = Math.max(it.foto ? 120 : 0, it.fotoConclusao ? 120 : 0, lines * 14);
@@ -1412,7 +1461,7 @@ Responda só com JSON neste formato:
     // Aba de dados (uma linha por item) para filtros e tabelas dinâmicas
     const wd = wb.addWorksheet("Dados");
     wd.columns = ["Código", "Data", "Setor", "Local", "TST", "Liderança", "Seção", "Norma", "Nº", "Item", "Resultado", "Constatação", "Referência", "Risco", "Plano de ação", "Responsável pela execução", "Prazo", "Situação", "Concluída em"].map(h => ({ header: h, width: Math.max(10, Math.min(48, h.length + 6)) }));
-    i.itens.forEach((it, n) => wd.addRow([codigoInsp(i), fmtDate(i.data), setorLabel(i), i.local || "", i.responsavel, i.acompanhante || "", it.secao || "", it.nr || "", n + 1, it.texto, (RES[it.status] || ["Sem resposta"])[0], it.obs || "", it.enquadramento || it.ref || "", it.risco || "", it.acao || "", it.respAcao || "", it.prazo ? fmtDate(it.prazo) : "", it.status === "NC" ? (it.corrigido ? "Concluída" : it.prazo && it.prazo < t ? "Atrasada" : "Em aberto") : "", it.corrigido ? fmtDate(it.corrigidoEm) : ""]));
+    i.itens.forEach((it, n) => wd.addRow([codigoInsp(i), fmtDate(i.data), setorLabel(i), it.localNC || i.local || "", i.responsavel, i.acompanhante || "", it.secao || "", it.nr || "", n + 1, it.texto, (RES[it.status] || ["Sem resposta"])[0], it.obs || "", it.enquadramento || it.ref || "", it.risco || "", it.acao || "", it.respAcao || "", it.prazo ? fmtDate(it.prazo) : "", it.status === "NC" ? (it.corrigido ? "Concluída" : it.prazo && it.prazo < t ? "Atrasada" : "Em aberto") : "", it.corrigido ? fmtDate(it.corrigidoEm) : ""]));
     wd.getRow(1).font = { bold: true }; wd.views = [{ state: "frozen", ySplit: 1 }]; wd.autoFilter = { from: "A1", to: "S1" };
 
     addDashboard(wb, i, wsDash);
@@ -1437,7 +1486,7 @@ Responda só com JSON neste formato:
     const head = ["Data", "Setor", "Local", "TST", "Registro TST", "Turno", "Liderança", "Cargo liderança", "Seção", "Norma", "Nº", "Pergunta", "Ref.", "Resultado", "Descrição técnica", "Enquadramento", "Risco", "Plano de ação", "Responsável pela execução", "Prazo", "Situação da ação", "Data de conclusão", "Executado por", "O que foi feito", "No prazo"];
     const qq = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
     const rows = [head.map(qq).join(";")];
-    for (const i of list) i.itens.forEach((it, n) => rows.push([fmtDate(i.data), setorLabel(i), i.local, i.responsavel, i.registroTst, i.turno, i.acompanhante, i.cargoLider, it.secao, it.nr || i.nr, n + 1, it.texto, it.ref,
+    for (const i of list) i.itens.forEach((it, n) => rows.push([fmtDate(i.data), setorLabel(i), it.localNC || i.local || "", i.responsavel, i.registroTst, i.turno, i.acompanhante, i.cargoLider, it.secao, it.nr || i.nr, n + 1, it.texto, it.ref,
       { C: "Conforme", NC: "Não conforme", NA: "N/A" }[it.status], it.obs, it.enquadramento, it.risco, it.acao, it.respAcao, it.prazo ? fmtDate(it.prazo) : "", it.status === "NC" ? (it.corrigido ? "Finalizada" : "Em aberto") : "", it.corrigido ? fmtDate(it.corrigidoEm) : "", it.corrigidoPor, it.descricaoConclusao,
       it.corrigido && it.prazo ? (it.corrigidoEm <= it.prazo ? "Sim" : "Não") : ""].map(qq).join(";")));
     return "﻿" + rows.join("\r\n");
@@ -1451,7 +1500,7 @@ Responda só com JSON neste formato:
     const rows = i.itens.map((it, n) => {
       const h = it.secao && it.secao !== last ? `<tr><th colspan="5" style="background:#1d211c;color:#fff">${esc(it.secao)}${it.nr ? " · " + esc(it.nr) : ""}</th></tr>` : "";
       last = it.secao || last;
-      return h + `<tr><td>${n + 1}</td><td>${esc(it.texto)}${it.ref ? ` <small>(${esc(it.ref)})</small>` : ""}</td><td class="${it.status}">${lab[it.status]}</td><td>${esc(it.obs)}${it.enquadramento ? `<br><small><b>Enquadramento:</b> ${esc(it.enquadramento)}</small>` : ""}${it.risco ? `<br><small><b>Risco:</b> ${esc(it.risco)}</small>` : ""}${(it.perguntasIA || []).length ? `<br><small>${it.perguntasIA.map(x => `<b>${esc(x.q)}</b> ${esc(x.r)}`).join("<br>")}</small>` : ""}${it.foto ? `<br><img src="${it.foto}" alt="Foto da NC" style="max-width:220px;margin-top:4px">` : ""}</td><td>${it.status === "NC" ? `${esc(it.acao)}${it.respAcao ? "<br><b>Responsável pela execução:</b> " + esc(it.respAcao) : ""}${it.prazo ? " / " + fmtDate(it.prazo) : ""}${it.corrigido ? `<br><b>Finalizada em ${fmtDate(it.corrigidoEm)}</b>${it.corrigidoPor ? " por " + esc(it.corrigidoPor) : ""}: ${esc(it.descricaoConclusao || "")}${it.fotoConclusao ? `<br><img src="${it.fotoConclusao}" alt="Evidência" style="max-width:220px;margin-top:4px">` : ""}` : ""}` : ""}</td></tr>`;
+      return h + `<tr><td>${n + 1}</td><td>${esc(it.texto)}${it.ref ? ` <small>(${esc(it.ref)})</small>` : ""}</td><td class="${it.status}">${lab[it.status]}</td><td>${esc(it.obs)}${it.enquadramento ? `<br><small><b>Enquadramento:</b> ${esc(it.enquadramento)}</small>` : ""}${it.risco ? `<br><small><b>Risco:</b> ${esc(it.risco)}</small>` : ""}${it.foto ? `<br><img src="${it.foto}" alt="Foto da NC" style="max-width:220px;margin-top:4px">` : ""}</td><td>${it.status === "NC" ? `${esc(it.acao)}${it.respAcao ? "<br><b>Responsável pela execução:</b> " + esc(it.respAcao) : ""}${it.prazo ? " / " + fmtDate(it.prazo) : ""}${it.corrigido ? `<br><b>Finalizada em ${fmtDate(it.corrigidoEm)}</b>${it.corrigidoPor ? " por " + esc(it.corrigidoPor) : ""}: ${esc(it.descricaoConclusao || "")}${it.fotoConclusao ? `<br><img src="${it.fotoConclusao}" alt="Evidência" style="max-width:220px;margin-top:4px">` : ""}` : ""}` : ""}</td></tr>`;
     }).join("");
     return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Inspeção – ${esc(setorLabel(i))} – ${fmtDate(i.data)}</title>
 <style>body{font-family:Arial,sans-serif;color:#1d211c;max-width:900px;margin:24px auto;padding:0 16px;font-size:13px}h1{font-size:20px;margin:0}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{border:1px solid #bbb;padding:6px;text-align:left;vertical-align:top}th{background:#eee}.C{color:#1f7a3d}.NC{color:#c0281e;font-weight:bold}.meta td{border:0;padding:2px 12px 2px 0}.sig{display:flex;gap:48px;margin-top:96px}.sig div{flex:1;border-top:1px solid #000;padding-top:4px;text-align:center}</style></head><body>
@@ -1559,11 +1608,14 @@ ${i.observacoes ? `<p><b>Observações gerais:</b> ${esc(i.observacoes)}</p>` : 
       case "q-del": cfg.secoes.find(s => s.id === state.cfgSecao).perguntas.splice(+el.dataset.i, 1); cfgChanged(); break;
       case "q-add": { const inp = document.getElementById("q-nova"); const t = inp.value.trim(); if (!t) { inp.focus(); break; }
         cfg.secoes.find(s => s.id === state.cfgSecao).perguntas.push({ texto: t, ref: "" }); cfgChanged(); document.getElementById("q-nova")?.focus(); break; }
-      case "cfg-padrao": state.cfgDraft = { secoes: structuredClone(DEFAULT_SECOES), setores: structuredClone(DEFAULT_SETORES) }; cfgChanged(); toast("Padrão carregado. Clique em Salvar alterações para aplicar."); break;
+      case "cfg-padrao": state.cfgDraft = { secoes: structuredClone(DEFAULT_SECOES), setores: structuredClone(DEFAULT_SETORES), tsts: structuredClone(cfg.tsts || []), metaTst: cfg.metaTst || 0 }; cfgChanged(); toast("Padrão carregado. Clique em Salvar alterações para aplicar."); break;
+      case "tst-add": (cfg.tsts ||= []).push({ nome: "", registro: "" }); cfgChanged(); document.getElementById(`tst-n-${cfg.tsts.length - 1}`)?.focus(); break;
+      case "tst-del": cfg.tsts.splice(+el.dataset.i, 1); cfgChanged(); break;
       case "cfg-descartar": state.cfgDraft = null; state.cfgDirty = false; keepY(); break;
       case "cfg-salvar": {
         const usados = new Set(cfg.setores.flatMap(s => s.secoes));
         cfg.secoes.forEach(s => s.perguntas = s.perguntas.filter(p => p.texto.trim()));
+        cfg.tsts = (cfg.tsts || []).map(t => ({ nome: (t.nome || "").trim(), registro: (t.registro || "").trim() })).filter(t => t.nome);
         el.disabled = true;
         try { await saveConfig(structuredClone(cfg)); state.config = structuredClone(cfg); state.cfgDirty = false; state.cfgDraft = null; toast("Setores e perguntas salvos"); keepY(); }
         catch (err) { el.disabled = false; toast(err?.code === "invalid_argument" ? "Seu acesso não permite alterar os setores." : "Não foi possível salvar. Tente novamente."); }
@@ -1572,6 +1624,13 @@ ${i.observacoes ? `<p><b>Observações gerais:</b> ${esc(i.observacoes)}</p>` : 
     }
   });
   document.addEventListener("change", async e => {
+    if (e.target.id === "f-tst-sel") {
+      const o = e.target.selectedOptions[0], r = document.getElementById("f-resp"), g = document.getElementById("f-reg"), outro = e.target.value === "__outro";
+      if (state.draft) state.draft.tstOutro = outro;
+      r.hidden = !outro; r.value = outro || !e.target.value ? "" : e.target.value;
+      g.value = !outro && e.target.value ? o.dataset.reg || "" : ""; if (outro) r.focus();
+      return;
+    }
     if (e.target.dataset.ncFoto != null && state.draft) {
       const i = +e.target.dataset.ncFoto, f = e.target.files?.[0]; if (!f) return;
       readHeader();
@@ -1612,6 +1671,8 @@ ${i.observacoes ? `<p><b>Observações gerais:</b> ${esc(i.observacoes)}</p>` : 
     }
     else if (t.dataset.sec) { sec[t.dataset.sec] = t.value; cfgChanged(false); }
     else if (t.dataset.q) { sec.perguntas[+t.dataset.i][t.dataset.q] = t.value; cfgChanged(false); }
+    else if (t.dataset.cfgmeta) { state.cfgDraft.metaTst = Math.max(0, parseInt(t.value, 10) || 0); cfgChanged(false); }
+    else if (t.dataset.tst) { state.cfgDraft.tsts[+t.dataset.i][t.dataset.tst] = t.value; cfgChanged(false); }
   });
 
   try { const h = location.hash.slice(1); if (["painel", "nova", "historico", "setores"].includes(h)) state.view = h; } catch {}
