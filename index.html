@@ -266,7 +266,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
 
 .extra > .span3 { grid-column: 1 / -1; }
 .acoes { display: grid; gap: 8px; }
-.acao-row { display: grid; grid-template-columns: 64px minmax(0, 2fr) minmax(0, 1fr) 150px auto; gap: 8px; align-items: start; }
+.acao-row { display: grid; grid-template-columns: 64px minmax(0, 2fr) minmax(0, 1fr) 120px 150px auto; gap: 8px; align-items: start; }
 .acao-n { font-family: var(--f-mono); font-size: 11px; font-weight: 600; padding-top: 10px; }
 .acoes-d { display: grid; gap: 8px; }
 @media (max-width: 760px) { .acao-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .acao-row textarea, .acao-n { grid-column: 1 / -1; } .acao-n { padding-top: 0; } }
@@ -740,7 +740,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
 
   // ---------- Navegação ----------
   function go(view, opts = {}) {
-    state.view = view; state.confirmDelete = false; state.closing = null; if (!opts.keepForms) state.repro = null;
+    state.view = view; state.confirmDelete = false; state.closing = null; state.osEdit = null; if (!opts.keepForms) state.repro = null;
     if ("selected" in opts) state.selected = opts.selected;
     document.querySelectorAll("nav.tabs button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.view === (view === "detalhe" ? "historico" : view))));
     render(); window.scrollTo(0, 0);
@@ -809,7 +809,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
       <div class="chips" style="margin-bottom:10px">${FILTROS.map(f => `<button type="button" class="pill" data-act="mon-f" data-f="${f[0]}" aria-pressed="${f === fAtual}">${f[1]} <span class="c">(${acoes.filter(f[2]).length})</span></button>`).join("")}</div>
       ${linhas.length ? `<div class="table-wrap" style="border:0"><table class="mon-table"><thead><tr><th>Ação</th><th>Responsável</th><th>Data da inspeção</th><th>Prazo para finalizar</th><th>Status</th><th></th></tr></thead><tbody>
       ${linhas.slice(0, 60).map(x => { const st = statusAcao(x.a, t), rep = (x.a.reprogramacoes || []).length; return `<tr>
-        <td><b>Ação ${x.k + 1}:</b> ${esc(x.a.texto || x.it.texto)}<div class="label" style="text-transform:none;letter-spacing:0">${esc(setorLabel(x.insp))}${x.it.localNC ? " · " + esc(x.it.localNC) : ""}</div></td>
+        <td><b>Ação ${x.k + 1}:</b> ${esc(x.a.texto || x.it.texto)}<div class="label" style="text-transform:none;letter-spacing:0">${esc(setorLabel(x.insp))}${x.it.localNC ? " · " + esc(x.it.localNC) : ""}${x.a.os ? " · OS " + esc(x.a.os) : ""}</div></td>
         <td data-l="Responsável">${esc(x.resp)}</td><td data-l="Data da inspeção">${fmtDate(x.insp.data)}</td>
         <td data-l="Prazo para finalizar">${fmtDate(x.a.prazo)}${rep ? `<div class="label" style="text-transform:none;letter-spacing:0">original ${fmtDate(prazoOriginal(x.a))} · ${rep}x reprogramada</div>` : ""}</td>
         <td data-l="Status"><span class="chip ${st.cls}">${st.label}</span>${x.a.corrigido ? `<div class="label" style="text-transform:none;letter-spacing:0">em ${fmtDate(x.a.corrigidoEm)}</div>` : ""}</td>
@@ -1044,7 +1044,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
     return [...set.values()].sort((a, b) => a.localeCompare(b, "pt-BR"));
   }
 
-  const novaAcao = () => ({ texto: "", resp: "", prazo: "", corrigido: false, corrigidoEm: "", corrigidoPor: "", descricaoConclusao: "", fotoConclusao: "" });
+  const novaAcao = () => ({ texto: "", resp: "", os: "", prazo: "", corrigido: false, corrigidoEm: "", corrigidoPor: "", descricaoConclusao: "", fotoConclusao: "" });
   // ações de uma NC (inspeções antigas têm uma única ação nos campos acao/respAcao/prazo)
   function acoesDe(it) {
     if (Array.isArray(it.acoes) && it.acoes.length) return it.acoes;
@@ -1066,7 +1066,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
   function syncNC(it) {
     const A = it.acoes = structuredClone(acoesDe(it)).map(a => ({ ...novaAcao(), ...a }));
     const uniq = xs => [...new Set(xs.map(x => (x || "").trim()).filter(Boolean))];
-    it.acao = A.map((a, k) => `${k + 1}. ${a.texto.trim()}`).join("\n");
+    it.acao = A.map((a, k) => `${k + 1}. ${a.texto.trim()}${a.os?.trim() ? ` (OS ${a.os.trim()})` : ""}`).join("\n");
     it.respAcao = uniq(A.map(a => a.resp)).join(", ");
     it.prazo = A.map(a => a.prazo).filter(Boolean).sort().pop() || "";
     it.corrigido = A.length > 0 && A.every(a => a.corrigido);
@@ -1202,6 +1202,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
           <div class="acoes">${(it.acoes?.length ? it.acoes : (it.acoes = [novaAcao()])).map((a, k) => `<div class="acao-row"><span class="acao-n">Ação ${k + 1}</span>
             <textarea id="ac-${i}-${k}-texto" data-ac="${i}:${k}:texto" rows="2" placeholder="O que deve ser feito">${esc(a.texto)}</textarea>
             <input id="ac-${i}-${k}-resp" data-ac="${i}:${k}:resp" list="resp-dl" autocomplete="off" value="${esc(a.resp)}" placeholder="Responsável pela ação ${k + 1}">
+            <input id="ac-${i}-${k}-os" data-ac="${i}:${k}:os" value="${esc(a.os || "")}" placeholder="Nº da OS" aria-label="Número da ordem de serviço da ação ${k + 1} (opcional)">
             <input id="ac-${i}-${k}-prazo" type="date" data-ac="${i}:${k}:prazo" value="${esc(a.prazo)}" aria-label="Prazo da ação ${k + 1}">
             ${it.acoes.length > 1 ? `<button type="button" class="btn small danger" data-act="ac-del" data-i="${i}" data-k="${k}" aria-label="Remover ação ${k + 1}">Remover</button>` : ""}</div>`).join("")}</div>
           <div><button type="button" class="btn small" data-act="ac-add" data-i="${i}">+ Adicionar ação</button></div></div>
@@ -1404,14 +1405,14 @@ Responda só com JSON neste formato:
   function filtered() {
     const qq = state.filtro.q.trim().toLowerCase();
     return state.inspecoes.filter(i => (!state.filtro.setor || setorLabel(i) === state.filtro.setor) &&
-      (!qq || [setorLabel(i), locaisNC(i), i.responsavel].join(" ").toLowerCase().includes(qq)));
+      (!qq || [setorLabel(i), locaisNC(i), i.responsavel, ...i.itens.flatMap(it => it.status === "NC" ? acoesDe(it).map(a => a.os ? "OS " + a.os : "") : [])].join(" ").toLowerCase().includes(qq)));
   }
   function viewHistorico() {
     const lead = `<h2>Histórico</h2><p class="lead">Todas as inspeções registradas. Clique em uma linha para ver o relatório.</p>`;
     if (!state.inspecoes.length) return lead + emptyState("Nenhuma inspeção ainda", "Registre a primeira inspeção para montar o histórico.");
     const setores = [...new Set(state.inspecoes.map(setorLabel))].sort();
     return lead + `<div class="filters">
-        <input id="h-q" type="search" placeholder="Buscar por setor, local ou TST" value="${esc(state.filtro.q)}">
+        <input id="h-q" type="search" placeholder="Buscar por setor, local, TST ou nº da OS" value="${esc(state.filtro.q)}">
         <select id="h-setor"><option value="">Todos os setores</option>${setores.map(s => `<option ${state.filtro.setor === s ? "selected" : ""}>${esc(s)}</option>`).join("")}</select>
         <button class="btn" data-act="csv">Exportar CSV</button>
       </div>
@@ -1443,6 +1444,9 @@ Responda só com JSON neste formato:
         ${it.status === "NC" ? `<div class="acoes-d">${acoesDe(it).map((a, k) => { const fechando = state.closing?.idx === idx && state.closing?.k === k; return `<div class="act ${a.corrigido ? "done" : ""}">
           <span><span class="label">Ação ${k + 1}</span> ${esc(a.texto || "não definida")}</span>
           ${a.resp ? `<span><span class="label">Responsável</span> ${esc(a.resp)}</span>` : ""}
+          <span><span class="label">Ordem de serviço</span> ${state.osEdit?.idx === idx && state.osEdit?.k === k
+            ? `<input id="os-in" value="${esc(state.osEdit.val)}" placeholder="Nº da OS" style="width:120px"> <button class="btn small primary" data-act="os-salvar" data-idx="${idx}" data-k="${k}">Salvar</button> <button class="btn small" data-act="os-cancelar">Cancelar</button>`
+            : `${a.os ? esc(a.os) : "—"}${state.canWrite ? ` <button class="btn small" data-act="os-editar" data-idx="${idx}" data-k="${k}">${a.os ? "Alterar" : "Informar OS"}</button>` : ""}`}</span>
           <span><span class="label">Data da inspeção</span> ${fmtDate(i.data)}</span>
           <span><span class="label">Prazo para finalizar</span> ${fmtDate(a.prazo)}${(a.reprogramacoes || []).length ? ` <small class="label" style="text-transform:none;letter-spacing:0">(original ${fmtDate(prazoOriginal(a))})</small>` : ""}</span>
           ${(() => { const st = statusAcao(a); return `<span class="chip ${st.cls}">${st.label}${a.corrigido ? " em " + fmtDate(a.corrigidoEm) : ""}</span>`; })()}
@@ -1730,7 +1734,7 @@ Responda só com JSON neste formato:
         for (const { it, n, a, k } of lista.sort((x, y) => (x.a.prazo || "9").localeCompare(y.a.prazo || "9"))) {
           const late = !a.corrigido && a.prazo && a.prazo < t;
           ws.mergeCells(r, 4, r, 7); ws.mergeCells(r, 9, r, 10);
-          const cells = [[1, n], [2, it.localNC || it.secao || ""], [3, it.texto], [4, `Ação ${k + 1}: ${a.texto}`], [8, a.prazo ? fmtDate(a.prazo) : "—"], [9, sitAc(a)], [11, a.corrigido ? [a.descricaoConclusao, a.corrigidoPor ? "Executado por " + a.corrigidoPor : ""].filter(Boolean).join("\n") : ""]];
+          const cells = [[1, n], [2, it.localNC || it.secao || ""], [3, it.texto], [4, `Ação ${k + 1}: ${a.texto}${a.os ? `\nOS nº ${a.os}` : ""}`], [8, a.prazo ? fmtDate(a.prazo) : "—"], [9, sitAc(a)], [11, a.corrigido ? [a.descricaoConclusao, a.corrigidoPor ? "Executado por " + a.corrigidoPor : ""].filter(Boolean).join("\n") : ""]];
           cells.forEach(([c, v]) => Object.assign(ws.getCell(r, c), { value: v, border, font: { size: 10, bold: c === 9, color: c === 9 ? { argb: a.corrigido ? "FF1F7A3D" : late ? "FFC0281E" : "FF9A6A00" } : undefined }, alignment: { vertical: "top", wrapText: true, horizontal: c === 1 ? "center" : "left" } }));
           for (let c = 1; c <= 11; c++) ws.getCell(r, c).border = border;
           ws.getRow(r).height = Math.max(18, Math.ceil(Math.max(it.texto.length / 40, a.texto.length / 120, (it.localNC || "").length / 18)) * 14);
@@ -1778,11 +1782,11 @@ Responda só com JSON neste formato:
     wd.getRow(1).font = { bold: true }; wd.views = [{ state: "frozen", ySplit: 1 }]; wd.autoFilter = { from: "A1", to: "S1" };
 
     const wa = wb.addWorksheet("Ações por responsável");
-    wa.columns = ["Responsável", "Código", "Data da inspeção", "Setor", "Local da NC", "Nº", "Item verificado", "Ação nº", "Ação", "Prazo original", "Prazo para finalizar", "Status", "Reprogramações", "Concluída em", "Executado por", "O que foi feito"].map(h => ({ header: h, width: { "Ação": 50, "Item verificado": 40, "O que foi feito": 40, "Local da NC": 26, "Responsável": 22, "Reprogramações": 50, "Status": 20 }[h] || 14 }));
+    wa.columns = ["Responsável", "Código", "Data da inspeção", "Setor", "Local da NC", "Nº", "Item verificado", "Ação nº", "Ação", "Nº da OS", "Prazo original", "Prazo para finalizar", "Status", "Reprogramações", "Concluída em", "Executado por", "O que foi feito"].map(h => ({ header: h, width: { "Ação": 50, "Item verificado": 40, "O que foi feito": 40, "Local da NC": 26, "Responsável": 22, "Reprogramações": 50, "Status": 20 }[h] || 14 }));
     const linhasAc = [];
-    i.itens.forEach((it, n) => { if (it.status === "NC") acoesDe(it).forEach((a, k) => linhasAc.push([a.prazo || "9999", (a.resp || "").trim() || "Sem responsável", codigoInsp(i), fmtDate(i.data), setorLabel(i), it.localNC || "", n + 1, it.texto, k + 1, a.texto, prazoOriginal(a) ? fmtDate(prazoOriginal(a)) : "", a.prazo ? fmtDate(a.prazo) : "", statusAcao(a, t).label, textoRepro(a), a.corrigido ? fmtDate(a.corrigidoEm) : "", a.corrigidoPor || "", a.descricaoConclusao || ""])); });
+    i.itens.forEach((it, n) => { if (it.status === "NC") acoesDe(it).forEach((a, k) => linhasAc.push([a.prazo || "9999", (a.resp || "").trim() || "Sem responsável", codigoInsp(i), fmtDate(i.data), setorLabel(i), it.localNC || "", n + 1, it.texto, k + 1, a.texto, a.os || "", prazoOriginal(a) ? fmtDate(prazoOriginal(a)) : "", a.prazo ? fmtDate(a.prazo) : "", statusAcao(a, t).label, textoRepro(a), a.corrigido ? fmtDate(a.corrigidoEm) : "", a.corrigidoPor || "", a.descricaoConclusao || ""])); });
     linhasAc.sort((x, y) => x[1].localeCompare(y[1], "pt-BR") || x[0].localeCompare(y[0])).forEach(l => wa.addRow(l.slice(1)));
-    wa.getRow(1).font = { bold: true }; wa.views = [{ state: "frozen", ySplit: 1 }]; wa.autoFilter = { from: "A1", to: "P1" };
+    wa.getRow(1).font = { bold: true }; wa.views = [{ state: "frozen", ySplit: 1 }]; wa.autoFilter = { from: "A1", to: "Q1" };
     wa.eachRow((row, k) => { if (k > 1) row.alignment = { vertical: "top", wrapText: true }; });
 
     addDashboard(wb, i, wsDash);
@@ -1902,6 +1906,10 @@ ${i.observacoes ? `<p><b>Observações gerais:</b> ${esc(i.observacoes)}</p>` : 
       case "fin-cancelar": state.closing = null; keepY(); break;
       case "repro": { state.closing = null; state.repro = { idx: +el.dataset.idx, k: +el.dataset.k || 0, data: "", por: "", just: "" }; keepY(); document.getElementById("rep-data")?.focus({ preventScroll: true }); break; }
       case "repro-cancelar": state.repro = null; keepY(); break;
+      case "os-editar": { const a = acoesDe(cur().itens[+el.dataset.idx])[+el.dataset.k]; state.osEdit = { idx: +el.dataset.idx, k: +el.dataset.k, val: a?.os || "" }; keepY(); document.getElementById("os-in")?.focus({ preventScroll: true }); break; }
+      case "os-cancelar": state.osEdit = null; keepY(); break;
+      case "os-salvar": { const o = state.osEdit; const i = structuredClone(cur()); const it = i.itens[o.idx]; it.acoes = structuredClone(acoesDe(it)); it.acoes[o.k].os = o.val.trim(); syncNC(it);
+        el.disabled = true; try { await saveInsp(i); state.osEdit = null; toast(o.val.trim() ? "OS registrada" : "OS removida"); keepY(); } catch { el.disabled = false; toast("Não foi possível salvar. Tente novamente."); } break; }
       case "repro-salvar": {
         const r = state.repro, msg = document.getElementById("rep-msg");
         const bad = (t, id) => { msg.textContent = t; msg.style.color = "var(--bad)"; document.getElementById(id)?.focus(); };
@@ -2011,6 +2019,7 @@ ${i.observacoes ? `<p><b>Observações gerais:</b> ${esc(i.observacoes)}</p>` : 
     if (state.closing && t.id === "fin-data") { state.closing.data = t.value; return; }
     if (state.closing && t.id === "fin-por") { state.closing.por = t.value; return; }
     if (state.closing && t.id === "fin-desc") { state.closing.desc = t.value; return; }
+    if (state.osEdit && t.id === "os-in") { state.osEdit.val = t.value; return; }
     if (state.repro && t.id === "rep-data") { state.repro.data = t.value; return; }
     if (state.repro && t.id === "rep-por") { state.repro.por = t.value; return; }
     if (state.repro && t.id === "rep-just") { state.repro.just = t.value; return; }
