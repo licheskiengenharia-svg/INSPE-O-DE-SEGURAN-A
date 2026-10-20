@@ -270,10 +270,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
 .vis-sec { border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; margin-bottom: 8px; background: var(--surface-2); }
 .vis-sec summary { cursor: pointer; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
 .vis-q { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 8px; padding: 6px 0; border-top: 1px solid var(--line); font-size: 14px; cursor: pointer; }
-.vis-q input, .sug input { width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--ok); }
-.sug-list { display: grid; gap: 8px; }
-.sug { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; background: var(--surface-2); cursor: pointer; }
-.sug span { display: grid; gap: 3px; } .sug small { color: var(--muted); font-size: 12px; }
+.vis-q input { width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--ok); }
 .check-card .sub { grid-column: 2; font-size: 12px; color: var(--muted); }
 .inline-check { display: flex; gap: 10px; align-items: flex-start; background: var(--surface-2); border-radius: 6px; padding: 8px 12px; cursor: pointer; }
 .inline-check input { width: 18px; height: 18px; flex: none; margin-top: 2px; accent-color: var(--bad); }
@@ -346,6 +343,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
       q("As sinalizações de acesso e de risco estão visíveis e em boas condições?"),
       q("Se houver manutenção preventiva ou corretiva no setor, os manutentores têm cartões de bloqueio e cadeados?"),
       q("O sistema de bloqueio e etiquetagem (lockout/tagout) está implantado e é usado durante manutenção e limpeza?"),
+      q("As ferramentas elétricas portáteis, como esmerilhadeiras, retíficas, lixadeiras e extensões, apresentam cabos, plugues, carcaças e proteções íntegros, sem emendas improvisadas e sem utilização em condições de risco elétrico?", "NR-10 / NR-12"),
     ]},
     { id: "maq", nome: "Máquinas e equipamentos", nr: "NR-12", perguntas: [
       q("As proteções fixas e móveis (grades, carenagens e barreiras) estão intactas?"),
@@ -367,6 +365,9 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
       q("Os ganchos e engates das talhas têm trava de segurança compatível com a peça movimentada?", "NR-11"),
       q("As mangueiras e tubulações de gás estão em perfeitas condições, sem vazamento, ressecamento ou cortes?"),
       q("As mangueiras e tubulações estão identificadas com as cores corretas?", "NR-26"),
+      q("As áreas de acesso restrito, como equipamentos em movimento, desmoldadores, quebra de canais e regiões superiores das sopradoras, estão devidamente isoladas, sinalizadas e com os dispositivos de proteção mantidos em condições adequadas?", "NR-12 / NR-26"),
+      q("As máquinas de bancada, como esmeris, serras, policortes e lixadeiras, possuem proteções dos discos, partes móveis e transmissões, além de dispositivos que impeçam o acionamento ou a utilização por pessoas não autorizadas, quando aplicável?", "NR-12"),
+      q("As máquinas, equipamentos e dispositivos estão livres de adaptações improvisadas, como calços, pedras, parafusos inadequados ou pedaços de madeira utilizados para substituir componentes ou corrigir falhas de funcionamento?", "NR-12"),
     ]},
     { id: "inf", nome: "Inflamáveis, químicos e resíduos", nr: "NR-20", perguntas: [
       q("Os produtos inflamáveis e tóxicos estão armazenados em local apropriado, sinalizado, afastado de fontes de ignição e sem risco de vazamento ou infiltração?"),
@@ -390,6 +391,8 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
       q("Existe Permissão de Trabalho (PT) para todas as atividades em execução?"),
       q("A PT está preenchida corretamente e a tarefa corresponde ao que está descrito nela?"),
       q("O local de trabalho está sinalizado e isolado?", "NR-26"),
+      q("As escadas fixas, escadas tipo marinheiro e aberturas de fossos possuem guarda-corpos, rodapés, tampas e sistemas de proteção íntegros, além de sinalização, controle de acesso e dispositivos de segurança contra quedas, quando aplicáveis?", "NR-12 / NR-08"),
+      q("As atividades em altura são realizadas com plataformas ou escadas adequadas, proteção contra quedas e sistemas de ancoragem apropriados, sem improvisações ou utilização de equipamentos e materiais como pontos de apoio?", "NR-35"),
     ]},
     { id: "5s", nome: "Áreas comuns e 5S", nr: "", perguntas: [
       q("Os resíduos gerados estão sendo segregados e descartados corretamente (recicláveis, entulho, sucata, embalagens de tinta, solventes, lubrificantes, borra de tinta, madeira e outros químicos)?", "NR-25"),
@@ -403,6 +406,10 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
       q("O local, de modo geral, está organizado e limpo?"),
       q("Os funcionários participam periodicamente de treinamentos, reuniões e DDS?", "NR-01"),
       q("As listas de presença de treinamentos, reuniões e DDS estão disponíveis?", "NR-01"),
+      q("Os pisos, chapas de proteção e tampas de porões estão íntegros, nivelados, sem buracos, desníveis ou outras condições que possam provocar quedas e acidentes?", "NR-08"),
+      q("As estruturas, muros, baias de areia, porta-paletes e racks apresentam condições adequadas de conservação, sem trincas, deformações, corrosão, sobrecarga ou travamentos comprometidos?", "NR-08 / NR-11"),
+      q("As caçambas, latões e baias de resíduos são esvaziados antes de atingir a capacidade máxima, evitando transbordamento, acúmulo excessivo de materiais e obstrução das áreas de circulação?", "NR-25"),
+      q("As coberturas, telhados e instalações estão livres de goteiras e infiltrações, especialmente nas proximidades de fornos, metal líquido, painéis elétricos, eletrodutos e equipamentos energizados?", "NR-08 / NR-10"),
     ]},
     { id: "for", nome: "Fornos", nr: "NR-14", perguntas: [
       q("A porta de acesso à parte inferior do piso dos fornos está desobstruída?"),
@@ -410,6 +417,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
       q("As panelas de envase estão com os parafusos presos? (em caso de não conformidade, identifique a avaria)"),
       q("O piso próximo aos fornos está sem danos?"),
       q("O sistema de exaustão está funcionando?"),
+      q("Os recipientes de areia seca utilizados para contenção de metal líquido e atendimento a emergências nas proximidades dos fornos estão abastecidos, identificados, protegidos contra umidade e com acesso desobstruído?", "NR-23 / NR-14"),
     ]},
     { id: "inc", nome: "Incêndio, brigada e CIPA", nr: "NR-23", perguntas: [
       q("Os extintores estão sinalizados e visíveis para todos na fábrica?"),
@@ -426,6 +434,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
       q("O trajeto da panela está desobstruído e sem pessoas sob a carga suspensa?", "NR-11"),
       q("Os moldes e caixas estão posicionados e travados de forma segura antes do vazamento?"),
       q("Existe local ou recipiente adequado para o descarte de escória e sobras de metal?"),
+      q("Durante o vazamento de metal líquido, a área de risco permanece isolada, sem circulação de veículos, equipamentos móveis ou execução de atividades simultâneas que possam comprometer a segurança da operação?", "NR-11 / NR-14"),
     ]},
     { id: "amb", nome: "Calor, ruído e poeira", nr: "NR-09", perguntas: [
       q("Há água potável e fresca disponível perto dos postos de trabalho expostos ao calor?", "NR-24"),
@@ -434,6 +443,8 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
       q("Os sistemas de exaustão e captação de poeira (moldagem, desmoldagem, jateamento, rebarbação) estão funcionando?"),
       q("Os trabalhadores expostos a poeira usam proteção respiratória adequada e em bom estado?", "NR-06"),
       q("A limpeza da área é feita sem varrição a seco e sem ar comprimido para remover poeira?"),
+      q("Os postos de trabalho expostos ao calor possuem sistemas de ventilação, exaustão ou climatização disponíveis, em funcionamento e sem obstruções?", "NR-17 / NR-15"),
+      q("Os resíduos de areia contendo sílica, provenientes de derramamentos ou aguardando descarte, são recolhidos por métodos que minimizem a dispersão de poeira e acondicionados em recipientes adequados, evitando acúmulos e exposição ocupacional?", "NR-09 / NR-15"),
     ]},
     { id: "ica", nome: "Empilhadeiras e içamento de cargas", nr: "NR-11", perguntas: [
       q("Os operadores de empilhadeira são habilitados e portam identificação de operador autorizado?"),
@@ -441,12 +452,16 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
       q("A circulação de pedestres está separada da circulação de empilhadeiras (faixas, barreiras ou sinalização)?"),
       q("Pontes rolantes, talhas e dispositivos de içamento mostram a capacidade máxima de carga de forma visível?"),
       q("Cintas, correntes, cabos de aço e manilhas estão em bom estado e identificados com a capacidade?"),
+      q("As empilhadeiras e transpaleteiras apresentam condições seguras de operação, com pneus, garfos, retrovisores, freios, dispositivos de sinalização sonora e luminosa íntegros e sem vazamentos?", "NR-11"),
+      q("Os ganchos, gaiolas, berços e dispositivos de movimentação de cargas possuem capacidade nominal identificada, estrutura íntegra e ausência de deformações, trincas, desgastes excessivos ou adaptações improvisadas?", "NR-11 / NR-12"),
+      q("As cargas movimentadas por talhas e pontes rolantes permanecem sob controle durante a operação, sem abandono de cargas suspensas e sem circulação ou permanência de pessoas sob as cargas?", "NR-11"),
     ]},
     { id: "reb", nome: "Rebarbação e esmerilhamento", nr: "NR-12", perguntas: [
       q("As esmerilhadeiras estão com a coifa de proteção do disco instalada?"),
       q("Os discos são compatíveis com a rotação da máquina e estão dentro da validade?"),
       q("Há anteparos que impedem que fagulhas e fragmentos atinjam outros trabalhadores?"),
       q("As peças ficam apoiadas ou fixadas de forma estável durante o esmerilhamento?"),
+      q("Os trabalhadores que utilizam esmerilhadeiras, lixadeiras e equipamentos abrasivos estão utilizando corretamente proteção facial, proteção ocular e demais EPIs exigidos para a atividade, sem utilizar luvas inadequadas ou que possam aumentar o risco de aprisionamento?", "NR-06 / NR-12"),
     ]},
     { id: "gas", nome: "Cilindros, gases e ar comprimido", nr: "", perguntas: [
       q("Os cilindros de gases estão presos, em pé e com capacete de proteção quando fora de uso?"),
@@ -488,6 +503,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
       q("A estufa de secagem de machos tem controle de temperatura funcionando e exaustão dos vapores de solvente?", "NR-14"),
       q("Há sinalização de superfície quente e uso de luvas térmicas na retirada dos machos da estufa?", "NR-06"),
       q("Os machos ficam armazenados em prateleiras ou berços estáveis, sem risco de queda?", "NR-11"),
+      q("O elevador de óxido de ferro possui proteções laterais, capacidade nominal identificada, sinalização de uso exclusivo para materiais e controle de acesso, sendo o abastecimento realizado sem exposição a esforços físicos inadequados?", "NR-12 / NR-17"),
     ]},
     { id: "esp-savelli", nome: "Perguntas específicas – Savelli (areia verde)", nr: "", perguntas: [
       q("As proteções e os intertravamentos da moldadora Savelli estão funcionando, sem dispositivos burlados?", "NR-12"),
@@ -522,6 +538,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
       q("Panos e estopas com tinta ou solvente são descartados em recipiente metálico com tampa?", "NR-25"),
       q("A quantidade de tinta e solvente na área de preparação respeita o limite estabelecido pela empresa?", "NR-20"),
       q("A proibição de fumar, soldar ou esmerilhar perto da cabine está sinalizada e é respeitada?", "NR-20"),
+      q("O transportador aéreo (carrossel) e os ganchos utilizados para suspensão de peças apresentam condições seguras de operação, com sistemas de retenção e dispositivos que impeçam o desprendimento, o giro descontrolado ou a queda das peças?", "NR-11 / NR-12"),
     ]},
   ];
   const DEFAULT_SETORES = [
@@ -534,36 +551,48 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
     { id: "pintura", nome: "Pintura", generico: false, secoes: ["epi","ele","maq","inf","fre","5s","inc","amb","ica","gas","emg","esp-pintura"] },
     { id: "outro", nome: "Outro setor (todas as seções)", generico: true, secoes: ["epi","ele","maq","inf","fre","5s","for","inc","vaz","amb","ica","reb","gas","emg"] },
   ];
-  // perguntas sugeridas a partir das inspeções reais da empresa (o responsável escolhe quais entram)
-  const SUGESTOES = [
-    { id: "s1", sec: "5s", texto: "O piso, as chapas e as tampas de canaletas, caixas de passagem e fossos estão íntegros, nivelados e sem buracos ou desníveis?", nr: "NR-08", motivo: "Piso do Jateamento, Pressenger, Ferramentaria e Savelli; tampa do fosso da Cura Frio abaulada; tampa de caixa de passagem quebrada" },
-    { id: "s2", sec: "fre", texto: "Passarelas, plataformas, escadas fixas e aberturas de fosso têm guarda-corpo, rodapé e tampas íntegros e fechados?", nr: "NR-12 / NR-08", motivo: "Guarda-corpo faltando nas passarelas de óxido de ferro e do misturador; escada marinheiro do Jato e fosso do Jateamento abertos" },
-    { id: "s3", sec: "fre", texto: "As atividades em altura ou fora do piso são feitas com plataforma ou escada adequada e cinto paraquedista ancorado, sem subir em equipamentos, trilhos ou montes de material?", nr: "NR-35", motivo: "Manutenção sobre o equipamento Renk sem proteção; escada de mão no forno; colaboradores subindo no trilho e no monte de areia" },
-    { id: "s4", sec: "maq", texto: "As áreas de acesso restrito (desmoldador, quebra de canal, área superior das sopradoras, áreas com partes em movimento) estão isoladas com corrente ou barreira e sinalização, e o isolamento está mantido?", nr: "NR-12 / NR-26", motivo: "Área das sopradoras sem corrente e placa; espaço controlado da quebra de canal aberto; corrente do desmoldador fora de posição" },
-    { id: "s5", sec: "maq", texto: "Máquinas de bancada (esmeril, serra, policorte, serra vai e vem, lixadeira) têm proteção do disco e das transmissões e dispositivo que impede o uso por pessoas não autorizadas (cadeado ou chave)?", nr: "NR-12", motivo: "Esmeril e serra da Macharia sem coifa/cadeado; policorte e lixadeira de coquilhas com correia exposta" },
-    { id: "s6", sec: "maq", texto: "Não há improvisos em máquinas e dispositivos (calços, pedras, parafusos, pedaços de madeira) substituindo componentes ou forçando o funcionamento?", nr: "NR-12", motivo: "Parafuso para reduzir a corrente; improviso com pedra; porta do Jato CMV aberta a golpes de madeira" },
-    { id: "s7", sec: "ica", texto: "As empilhadeiras e transpaleteiras estão em bom estado (pneus, garfos, retrovisor, freio, sinal sonoro e luminoso, sem vazamentos)?", nr: "NR-11", motivo: "Pneus rachado e desgastado; empilhadeira 772 sem retrovisor; vazamento no radiador; garfos tortos" },
-    { id: "s8", sec: "ica", texto: "Ganchos, gaiolas, berços e dispositivos de movimentação feitos na empresa têm capacidade de carga definida e identificada e estão sem deformação, trincas ou improviso?", nr: "NR-11 / NR-12", motivo: "Gaiola do Jato tombando; ganchos finos e tortos; estrutura de ferro abaixo da espessura; gancho que escapou do latão" },
-    { id: "s9", sec: "ica", texto: "Nenhuma carga fica parada suspensa na talha ou ponte (carga suspensa abandonada) e ninguém passa ou trabalha sob carga suspensa?", nr: "NR-11", motivo: "Peças mantidas suspensas aguardando posicionamento na Cura Frio" },
-    { id: "s10", sec: "5s", texto: "As estruturas (muros, baias de areia, racks e prateleiras) estão íntegras, sem trincas, deformação, corrosão ou sobrecarga, e com travamento entre os níveis?", nr: "NR-08 / NR-11", motivo: "Muro da central de areia rachado; racks corroídos sem travamento; portas da baia de areia cedendo" },
-    { id: "s11", sec: "5s", texto: "Caçambas, latões e baias de resíduos são esvaziados antes de atingir a capacidade, sem transbordo?", nr: "NR-25", motivo: "Caçamba da Savelli transbordando; latões acumulados na Macharia" },
-    { id: "s12", sec: "5s", texto: "O telhado e as instalações estão sem goteiras ou infiltrações, principalmente perto de fornos, painéis e eletrodutos?", nr: "NR-08 / NR-10", motivo: "Goteira a 1 m do Forno 03; goteira nos eletrodutos do PCP; infiltração no Acabamento" },
-    { id: "s13", sec: "amb", texto: "Os postos expostos a calor têm ventilação ou climatização funcionando (ventiladores instalados e em uso)?", nr: "NR-17 / NR-15", motivo: "Falta de ventilação na Cura Frio e na Savelli; ventilador retirado; calor extremo no Tratamento Térmico" },
-    { id: "s14", sec: "amb", texto: "A sílica e a areia derramadas ou aguardando descarte são recolhidas e guardadas em recipiente fechado, sem acúmulo que espalhe poeira?", nr: "NR-09 / NR-15", motivo: "Sílica exposta na Cura Frio T12; acúmulo na quebra de canal e no desmoldador Ecosand" },
-    { id: "s15", sec: "reb", texto: "Quem usa esmerilhadeira ou lixadeira usa protetor facial e luva adequada ao corte e à abrasão (não luva de PU ou tecido)?", nr: "NR-06 / NR-12", motivo: "Disco rompeu e atingiu o rosto; luva de PU no setor Renk; esmerilhadeira sem luva" },
-    { id: "s16", sec: "ele", texto: "As ferramentas elétricas portáteis (esmerilhadeiras, retíficas, lixadeiras, extensões) estão com cabo, plugue e carcaça íntegros, sem emendas, e fora de piso molhado?", nr: "NR-10 / NR-12", motivo: "Esmerilhadeira com cabo emendado; retífica com fiação irregular; extensões no piso úmido da Pintura" },
-    { id: "s17", sec: "for", texto: "Os tambores de areia seca para combate a princípio de incêndio e contenção de metal junto aos fornos estão completos, íntegros e acessíveis?", nr: "NR-23 / NR-14", motivo: "Tambor de areia dos fornos danificado e vazio" },
-    { id: "s18", sec: "vaz", texto: "Durante o vazamento não há atividades simultâneas nem circulação de veículos (retroescavadeira, caminhão, empilhadeira) na área de risco do metal líquido?", nr: "NR-11 / NR-14", motivo: "Desmoldagem, retroescavadeira e caminhão operando em frente aos fornos durante o envase" },
-    { id: "s19", sec: "esp-macharia", texto: "O elevador de óxido de ferro tem proteção lateral, capacidade identificada, sinalização de uso exclusivo para material e acesso restrito, e o abastecimento é feito sem esforço manual inadequado?", nr: "NR-12 / NR-17", motivo: "Elevador sem proteção lateral e sinalização; abastecimento manual incorreto" },
-    { id: "s20", sec: "esp-pintura", texto: "O transportador aéreo (carrossel) e os ganchos de pendurar peças estão em bom estado, com trava que impede o giro ou a queda das peças?", nr: "NR-11 / NR-12", motivo: "Roldanas abrindo e trolley quebrado; ganchos da família Renk girando 360°" },
+  // perguntas incluídas em out/2026 a partir das inspeções reais; entram também em configurações já salvas
+  const NOVAS = [
+    { id: "n1", sec: "5s", texto: "Os pisos, chapas de proteção e tampas de porões estão íntegros, nivelados, sem buracos, desníveis ou outras condições que possam provocar quedas e acidentes?", nr: "NR-08", antigo: "O piso, as chapas e as tampas de canaletas, caixas de passagem e fossos estão íntegros, nivelados e sem buracos ou desníveis?" },
+    { id: "n2", sec: "fre", texto: "As escadas fixas, escadas tipo marinheiro e aberturas de fossos possuem guarda-corpos, rodapés, tampas e sistemas de proteção íntegros, além de sinalização, controle de acesso e dispositivos de segurança contra quedas, quando aplicáveis?", nr: "NR-12 / NR-08", antigo: "Passarelas, plataformas, escadas fixas e aberturas de fosso têm guarda-corpo, rodapé e tampas íntegros e fechados?" },
+    { id: "n3", sec: "fre", texto: "As atividades em altura são realizadas com plataformas ou escadas adequadas, proteção contra quedas e sistemas de ancoragem apropriados, sem improvisações ou utilização de equipamentos e materiais como pontos de apoio?", nr: "NR-35", antigo: "As atividades em altura ou fora do piso são feitas com plataforma ou escada adequada e cinto paraquedista ancorado, sem subir em equipamentos, trilhos ou montes de material?" },
+    { id: "n4", sec: "maq", texto: "As áreas de acesso restrito, como equipamentos em movimento, desmoldadores, quebra de canais e regiões superiores das sopradoras, estão devidamente isoladas, sinalizadas e com os dispositivos de proteção mantidos em condições adequadas?", nr: "NR-12 / NR-26", antigo: "As áreas de acesso restrito (desmoldador, quebra de canal, área superior das sopradoras, áreas com partes em movimento) estão isoladas com corrente ou barreira e sinalização, e o isolamento está mantido?" },
+    { id: "n5", sec: "maq", texto: "As máquinas de bancada, como esmeris, serras, policortes e lixadeiras, possuem proteções dos discos, partes móveis e transmissões, além de dispositivos que impeçam o acionamento ou a utilização por pessoas não autorizadas, quando aplicável?", nr: "NR-12", antigo: "Máquinas de bancada (esmeril, serra, policorte, serra vai e vem, lixadeira) têm proteção do disco e das transmissões e dispositivo que impede o uso por pessoas não autorizadas (cadeado ou chave)?" },
+    { id: "n6", sec: "maq", texto: "As máquinas, equipamentos e dispositivos estão livres de adaptações improvisadas, como calços, pedras, parafusos inadequados ou pedaços de madeira utilizados para substituir componentes ou corrigir falhas de funcionamento?", nr: "NR-12", antigo: "Não há improvisos em máquinas e dispositivos (calços, pedras, parafusos, pedaços de madeira) substituindo componentes ou forçando o funcionamento?" },
+    { id: "n7", sec: "ica", texto: "As empilhadeiras e transpaleteiras apresentam condições seguras de operação, com pneus, garfos, retrovisores, freios, dispositivos de sinalização sonora e luminosa íntegros e sem vazamentos?", nr: "NR-11", antigo: "As empilhadeiras e transpaleteiras estão em bom estado (pneus, garfos, retrovisor, freio, sinal sonoro e luminoso, sem vazamentos)?" },
+    { id: "n8", sec: "ica", texto: "Os ganchos, gaiolas, berços e dispositivos de movimentação de cargas possuem capacidade nominal identificada, estrutura íntegra e ausência de deformações, trincas, desgastes excessivos ou adaptações improvisadas?", nr: "NR-11 / NR-12", antigo: "Ganchos, gaiolas, berços e dispositivos de movimentação feitos na empresa têm capacidade de carga definida e identificada e estão sem deformação, trincas ou improviso?" },
+    { id: "n9", sec: "ica", texto: "As cargas movimentadas por talhas e pontes rolantes permanecem sob controle durante a operação, sem abandono de cargas suspensas e sem circulação ou permanência de pessoas sob as cargas?", nr: "NR-11", antigo: "Nenhuma carga fica parada suspensa na talha ou ponte (carga suspensa abandonada) e ninguém passa ou trabalha sob carga suspensa?" },
+    { id: "n10", sec: "5s", texto: "As estruturas, muros, baias de areia, porta-paletes e racks apresentam condições adequadas de conservação, sem trincas, deformações, corrosão, sobrecarga ou travamentos comprometidos?", nr: "NR-08 / NR-11", antigo: "As estruturas (muros, baias de areia, racks e prateleiras) estão íntegras, sem trincas, deformação, corrosão ou sobrecarga, e com travamento entre os níveis?" },
+    { id: "n11", sec: "5s", texto: "As caçambas, latões e baias de resíduos são esvaziados antes de atingir a capacidade máxima, evitando transbordamento, acúmulo excessivo de materiais e obstrução das áreas de circulação?", nr: "NR-25", antigo: "Caçambas, latões e baias de resíduos são esvaziados antes de atingir a capacidade, sem transbordo?" },
+    { id: "n12", sec: "5s", texto: "As coberturas, telhados e instalações estão livres de goteiras e infiltrações, especialmente nas proximidades de fornos, metal líquido, painéis elétricos, eletrodutos e equipamentos energizados?", nr: "NR-08 / NR-10", antigo: "O telhado e as instalações estão sem goteiras ou infiltrações, principalmente perto de fornos, painéis e eletrodutos?" },
+    { id: "n13", sec: "amb", texto: "Os postos de trabalho expostos ao calor possuem sistemas de ventilação, exaustão ou climatização disponíveis, em funcionamento e sem obstruções?", nr: "NR-17 / NR-15", antigo: "Os postos expostos a calor têm ventilação ou climatização funcionando (ventiladores instalados e em uso)?" },
+    { id: "n14", sec: "amb", texto: "Os resíduos de areia contendo sílica, provenientes de derramamentos ou aguardando descarte, são recolhidos por métodos que minimizem a dispersão de poeira e acondicionados em recipientes adequados, evitando acúmulos e exposição ocupacional?", nr: "NR-09 / NR-15", antigo: "A sílica e a areia derramadas ou aguardando descarte são recolhidas e guardadas em recipiente fechado, sem acúmulo que espalhe poeira?" },
+    { id: "n15", sec: "reb", texto: "Os trabalhadores que utilizam esmerilhadeiras, lixadeiras e equipamentos abrasivos estão utilizando corretamente proteção facial, proteção ocular e demais EPIs exigidos para a atividade, sem utilizar luvas inadequadas ou que possam aumentar o risco de aprisionamento?", nr: "NR-06 / NR-12", antigo: "Quem usa esmerilhadeira ou lixadeira usa protetor facial e luva adequada ao corte e à abrasão (não luva de PU ou tecido)?" },
+    { id: "n16", sec: "ele", texto: "As ferramentas elétricas portáteis, como esmerilhadeiras, retíficas, lixadeiras e extensões, apresentam cabos, plugues, carcaças e proteções íntegros, sem emendas improvisadas e sem utilização em condições de risco elétrico?", nr: "NR-10 / NR-12", antigo: "As ferramentas elétricas portáteis (esmerilhadeiras, retíficas, lixadeiras, extensões) estão com cabo, plugue e carcaça íntegros, sem emendas, e fora de piso molhado?" },
+    { id: "n17", sec: "for", texto: "Os recipientes de areia seca utilizados para contenção de metal líquido e atendimento a emergências nas proximidades dos fornos estão abastecidos, identificados, protegidos contra umidade e com acesso desobstruído?", nr: "NR-23 / NR-14", antigo: "Os tambores de areia seca para combate a princípio de incêndio e contenção de metal junto aos fornos estão completos, íntegros e acessíveis?" },
+    { id: "n18", sec: "vaz", texto: "Durante o vazamento de metal líquido, a área de risco permanece isolada, sem circulação de veículos, equipamentos móveis ou execução de atividades simultâneas que possam comprometer a segurança da operação?", nr: "NR-11 / NR-14", antigo: "Durante o vazamento não há atividades simultâneas nem circulação de veículos (retroescavadeira, caminhão, empilhadeira) na área de risco do metal líquido?" },
+    { id: "n19", sec: "esp-macharia", texto: "O elevador de óxido de ferro possui proteções laterais, capacidade nominal identificada, sinalização de uso exclusivo para materiais e controle de acesso, sendo o abastecimento realizado sem exposição a esforços físicos inadequados?", nr: "NR-12 / NR-17", antigo: "O elevador de óxido de ferro tem proteção lateral, capacidade identificada, sinalização de uso exclusivo para material e acesso restrito, e o abastecimento é feito sem esforço manual inadequado?" },
+    { id: "n20", sec: "esp-pintura", texto: "O transportador aéreo (carrossel) e os ganchos utilizados para suspensão de peças apresentam condições seguras de operação, com sistemas de retenção e dispositivos que impeçam o desprendimento, o giro descontrolado ou a queda das peças?", nr: "NR-11 / NR-12", antigo: "O transportador aéreo (carrossel) e os ganchos de pendurar peças estão em bom estado, com trava que impede o giro ou a queda das peças?" }
   ];
+  function migrarCfg(cfg) {
+    const feitas = new Set(cfg.novasAplicadas || []);
+    for (const g of NOVAS) {
+      if (feitas.has(g.id)) continue;
+      const sc = (cfg.secoes || []).find(x => x.id === g.sec);
+      if (sc) { const old = sc.perguntas.find(p => p.texto.trim() === g.antigo); if (old) old.texto = g.texto; else if (!sc.perguntas.some(p => p.texto.trim() === g.texto)) sc.perguntas.push({ texto: g.texto, ref: g.nr }); }
+      feitas.add(g.id);
+    }
+    cfg.novasAplicadas = [...feitas];
+    delete cfg.sugDescartadas;
+    return cfg;
+  }
 
   // ---------- Estado ----------
   const state = {
     view: "painel", inspecoes: [], loaded: false, store: "db", canWrite: true,
     selected: null, confirmDelete: false, filtro: { q: "", setor: "" }, draft: null, ai: {},
     pf: { periodo: "12", setor: "", tst: "" },
-    config: { secoes: structuredClone(DEFAULT_SECOES), setores: structuredClone(DEFAULT_SETORES) },
+    config: { secoes: structuredClone(DEFAULT_SECOES), setores: structuredClone(DEFAULT_SETORES), novasAplicadas: NOVAS.map(g => g.id) },
     equipe: { tsts: [], metaTst: 0 },
     cfgDraft: null, cfgSetor: "usinagem", cfgSecao: "epi", cfgDirty: false, cfgConfirmDel: false,
   };
@@ -651,7 +680,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
   function sortInsp() { state.inspecoes.sort((a, b) => (b.data || "").localeCompare(a.data || "") || (b.criadoEm || 0) - (a.criadoEm || 0)); }
   function useLocal() {
     state.store = "local"; state.inspecoes = lsGet(LS_KEY, []);
-    const cfg = lsGet(LS_CFG, null); if (cfg?.setores && cfg?.secoes) state.config = cfg;
+    const cfg = lsGet(LS_CFG, null); if (cfg?.setores && cfg?.secoes) state.config = migrarCfg(cfg);
     const eq = lsGet(LS_EQ, null); if (eq?.tsts) state.equipe = eq;
     sortInsp(); state.loaded = true; render();
   }
@@ -672,7 +701,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
     }, () => {});
     db.doc("config/setup").onSnapshot(snap => {
       const d = snap.exists ? snap.data() : null;
-      if (d?.setores && d?.secoes) state.config = structuredClone(d);
+      if (d?.setores && d?.secoes) state.config = migrarCfg(structuredClone(d));
       if (state.loaded && !state.cfgDirty) { state.cfgDraft = null; render(); }
     }, () => {});
     db.collection("inspecoes").onSnapshot(snap => {
@@ -1166,10 +1195,6 @@ Responda só com JSON neste formato:
   }
 
   // ---------- Setores e perguntas ----------
-  function sugPendentes(cfg) {
-    const desc = new Set(cfg.sugDescartadas || []);
-    return SUGESTOES.filter(g => !desc.has(g.id) && !(secById(cfg, g.sec)?.perguntas || []).some(p => p.texto.trim() === g.texto));
-  }
   function viewSetores() {
     if (!state.cfgDraft) state.cfgDraft = { ...structuredClone(state.config), tsts: structuredClone(state.equipe.tsts || []), metaTst: state.equipe.metaTst || 0 };
     const cfg = state.cfgDraft;
@@ -1196,15 +1221,6 @@ Responda só com JSON neste formato:
         ${ro ? "" : (state.cfgConfirmDel ? `<div class="confirm">Excluir o setor "${esc(st.nome)}"? As inspeções já registradas não são apagadas. <button class="btn small danger" data-act="cfg-del-sim">Excluir</button><button class="btn small" data-act="cfg-del-nao">Cancelar</button></div>`
           : `<div><button type="button" class="btn danger small" data-act="cfg-del">Excluir setor</button></div>`)}
       </section>` : ""}
-      ${(() => { const pend = sugPendentes(cfg); const desc = (cfg.sugDescartadas || []).length;
-        return pend.length || desc ? `<section class="panel stack" style="gap:12px">
-        <div class="panel-head" style="margin:0"><h3>Perguntas sugeridas pelas inspeções da empresa</h3><span class="label">${pend.length} para avaliar</span></div>
-        ${pend.length ? `<p class="lead" style="margin:0">Deixe marcadas as que devem entrar no checklist e desmarque as que não quer. Depois clique em <b>Aplicar escolha</b> e em <b>Salvar alterações</b>. As desmarcadas são descartadas e não aparecem na inspeção nem no relatório.</p>
-        <div class="sug-list">${pend.map(g => { const sc = secById(cfg, g.sec); return `<label class="sug"><input type="checkbox" data-sug="${g.id}" ${state.sugOff?.has(g.id) ? "" : "checked"} ${ro ? "disabled" : ""}>
-          <span><b>${esc(g.texto)}</b><span class="label">${esc(sc ? sc.nome : g.sec)} · ${esc(g.nr)}</span><small>Motivo: ${esc(g.motivo)}</small></span></label>`; }).join("")}</div>
-        ${ro ? "" : `<div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn primary" data-act="sug-aplicar">Aplicar escolha</button><button type="button" class="btn small" data-act="sug-todas">Marcar todas</button><button type="button" class="btn small" data-act="sug-nenhuma">Desmarcar todas</button></div>`}` : `<p class="lead" style="margin:0">Todas as sugestões já foram avaliadas.</p>`}
-        ${desc && !ro ? `<div><button type="button" class="btn small" data-act="sug-restaurar">Mostrar de novo as ${desc} descartadas</button></div>` : ""}
-      </section>` : ""; })()}
       <section class="panel stack" style="gap:12px">
         <div class="panel-head" style="margin:0"><h3>Perguntas das seções</h3>${ro ? "" : `<button type="button" class="btn small" data-act="cfg-nova-secao">+ Nova seção</button>`}</div>
         <div class="chips">${cfg.secoes.map(s => `<button type="button" class="pill" data-act="cfg-secao" data-id="${esc(s.id)}" aria-pressed="${s.id === state.cfgSecao}">${esc(s.nome)} <span class="c">(${s.perguntas.length})</span></button>`).join("")}</div>
@@ -1756,23 +1772,9 @@ ${i.observacoes ? `<p><b>Observações gerais:</b> ${esc(i.observacoes)}</p>` : 
       case "q-del": cfg.secoes.find(s => s.id === state.cfgSecao).perguntas.splice(+el.dataset.i, 1); cfgChanged(); break;
       case "q-add": { const inp = document.getElementById("q-nova"); const t = inp.value.trim(); if (!t) { inp.focus(); break; }
         cfg.secoes.find(s => s.id === state.cfgSecao).perguntas.push({ texto: t, ref: "" }); cfgChanged(); document.getElementById("q-nova")?.focus(); break; }
-      case "cfg-padrao": state.cfgDraft = { secoes: structuredClone(DEFAULT_SECOES), setores: structuredClone(DEFAULT_SETORES), tsts: structuredClone(cfg.tsts || []), metaTst: cfg.metaTst || 0 }; cfgChanged(); toast("Padrão carregado. Clique em Salvar alterações para aplicar."); break;
+      case "cfg-padrao": state.cfgDraft = { secoes: structuredClone(DEFAULT_SECOES), setores: structuredClone(DEFAULT_SETORES), novasAplicadas: NOVAS.map(g => g.id), tsts: structuredClone(cfg.tsts || []), metaTst: cfg.metaTst || 0 }; cfgChanged(); toast("Padrão carregado. Clique em Salvar alterações para aplicar."); break;
       case "tst-add": (cfg.tsts ||= []).push({ nome: "", registro: "" }); cfgChanged(); document.getElementById(`tst-n-${cfg.tsts.length - 1}`)?.focus(); break;
       case "tst-del": cfg.tsts.splice(+el.dataset.i, 1); cfgChanged(); break;
-      case "sug-todas": state.sugOff = new Set(); keepY(); break;
-      case "sug-nenhuma": state.sugOff = new Set(SUGESTOES.map(g => g.id)); keepY(); break;
-      case "sug-restaurar": cfg.sugDescartadas = []; cfgChanged(); break;
-      case "sug-aplicar": {
-        const off = state.sugOff || new Set(); let n = 0;
-        for (const g of sugPendentes(cfg)) {
-          if (off.has(g.id)) { (cfg.sugDescartadas ||= []).push(g.id); continue; }
-          let sc = secById(cfg, g.sec);
-          if (!sc && g.sec.startsWith("esp-")) { const st = cfg.setores.find(x => "esp-" + x.id === g.sec); if (!st) continue; sc = { id: g.sec, nome: "Perguntas específicas – " + st.nome, nr: "", perguntas: [] }; cfg.secoes.push(sc); if (!st.secoes.includes(sc.id)) st.secoes.push(sc.id); }
-          if (!sc) continue;
-          sc.perguntas.push({ texto: g.texto, ref: g.nr }); n++;
-        }
-        state.sugOff = new Set(); cfgChanged(); toast(`${n} ${n === 1 ? "pergunta incluída" : "perguntas incluídas"}. Clique em Salvar alterações para valer nas próximas inspeções.`); break;
-      }
       case "cfg-descartar": state.cfgDraft = null; state.cfgDirty = false; keepY(); break;
       case "cfg-salvar": {
         const usados = new Set(cfg.setores.flatMap(s => s.secoes));
@@ -1830,7 +1832,6 @@ ${i.observacoes ? `<p><b>Observações gerais:</b> ${esc(i.observacoes)}</p>` : 
     const sec = state.cfgDraft.secoes.find(s => s.id === state.cfgSecao);
     if (t.dataset.cfg === "nome") { st.nome = t.value; cfgChanged(false); }
     else if (t.dataset.cfg === "generico") { st.generico = t.checked; cfgChanged(false); }
-    else if (t.dataset.sug) { (state.sugOff ||= new Set()); t.checked ? state.sugOff.delete(t.dataset.sug) : state.sugOff.add(t.dataset.sug); return; }
     else if (t.dataset.cfg === "vis") {
       const set = new Set(st.ocultas || []); t.checked ? set.delete(t.value) : set.add(t.value); st.ocultas = [...set];
       const sc = state.cfgDraft.secoes.find(x => x.id === t.dataset.secid); const c = document.getElementById("vis-c-" + t.dataset.secid);
