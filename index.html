@@ -785,6 +785,12 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
       <div class="seg" role="group" aria-label="Resultado da pergunta ${num}">${seg}</div>${extra}</div>`;
   }
 
+  // Garante o texto na voz do TST: remove frases que citam a foto/imagem.
+  function semFoto(t) {
+    const frases = t.split(/(?<=[.;!?])\s+/);
+    const ok = frases.filter(f => !/\b(foto|fotografia|fotográfic\w*|imagem|imagens|registro fotográfico)\b/i.test(f));
+    return (ok.length ? ok : frases).join(" ").replace(/^(Conforme|Como) (se )?(observa|vê|mostra)\w*[^,]*,\s*/i, "").trim();
+  }
   async function runAI(i) {
     const d = state.draft, it = d?.itens[i];
     if (!sample || !it?.foto) return;
@@ -799,7 +805,7 @@ Descrição/anotação do TST: ${it.nota?.trim() || "nenhuma"}
 ${it.obs?.trim() && it.analiseFoto ? `Descrição técnica atual: ${it.obs.trim()}\n` : ""}${(it.perguntasIA || []).filter(x => x.r?.trim()).length ? "Respostas do TST às suas perguntas anteriores:\n" + it.perguntasIA.filter(x => x.r?.trim()).map(x => `- ${x.q} → ${x.r.trim()}`).join("\n") + "\n" : ""}
 Tarefas:
 1. Descreva objetivamente o que a foto mostra em relação a essa pergunta. Se a foto não mostrar a não conformidade, diga isso claramente.
-2. Escreva a descrição técnica da não conformidade, em linguagem formal de relatório de SST, citando a NR e o item aplicável (NRs do MTE vigentes).
+2. Escreva a descrição técnica da não conformidade como se fosse o próprio TST registrando o que constatou em campo: linguagem técnica e impessoal de relatório de SST (ex.: "Constatada ausência de...", "Verificado que..."), citando a NR e o item aplicável (NRs do MTE vigentes). NÃO mencione foto, imagem, registro fotográfico, análise ou inteligência artificial nesse texto.
 3. Classifique o risco: Alto, Médio ou Baixo.
 4. Monte o plano de ação: medidas objetivas, na ordem de execução (imediata e definitiva), seguindo a hierarquia de controles.
 5. Sugira o prazo em dias corridos: Alto até 7, Médio até 15, Baixo até 30.
@@ -811,7 +817,8 @@ Responda só com JSON neste formato:
       const r = await sample.json(prompt, { images: [dataToBlob(it.foto)] });
       const cur = state.draft?.itens[i]; if (!cur) return;
       cur.analiseFoto = String(r.analiseFoto || "") + (r.fotoMostraNC === false ? " (Atenção: a foto não parece mostrar a não conformidade; confira ou troque a foto.)" : "");
-      if (r.descricaoTecnica) cur.obs = String(r.descricaoTecnica);
+      if (r.descricaoTecnica) cur.obs = semFoto(String(r.descricaoTecnica));
+      if (r.planoAcao) r.planoAcao = semFoto(String(r.planoAcao));
       if (r.enquadramento) cur.enquadramento = String(r.enquadramento);
       if (r.planoAcao) cur.acao = String(r.planoAcao);
       if (["Alto", "Médio", "Baixo"].includes(r.risco)) cur.risco = r.risco;
@@ -886,7 +893,9 @@ Responda só com JSON neste formato:
         for (const it of insp.itens) if (it.foto) it.foto = await persistFoto(it.foto);
         insp.assinaturaLider = await persistFoto(insp.assinaturaLider);
         btn.textContent = "Salvando…";
-        await saveInsp(insp); state.draft = null; state.ai = {}; toast("Inspeção salva"); go("detalhe", { selected: insp.id }); }
+        insp.codigo = codigoInsp(insp);
+        await saveInsp(insp); state.draft = null; state.ai = {}; toast("Inspeção salva. Gerando o relatório em Excel…"); go("detalhe", { selected: insp.id });
+        exportXlsx(insp, document.querySelector('[data-act="relatorio"]')); }
       catch (err) {
         btn.disabled = false; btn.textContent = "Salvar inspeção";
         fail(err?.code === "invalid_argument" ? "Seu acesso não permite salvar inspeções nesta página." : err?.code === "quota_exceeded" ? "O banco atingiu o limite de registros. Exclua inspeções antigas para continuar." : "Não foi possível salvar agora. Tente novamente em instantes.");
@@ -1021,7 +1030,7 @@ Responda só com JSON neste formato:
       ${i.assinaturaLider ? `<section class="panel"><div class="panel-head"><h3>Assinatura da liderança</h3><span class="label">${fmtDate(i.data)} ${esc(i.horaFim || "")}</span></div>
         ${imgTag(i.assinaturaLider, "sig-img", "Assinatura de " + i.acompanhante)}<div class="sig-line"><span>${esc(i.acompanhante)}${i.cargoLider ? " · " + esc(i.cargoLider) : ""}</span></div></section>` : ""}
       <div class="row-actions">
-        <button class="btn" data-act="relatorio">Baixar relatório (HTML)</button>
+        <button class="btn primary" data-act="relatorio">Baixar relatório (Excel)</button>
         <button class="btn" data-act="csv-one">Exportar CSV</button>
         ${i.setorId && state.config.setores.some(s => s.id === i.setorId) ? `<button class="btn" data-act="duplicar">Nova inspeção neste setor</button>` : ""}
         ${state.canWrite ? (state.confirmDelete
@@ -1056,6 +1065,244 @@ Responda só com JSON neste formato:
       img.onerror = () => { URL.revokeObjectURL(url); rej(); };
       img.src = url;
     });
+  }
+
+  // Gráficos do dashboard do Excel, desenhados em canvas e embutidos como imagem.
+  function chartPNG(kind, title, rows, opts = {}) {
+    const W = 560, H = opts.h || 300, k = 2, c = document.createElement("canvas");
+    c.width = W * k; c.height = H * k; const g = c.getContext("2d"); g.scale(k, k);
+    g.fillStyle = "#ffffff"; g.fillRect(0, 0, W, H);
+    g.fillStyle = "#1d211c"; g.font = "600 15px 'IBM Plex Sans', Arial, sans-serif"; g.fillText(title, 16, 26);
+    g.fillStyle = "#e8b500"; g.fillRect(16, 34, 36, 3);
+    const ink = "#1d211c", muted = "#5d645a", grid = "#e3e6df";
+    if (kind === "donut") {
+      const tot = rows.reduce((a, r) => a + r.v, 0) || 1, cx = 140, cy = H / 2 + 14, R = 92, r0 = 56;
+      let a0 = -Math.PI / 2;
+      rows.forEach(r => { if (!r.v) return; const a1 = a0 + r.v / tot * Math.PI * 2; g.beginPath(); g.arc(cx, cy, R, a0, a1); g.arc(cx, cy, r0, a1, a0, true); g.closePath(); g.fillStyle = r.c; g.fill(); g.strokeStyle = "#fff"; g.lineWidth = 2; g.stroke(); a0 = a1; });
+      g.fillStyle = ink; g.textAlign = "center"; g.font = "700 26px 'IBM Plex Sans', Arial"; g.fillText(opts.center || "", cx, cy + 6);
+      g.font = "11px Arial"; g.fillStyle = muted; g.fillText(opts.centerSub || "", cx, cy + 24); g.textAlign = "left";
+      rows.forEach((r, i) => { const y = 92 + i * 34; g.fillStyle = r.c; g.fillRect(270, y - 11, 14, 14); g.fillStyle = ink; g.font = "600 14px Arial"; g.fillText(`${r.l}`, 292, y + 1); g.fillStyle = muted; g.font = "13px Arial"; g.fillText(`${r.v} (${Math.round(r.v / tot * 100)}%)`, 292, y + 18); });
+    } else {
+      const L = opts.labelW || 190, top = 54, rowH = Math.min(30, (H - top - 14) / Math.max(1, rows.length)), max = opts.max || Math.max(1, ...rows.map(r => r.v));
+      const bw = W - L - 70;
+      g.strokeStyle = grid; g.lineWidth = 1;
+      for (let q = 0; q <= 4; q++) { const x = L + bw * q / 4; g.beginPath(); g.moveTo(x, top - 4); g.lineTo(x, top + rowH * rows.length); g.stroke(); }
+      rows.forEach((r, i) => {
+        const y = top + i * rowH, h = Math.max(6, rowH - 10);
+        g.fillStyle = ink; g.font = "12px Arial"; g.textAlign = "right";
+        let lab = r.l; while (g.measureText(lab).width > L - 12 && lab.length > 4) lab = lab.slice(0, -2); if (lab !== r.l) lab += "…";
+        g.fillText(lab, L - 8, y + h / 2 + 5); g.textAlign = "left";
+        const w = Math.max(r.v ? 3 : 0, bw * r.v / max);
+        g.fillStyle = r.c || "#2f6fb5"; g.beginPath(); g.roundRect ? g.roundRect(L, y, w, h, 3) : g.rect(L, y, w, h); g.fill();
+        g.fillStyle = ink; g.font = "600 12px Arial"; g.fillText(opts.fmt ? opts.fmt(r.v) : String(r.v), L + w + 6, y + h / 2 + 5);
+      });
+      if (!rows.length) { g.fillStyle = muted; g.font = "13px Arial"; g.fillText(opts.empty || "Sem dados", 16, top + 20); }
+    }
+    return c.toDataURL("image/png");
+  }
+
+  function addDashboard(wb, i, ws) {
+    const s = score(i), t = today();
+    const DARK = "FF1D211C", YEL = "FFE8B500", GRAY = "FFEDEFEA", LINE = "FFC9CDC4";
+    const fill = c => ({ type: "pattern", pattern: "solid", fgColor: { argb: c } });
+    const border = { top: { style: "thin", color: { argb: LINE } }, bottom: { style: "thin", color: { argb: LINE } }, left: { style: "thin", color: { argb: LINE } }, right: { style: "thin", color: { argb: LINE } } };
+    ws.columns = Array.from({ length: 14 }, () => ({ width: 11.5 }));
+    const merge = (r1, c1, r2, c2, value, style = {}) => { ws.mergeCells(r1, c1, r2, c2); const cell = ws.getCell(r1, c1); cell.value = value; Object.assign(cell, style); return cell; };
+    for (let c = 1; c <= 14; c++) ws.getCell(1, c).fill = fill(c % 2 ? YEL : DARK);
+    ws.getRow(1).height = 6;
+    for (let r = 2; r <= 4; r++) for (let c = 1; c <= 14; c++) ws.getCell(r, c).fill = fill(DARK);
+    merge(2, 1, 2, 10, "DASHBOARD DA INSPEÇÃO DE SEGURANÇA", { font: { bold: true, size: 18, color: { argb: "FFFFFFFF" } }, fill: fill(DARK), alignment: { vertical: "middle", indent: 1 } });
+    merge(2, 11, 2, 14, codigoInsp(i), { font: { bold: true, size: 11, color: { argb: YEL } }, fill: fill(DARK), alignment: { vertical: "middle", horizontal: "right" } });
+    merge(3, 1, 3, 14, `${setorLabel(i)}${i.local ? " – " + i.local : ""}   ·   ${fmtDate(i.data)} ${i.horaInicio || ""}${i.horaFim ? " às " + i.horaFim : ""}`, { font: { size: 12, color: { argb: "FFFFFFFF" } }, fill: fill(DARK), alignment: { indent: 1 } });
+    merge(4, 1, 4, 14, `TST: ${i.responsavel}${i.registroTst ? " (" + i.registroTst + ")" : ""}   ·   Liderança: ${i.acompanhante || "—"}${i.cargoLider ? " – " + i.cargoLider : ""}${i.turno ? "   ·   " + i.turno : ""}`, { font: { size: 10, color: { argb: "FFD3D7CF" } }, fill: fill(DARK), alignment: { indent: 1 } });
+    ws.getRow(2).height = 30; ws.getRow(3).height = 20; ws.getRow(4).height = 18;
+
+    const ncs = i.itens.filter(x => x.status === "NC");
+    const abertas = ncs.filter(x => !x.corrigido), atrasadas = abertas.filter(x => x.prazo && x.prazo < t), concl = ncs.filter(x => x.corrigido);
+    const alto = ncs.filter(x => x.risco === "Alto").length;
+    const tiles = [
+      ["Índice de conformidade", s.pct == null ? "—" : s.pct / 100, s.pct == null ? "FF5D645A" : s.pct >= 90 ? "FF1F7A3D" : s.pct >= 70 ? "FF9A6A00" : "FFC0281E", "0%"],
+      ["Itens avaliados", s.c + s.nc, DARK], ["Conformes", s.c, "FF1F7A3D"], ["Não conformes", s.nc, "FFC0281E"],
+      ["Não se aplica", s.na, "FF5D645A"], ["Ações em aberto", abertas.length, abertas.length ? "FF9A6A00" : DARK], ["Risco alto", alto, alto ? "FFC0281E" : DARK],
+    ];
+    tiles.forEach(([lab, val, cor, fmt], k) => {
+      const c1 = 1 + k * 2;
+      merge(6, c1, 6, c1 + 1, lab.toUpperCase(), { font: { size: 8, bold: true, color: { argb: "FF5D645A" } }, alignment: { horizontal: "center", vertical: "middle", wrapText: true }, fill: fill(GRAY), border });
+      const v = merge(7, c1, 8, c1 + 1, val, { font: { size: 22, bold: true, color: { argb: cor } }, alignment: { horizontal: "center", vertical: "middle" }, border });
+      if (fmt) v.numFmt = fmt;
+    });
+    ws.getRow(6).height = 24; ws.getRow(7).height = 22; ws.getRow(8).height = 22;
+
+    // Gráficos
+    const secMap = {};
+    i.itens.forEach(it => { const k = it.secao || "Geral"; const r = (secMap[k] ||= { l: k, nr: it.nr || "", n: 0, c: 0, nc: 0, na: 0 }); r.n++; if (it.status === "C") r.c++; else if (it.status === "NC") r.nc++; else if (it.status === "NA") r.na++; });
+    const secs = Object.values(secMap).map(r => ({ ...r, pct: r.c + r.nc ? r.c / (r.c + r.nc) : null }));
+    const normaMap = {}; ncs.forEach(it => { const k = it.nr || "Sem norma"; normaMap[k] = (normaMap[k] || 0) + 1; });
+    const img = (dataUrl, col, row, w, h) => { const id = wb.addImage({ base64: dataUrl, extension: "png" }); ws.addImage(id, { tl: { col, row }, ext: { width: w, height: h } }); };
+    const pctColor = p => p == null ? "#9aa096" : p >= 0.9 ? "#1f8a45" : p >= 0.7 ? "#d49b00" : "#c0281e";
+    img(chartPNG("donut", "Resultado do checklist", [{ l: "Conformes", v: s.c, c: "#1f8a45" }, { l: "Não conformes", v: s.nc, c: "#c0281e" }, { l: "Não se aplica", v: s.na, c: "#9aa096" }], { center: s.pct == null ? "—" : s.pct + "%", centerSub: "conformidade" }), 0, 9.3, 470, 252);
+    img(chartPNG("bars", "Conformidade por seção", secs.filter(r => r.pct != null).map(r => ({ l: r.l, v: Math.round(r.pct * 100), c: pctColor(r.pct) })), { max: 100, fmt: v => v + "%", h: Math.max(252, 70 + secs.length * 26) }), 7, 9.3, 470, Math.max(252, 70 + secs.length * 26));
+    const lowRow = 9.3 + Math.max(252, 70 + secs.length * 26) / 20 + 0.6;
+    img(chartPNG("bars", "Não conformidades por norma", Object.entries(normaMap).sort((a, b) => b[1] - a[1]).map(([l, v]) => ({ l, v, c: "#2f6fb5" })), { empty: "Nenhuma não conformidade", labelW: 150 }), 0, lowRow, 470, 252);
+    img(chartPNG("bars", "Situação das ações corretivas", [{ l: "Concluídas", v: concl.length, c: "#1f8a45" }, { l: "Em aberto no prazo", v: abertas.length - atrasadas.length, c: "#d49b00" }, { l: "Atrasadas", v: atrasadas.length, c: "#c0281e" }], { labelW: 150 }), 7, lowRow, 470, 252);
+
+    // Tabela por seção
+    let r = Math.ceil(lowRow + 252 / 20) + 2;
+    merge(r, 1, r, 14, "CONFORMIDADE POR SEÇÃO", { font: { bold: true, size: 12, color: { argb: "FFFFFFFF" } }, fill: fill(DARK), alignment: { indent: 1, vertical: "middle" } }); ws.getRow(r).height = 22; r++;
+    const head = [["Seção", 1, 5], ["Norma", 6, 7], ["Itens", 8, 8], ["C", 9, 9], ["NC", 10, 10], ["N/A", 11, 11], ["Índice", 12, 14]];
+    head.forEach(([h, c1, c2]) => merge(r, c1, r, c2, h, { font: { bold: true, size: 9 }, fill: fill(GRAY), border, alignment: { horizontal: c1 > 7 ? "center" : "left" } })); r++;
+    const first = r;
+    secs.forEach(sc => {
+      merge(r, 1, r, 5, sc.l, { border }); merge(r, 6, r, 7, sc.nr || "—", { border, font: { size: 9 } });
+      [[8, sc.n], [9, sc.c], [10, sc.nc], [11, sc.na]].forEach(([c, v]) => Object.assign(ws.getCell(r, c), { value: v, border, alignment: { horizontal: "center" }, font: { color: { argb: c === 10 && v ? "FFC0281E" : DARK }, bold: c === 10 && v > 0 } }));
+      const pc = merge(r, 12, r, 14, sc.pct == null ? "—" : sc.pct, { border, alignment: { horizontal: "center" }, font: { bold: true } }); pc.numFmt = "0%";
+      r++;
+    });
+    if (secs.length) ws.addConditionalFormatting({ ref: `L${first}:L${r - 1}`, rules: [{ type: "dataBar", cfvo: [{ type: "num", value: 0 }, { type: "num", value: 1 }], color: { argb: "FF7FB98F" } }] });
+    r++;
+    merge(r, 1, r, 14, "Detalhes das não conformidades, plano de ação e registros fotográficos na aba Relatório. Uma linha por item na aba Dados.", { font: { size: 9, italic: true, color: { argb: "FF5D645A" } } });
+    ws.pageSetup = { paperSize: 9, orientation: "portrait", fitToPage: true, fitToWidth: 1, fitToHeight: 0, margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 } };
+  }
+
+  // ---------- Relatório Excel ----------
+  const EXCELJS_URLS = ["https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js", "https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"];
+  async function loadExcel() {
+    if (window.ExcelJS) return window.ExcelJS;
+    for (const u of EXCELJS_URLS) {
+      try {
+        await new Promise((ok, no) => { const sc = document.createElement("script"); sc.src = u; sc.onload = ok; sc.onerror = () => { sc.remove(); no(); }; document.head.appendChild(sc); });
+        if (window.ExcelJS) return window.ExcelJS;
+      } catch {}
+    }
+    throw new Error("excel_indisponivel");
+  }
+  const codigoInsp = i => i.codigo || `ISE-${(i.data || "").replace(/-/g, "")}-${String(i.id || "").slice(-4).toUpperCase()}`;
+
+  async function buildXlsx(i0) {
+    const ExcelJS = await loadExcel();
+    const i = structuredClone(i0);
+    i.assinaturaLider = await resolveFoto(i.assinaturaLider);
+    for (const it of i.itens) { it.foto = await resolveFoto(it.foto); it.fotoConclusao = await resolveFoto(it.fotoConclusao); }
+    const s = score(i), t = today();
+    const wb = new ExcelJS.Workbook(); wb.creator = "Inspeção de Segurança"; wb.created = new Date();
+    const wsDash = wb.addWorksheet("Dashboard", { views: [{ showGridLines: false }], properties: { tabColor: { argb: "FFE8B500" } } });
+    const ws = wb.addWorksheet("Relatório", { views: [{ showGridLines: false }], pageSetup: { paperSize: 9, orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 } } });
+    ws.columns = [6, 18, 40, 44, 22, 9, 42, 22, 12, 18, 26].map(w => ({ width: w }));
+    const DARK = "FF1D211C", YEL = "FFE8B500", GRAY = "FFEDEFEA", LINE = "FFC9CDC4";
+    const fill = c => ({ type: "pattern", pattern: "solid", fgColor: { argb: c } });
+    const border = { top: { style: "thin", color: { argb: LINE } }, bottom: { style: "thin", color: { argb: LINE } }, left: { style: "thin", color: { argb: LINE } }, right: { style: "thin", color: { argb: LINE } } };
+    const RES = { C: ["Conforme", "FF1F7A3D", "FFE2F2E6"], NC: ["Não conforme", "FFC0281E", "FFFBE5E2"], NA: ["Não se aplica", "FF5D645A", "FFEBECE8"] };
+    let r = 1;
+    const merge = (row, c1, c2, value, style = {}) => { ws.mergeCells(row, c1, row, c2); const cell = ws.getCell(row, c1); cell.value = value; Object.assign(cell, style); return cell; };
+    const band = (text) => { const c = merge(r, 1, 11, text, { font: { bold: true, size: 12, color: { argb: "FFFFFFFF" } }, fill: fill(DARK), alignment: { vertical: "middle", indent: 1 } }); ws.getRow(r).height = 22; r++; return c; };
+
+    // Cabeçalho
+    ws.getRow(r).height = 6; for (let c = 1; c <= 11; c++) ws.getCell(r, c).fill = fill(c % 2 ? YEL : DARK); r++;
+    merge(r, 1, 8, "RELATÓRIO DE INSPEÇÃO DE SEGURANÇA", { font: { bold: true, size: 16 }, alignment: { vertical: "middle" } });
+    merge(r, 9, 11, codigoInsp(i), { font: { bold: true, size: 11, color: { argb: "FF5D645A" } }, alignment: { horizontal: "right", vertical: "middle" } });
+    ws.getRow(r).height = 26; r++;
+    merge(r, 1, 11, setorLabel(i) + (i.local ? " – " + i.local : ""), { font: { bold: true, size: 14 } }); ws.getRow(r).height = 22; r += 2;
+    const info = [
+      [["Data e hora", `${fmtDate(i.data)}${i.horaInicio ? " " + i.horaInicio : ""}${i.horaFim ? " às " + i.horaFim : ""}`], ["Técnico de Segurança (TST)", i.responsavel + (i.registroTst ? ` (${i.registroTst})` : "")], ["Turno", i.turno || "—"]],
+      [["Setor", setorLabel(i)], ["Liderança que acompanhou", (i.acompanhante || "—") + (i.cargoLider ? ` – ${i.cargoLider}` : "")], ["Local / área", i.local || "—"]],
+    ];
+    for (const row of info) {
+      const spans = [[1, 2, 3, 3], [4, 4, 5, 8], [9, 9, 10, 11]];
+      row.forEach(([lab, val], k) => { const [l1, l2, v1, v2] = spans[k];
+        if (l2 > l1) ws.mergeCells(r, l1, r, l2); Object.assign(ws.getCell(r, l1), { value: lab.toUpperCase(), font: { size: 9, bold: true, color: { argb: "FF5D645A" } }, alignment: { vertical: "middle" } });
+        if (v2 > v1) ws.mergeCells(r, v1, r, v2); Object.assign(ws.getCell(r, v1), { value: val, font: { size: 11, bold: true }, alignment: { vertical: "middle", wrapText: true } }); });
+      ws.getRow(r).height = 20; r++;
+    }
+    r++;
+
+    // Resumo
+    band("RESUMO");
+    const semResp = i.itens.filter(x => !x.status).length;
+    const resumo = [["Conformes", s.c, "FF1F7A3D"], ["Não conformes", s.nc, "FFC0281E"], ["Não se aplica", s.na, "FF5D645A"], ["Sem resposta", semResp, "FF5D645A"], ["Índice de conformidade", s.pct == null ? "—" : s.pct / 100, s.pct >= 90 ? "FF1F7A3D" : s.pct >= 70 ? "FF9A6A00" : "FFC0281E"]];
+    const rcols = [[1, 2], [3, 3], [4, 4], [5, 7], [8, 11]];
+    resumo.forEach(([lab, val, cor], k) => { const [c1, c2] = rcols[k];
+      if (c2 > c1) { ws.mergeCells(r, c1, r, c2); ws.mergeCells(r + 1, c1, r + 1, c2); }
+      Object.assign(ws.getCell(r, c1), { value: lab.toUpperCase(), font: { size: 9, bold: true, color: { argb: "FF5D645A" } }, alignment: { horizontal: "center" }, fill: fill(GRAY), border });
+      const v = ws.getCell(r + 1, c1); Object.assign(v, { value: val, font: { size: 18, bold: true, color: { argb: cor } }, alignment: { horizontal: "center", vertical: "middle" }, border });
+      if (k === 4 && typeof val === "number") v.numFmt = "0.0%"; });
+    ws.getRow(r + 1).height = 30; r += 2;
+    merge(r, 1, 11, `Índice de conformidade = conformes ÷ (conformes + não conformes). Itens "não se aplica" não entram no cálculo. ${i.itens.length} itens no checklist.`, { font: { size: 9, italic: true, color: { argb: "FF5D645A" } } }); r += 2;
+
+    // Não conformidades
+    const ncs = i.itens.map((it, n) => ({ it, n: n + 1 })).filter(x => x.it.status === "NC");
+    band(`NÃO CONFORMIDADES (${ncs.length})`);
+    const hNC = ["Nº", "Seção", "Item verificado", "Constatação", "Referência normativa", "Risco", "Plano de ação", "Responsável pela execução", "Prazo", "Situação", "Registro fotográfico"];
+    hNC.forEach((h, k) => Object.assign(ws.getCell(r, k + 1), { value: h, font: { bold: true, size: 9 }, fill: fill(GRAY), border, alignment: { vertical: "middle", wrapText: true } }));
+    ws.getRow(r).height = 28; r++;
+    if (!ncs.length) { merge(r, 1, 11, "Nenhuma não conformidade registrada nesta inspeção.", { font: { italic: true } }); r++; }
+    for (const { it, n } of ncs) {
+      const late = !it.corrigido && it.prazo && it.prazo < t;
+      const sit = it.corrigido ? `Concluída em ${fmtDate(it.corrigidoEm)}${it.corrigidoPor ? " por " + it.corrigidoPor : ""}${it.prazo ? (it.corrigidoEm <= it.prazo ? " (no prazo)" : " (fora do prazo)") : ""}${it.descricaoConclusao ? "\n" + it.descricaoConclusao : ""}` : late ? "Atrasada" : "Em aberto";
+      const vals = [n, it.secao || "", it.texto, it.obs || "", it.enquadramento || [it.nr, it.ref].filter(Boolean).join(", "), it.risco || "", it.acao || "", it.respAcao || "", it.prazo ? fmtDate(it.prazo) : "", sit, it.foto ? "" : "Sem foto"];
+      vals.forEach((v, k) => Object.assign(ws.getCell(r, k + 1), { value: v, border, font: { size: 10, color: k === 9 ? { argb: it.corrigido ? "FF1F7A3D" : late ? "FFC0281E" : "FF9A6A00" } : undefined, bold: k === 9 }, alignment: { vertical: "top", wrapText: true, horizontal: k === 0 ? "center" : "left" } }));
+      const lines = Math.max(3, ...vals.map((v, k) => Math.ceil(String(v).length / Math.max(8, (ws.getColumn(k + 1).width || 10) * 1.1))));
+      ws.getRow(r).height = Math.max(it.foto ? 120 : 0, it.fotoConclusao ? 120 : 0, lines * 14);
+      if (it.foto) addImg(it.foto, 10, r - 1, 175, 112);
+      r++;
+      if (it.fotoConclusao) {
+        merge(r, 1, 10, "Registro fotográfico da ação concluída →", { font: { size: 9, italic: true, color: { argb: "FF5D645A" } }, alignment: { horizontal: "right", vertical: "middle" } });
+        ws.getRow(r).height = 120; addImg(it.fotoConclusao, 10, r - 1, 175, 112); r++;
+      }
+    }
+    r++;
+
+    // Checklist completo
+    band("CHECKLIST COMPLETO");
+    [["Nº", 1, 1], ["Item verificado", 2, 6], ["Norma", 7, 7], ["Resultado", 8, 8], ["Observação / constatação", 9, 11]].forEach(([h, c1, c2]) => { if (c2 > c1) ws.mergeCells(r, c1, r, c2); Object.assign(ws.getCell(r, c1), { value: h, font: { bold: true, size: 9 }, fill: fill(GRAY), border }); });
+    r++;
+    let last = null;
+    i.itens.forEach((it, n) => {
+      if (it.secao && it.secao !== last) { last = it.secao; merge(r, 1, 11, `${it.secao}${it.nr ? "  ·  " + it.nr : ""}`, { font: { bold: true, size: 10 }, fill: fill("FFF6F0D6"), border }); r++; }
+      ws.mergeCells(r, 2, r, 6); ws.mergeCells(r, 9, r, 11);
+      const res = RES[it.status] || ["Sem resposta", "FF5D645A", "FFFFFFFF"];
+      Object.assign(ws.getCell(r, 1), { value: n + 1, border, alignment: { vertical: "top", horizontal: "center" }, font: { size: 10 } });
+      Object.assign(ws.getCell(r, 2), { value: it.texto, border, alignment: { vertical: "top", wrapText: true }, font: { size: 10 } });
+      Object.assign(ws.getCell(r, 7), { value: [it.nr, it.ref].filter(Boolean).join(" · ") || "—", border, alignment: { vertical: "top", wrapText: true }, font: { size: 9 } });
+      Object.assign(ws.getCell(r, 8), { value: res[0], border, fill: fill(res[2]), font: { bold: true, size: 10, color: { argb: res[1] } }, alignment: { vertical: "top", wrapText: true } });
+      Object.assign(ws.getCell(r, 9), { value: it.status === "NC" ? (it.obs || "") : (it.obs || ""), border, alignment: { vertical: "top", wrapText: true }, font: { size: 9 } });
+      ws.getRow(r).height = Math.max(16, Math.ceil(it.texto.length / 95) * 14, Math.ceil((it.obs || "").length / 60) * 13);
+      r++;
+    });
+    r++;
+    if (i.observacoes) { band("OBSERVAÇÕES GERAIS"); merge(r, 1, 11, i.observacoes, { alignment: { wrapText: true, vertical: "top" } }); ws.getRow(r).height = Math.max(30, Math.ceil(i.observacoes.length / 150) * 15); r += 2; }
+
+    // Assinaturas
+    band("ASSINATURAS");
+    ws.getRow(r).height = 70;
+    if (i.assinaturaLider) addImg(i.assinaturaLider, 6, r - 1, 230, 62);
+    r++;
+    ws.mergeCells(r, 1, r, 4); ws.mergeCells(r, 6, r, 9);
+    Object.assign(ws.getCell(r, 1), { value: `${i.responsavel}${i.registroTst ? " – " + i.registroTst : ""}\nTécnico de Segurança do Trabalho`, border: { top: { style: "thin" } }, alignment: { horizontal: "center", wrapText: true }, font: { size: 10 } });
+    Object.assign(ws.getCell(r, 6), { value: `${i.acompanhante || ""}\n${i.cargoLider || "Liderança do setor"}`, border: { top: { style: "thin" } }, alignment: { horizontal: "center", wrapText: true }, font: { size: 10 } });
+    ws.getRow(r).height = 32; r += 2;
+    merge(r, 1, 11, `Gerado em ${new Date().toLocaleString("pt-BR")} pelo sistema Inspeção de Segurança.`, { font: { size: 8, color: { argb: "FF8A9086" } } });
+
+    // Aba de dados (uma linha por item) para filtros e tabelas dinâmicas
+    const wd = wb.addWorksheet("Dados");
+    wd.columns = ["Código", "Data", "Setor", "Local", "TST", "Liderança", "Seção", "Norma", "Nº", "Item", "Resultado", "Constatação", "Referência", "Risco", "Plano de ação", "Responsável pela execução", "Prazo", "Situação", "Concluída em"].map(h => ({ header: h, width: Math.max(10, Math.min(48, h.length + 6)) }));
+    i.itens.forEach((it, n) => wd.addRow([codigoInsp(i), fmtDate(i.data), setorLabel(i), i.local || "", i.responsavel, i.acompanhante || "", it.secao || "", it.nr || "", n + 1, it.texto, (RES[it.status] || ["Sem resposta"])[0], it.obs || "", it.enquadramento || it.ref || "", it.risco || "", it.acao || "", it.respAcao || "", it.prazo ? fmtDate(it.prazo) : "", it.status === "NC" ? (it.corrigido ? "Concluída" : it.prazo && it.prazo < t ? "Atrasada" : "Em aberto") : "", it.corrigido ? fmtDate(it.corrigidoEm) : ""]));
+    wd.getRow(1).font = { bold: true }; wd.views = [{ state: "frozen", ySplit: 1 }]; wd.autoFilter = { from: "A1", to: "S1" };
+
+    addDashboard(wb, i, wsDash);
+    const buf = await wb.xlsx.writeBuffer();
+    return new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+
+    function addImg(dataUrl, col, row, w, h) {
+      const m = /^data:image\/(png|jpe?g|gif);base64,/.exec(dataUrl || ""); if (!m) return;
+      const id = wb.addImage({ base64: dataUrl, extension: m[1] === "jpg" ? "jpeg" : m[1] });
+      ws.addImage(id, { tl: { col: col + 0.05, row: row + 0.05 }, ext: { width: w, height: h }, editAs: "oneCell" });
+    }
+  }
+  async function exportXlsx(i, btn) {
+    if (btn) { btn.disabled = true; btn.dataset.txt = btn.textContent; btn.textContent = "Gerando Excel…"; }
+    try { const blob = await buildXlsx(i); await offer(`Relatorio-Inspecao-${slug(setorLabel(i))}-${i.data}.xlsx`, blob); }
+    catch { toast("Não foi possível gerar o Excel agora. Verifique a conexão e tente de novo."); }
+    finally { if (btn) { btn.disabled = false; btn.textContent = btn.dataset.txt; } }
   }
 
   // ---------- Exportação ----------
@@ -1095,10 +1342,11 @@ ${i.observacoes ? `<p><b>Observações gerais:</b> ${esc(i.observacoes)}</p>` : 
       catch (e) { if (e?.code === "declined") return; }
     }
     if (!window.claude) {
-      const url = URL.createObjectURL(new Blob([data], { type: filename.endsWith(".csv") ? "text/csv;charset=utf-8" : "text/html;charset=utf-8" }));
+      const url = URL.createObjectURL(new Blob([data], { type: filename.endsWith(".csv") ? "text/csv;charset=utf-8" : filename.endsWith(".xlsx") ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" : "text/html;charset=utf-8" }));
       const a = document.createElement("a"); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 2000); toast("Arquivo baixado"); return;
     }
+    if (data instanceof Blob) { toast("O download não está disponível nesta visualização. Abra o sistema no navegador para baixar."); return; }
     const area = document.getElementById("copy-area");
     if (area) {
       area.innerHTML = `<div class="panel" style="margin-top:12px"><div class="panel-head"><h3>Copiar conteúdo</h3><button class="btn small" data-act="copiar">Copiar</button></div>
@@ -1165,7 +1413,7 @@ ${i.observacoes ? `<p><b>Observações gerais:</b> ${esc(i.observacoes)}</p>` : 
       case "excluir-nao": state.confirmDelete = false; render(); break;
       case "excluir-sim": try { await deleteInsp(state.selected); toast("Inspeção excluída"); go("historico"); } catch { toast("Não foi possível excluir. Tente novamente."); } break;
       case "duplicar": { const i = cur(); state.draft = newDraft(i.setorId); Object.assign(state.draft, { setorNome: i.setorNome, local: i.local, responsavel: i.responsavel, registroTst: i.registroTst || state.draft.registroTst, acompanhante: i.acompanhante, cargoLider: i.cargoLider || "" }); go("nova"); break; }
-      case "relatorio": { const i = cur(); el.disabled = true; const html = await reportHTML(i); el.disabled = false; offer(`inspecao-${slug(setorLabel(i))}-${i.data}.html`, html); break; }
+      case "relatorio": exportXlsx(cur(), el); break;
       case "csv-one": { const i = cur(); offer(`inspecao-${slug(setorLabel(i))}-${i.data}.csv`, toCSV([i])); break; }
       case "csv": offer(`inspecoes-${today()}.csv`, toCSV(filtered())); break;
       case "copiar": {
