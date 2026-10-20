@@ -551,6 +551,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
       q("O jateamento é feito sem areia seca como abrasivo (proibido pela Portaria MTE nº 99/2004)?"),
       q("O corte de canais e massalotes (disco ou oxicorte) é feito com anteparo e sem materiais inflamáveis próximos?"),
       q("As peças pesadas são viradas e movimentadas com talha ou dispositivo, sem esforço manual excessivo?", "NR-17"),
+      q("Durante a rebarbação, as peças ficam apoiadas em dispositivo ou suporte adequado, sem calços improvisados (madeira, pedras ou pedaços de metal) para sustentá-las?", "NR-12"),
     ]},
     { id: "esp-pintura", nome: "Perguntas específicas – Pintura", nr: "", perguntas: [
       q("A cabine de pintura tem exaustão funcionando e filtros sem saturação?", "NR-09"),
@@ -563,6 +564,42 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
       q("A proibição de fumar, soldar ou esmerilhar perto da cabine está sinalizada e é respeitada?", "NR-20"),
       q("O transportador aéreo (carrossel) e os ganchos utilizados para suspensão de peças apresentam condições seguras de operação, com sistemas de retenção e dispositivos que impeçam o desprendimento, o giro descontrolado ou a queda das peças?", "NR-11 / NR-12"),
     ]},
+    { id: "esp-almoxarifado", nome: "Perguntas específicas – Almoxarifado", nr: "", perguntas: [
+      q("No depósito de inflamáveis, as embalagens estão íntegras, fechadas, sem amassados, vazamentos ou corrosão?", "NR-20"),
+      q("As embalagens de produtos químicos e inflamáveis, inclusive as fracionadas, estão rotuladas com o nome do produto, os pictogramas de perigo e as frases de risco legíveis?", "NR-26"),
+      q("As FDS dos produtos armazenados estão disponíveis no almoxarifado e no depósito de inflamáveis?", "NR-26"),
+      q("Os produtos incompatíveis (oxidantes, ácidos e inflamáveis) estão segregados, e o depósito tem bacia de contenção, ventilação e sinalização de proibido fumar?", "NR-20"),
+      q("O depósito de inflamáveis tem extintores adequados, instalações elétricas à prova de explosão e acesso restrito a pessoas autorizadas?", "NR-20 / NR-23"),
+      q("As prateleiras e porta-paletes têm carga máxima identificada, estão fixados, e os materiais pesados ficam nos níveis inferiores?", "NR-11"),
+    ]},
+    { id: "esp-sucata", nome: "Perguntas específicas – Sucata", nr: "", perguntas: [
+      q("O pátio ou a baia de sucata está delimitado e sinalizado, com separação entre pedestres e máquinas (pá carregadeira, eletroímã, empilhadeira)?", "NR-11"),
+      q("As pilhas de sucata têm altura e estabilidade seguras, sem risco de desmoronamento?", "NR-11"),
+      q("A sucata é inspecionada antes de ir ao forno, retirando recipientes fechados, materiais úmidos, explosivos ou contaminados?", "NR-14"),
+      q("Durante a operação do eletroímã ou da garra, a área fica isolada e ninguém circula sob a carga?", "NR-11"),
+      q("O corte de sucata com maçarico é feito com cilindros presos, válvulas corta-chamas e extintor próximo?", "NR-20 / NR-23"),
+    ]},
+    { id: "esp-manutencao", nome: "Perguntas específicas – Manutenção", nr: "", perguntas: [
+      q("As intervenções em máquinas são feitas com bloqueio e etiquetagem (LOTO) e com permissão de trabalho quando exigida?", "NR-10 / NR-12"),
+      q("Peças e equipamentos em manutenção ficam apoiados em cavaletes ou suportes adequados, sem calços improvisados?", "NR-12"),
+      q("Os serviços de solda e corte têm biombo, exaustão, extintor próximo e área livre de inflamáveis?", "NR-12 / NR-23"),
+      q("As bancadas, morsas e ferramentas manuais estão em bom estado e guardadas em local definido?", "NR-12"),
+      q("Óleos, graxas e peças contaminadas ficam armazenados com contenção e são descartados como resíduo?", "NR-25"),
+    ]},
+    { id: "esp-tratamento", nome: "Perguntas específicas – Tratamento térmico", nr: "", perguntas: [
+      q("Os fornos de tratamento térmico têm controle de temperatura, alarme e intertravamento das portas funcionando?", "NR-14 / NR-12"),
+      q("Há sinalização de superfície quente, e as peças quentes ficam em área demarcada até esfriarem?", "NR-26"),
+      q("Os operadores usam EPI para calor (luva, avental e protetor facial aluminizado) no carregamento e na retirada das peças?", "NR-06"),
+      q("Os tanques de têmpera (água, óleo ou polímero) estão com nível correto, protegidos e, quando a óleo, com meio de combate a incêndio próximo?", "NR-14 / NR-23"),
+      q("Os dispositivos de carga (cestos, gancheiras e garfos) estão íntegros e com capacidade identificada?", "NR-11"),
+    ]},
+    { id: "esp-cq", nome: "Perguntas específicas – Controle de qualidade", nr: "", perguntas: [
+      q("Durante a rebarbação ou a inspeção, as peças ficam apoiadas em dispositivo ou suporte adequado, sem calços improvisados (madeira, pedras ou pedaços de metal) para sustentá-las?", "NR-12"),
+      q("A movimentação de peças para inspeção é feita com talha ou dispositivo adequado, sem esforço manual excessivo?", "NR-11 / NR-17"),
+      q("Nos ensaios com líquido penetrante ou partículas magnéticas, os produtos estão rotulados, com FDS, e há ventilação adequada?", "NR-26 / NR-09"),
+      q("Se houver ensaio radiográfico, a área fica isolada, sinalizada e com acesso controlado durante a exposição?", "NR-15"),
+      q("As bancadas de inspeção e os instrumentos de medição estão em bom estado, e a área de trabalho está organizada?", "NR-17"),
+    ]},
   ];
   const DEFAULT_SETORES = [
     { id: "usinagem", nome: "Usinagem", generico: false, secoes: ["epi","ele","maq","inf","fre","5s","inc","amb","ica","gas","emg","esp-usinagem"] },
@@ -572,6 +609,11 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
     { id: "curafrio", nome: "Cura Frio", generico: false, secoes: ["epi","ele","maq","inf","fre","5s","inc","amb","ica","emg","esp-curafrio"] },
     { id: "rebarbacao", nome: "Rebarbação e jateamento", generico: false, secoes: ["epi","ele","maq","fre","5s","inc","amb","ica","reb","gas","emg","esp-rebarbacao"] },
     { id: "pintura", nome: "Pintura", generico: false, secoes: ["epi","ele","maq","inf","fre","5s","inc","amb","ica","gas","emg","esp-pintura"] },
+    { id: "almoxarifado", nome: "Almoxarifado", generico: false, secoes: ["epi","ele","inf","5s","inc","ica","gas","emg","esp-almoxarifado"] },
+    { id: "sucata", nome: "Sucata", generico: false, secoes: ["epi","ele","maq","5s","inc","amb","ica","gas","emg","esp-sucata"] },
+    { id: "manutencao", nome: "Manutenção", generico: false, secoes: ["epi","ele","maq","inf","fre","5s","inc","amb","ica","reb","gas","emg","esp-manutencao"] },
+    { id: "tratamento", nome: "Tratamento térmico", generico: false, secoes: ["epi","ele","maq","fre","5s","for","inc","amb","ica","gas","emg","esp-tratamento"] },
+    { id: "cq", nome: "Controle de qualidade", generico: false, secoes: ["epi","ele","maq","inf","5s","inc","amb","ica","reb","emg","esp-cq"] },
     { id: "outro", nome: "Outro setor (todas as seções)", generico: true, secoes: ["epi","ele","maq","inf","fre","5s","for","inc","vaz","amb","ica","reb","gas","emg"] },
   ];
   // perguntas incluídas em out/2026 a partir das inspeções reais; entram também em configurações já salvas
@@ -597,8 +639,11 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
     { id: "n19", sec: "esp-macharia", texto: "O elevador de óxido de ferro possui proteções laterais, capacidade nominal identificada, sinalização de uso exclusivo para materiais e controle de acesso, sendo o abastecimento realizado sem exposição a esforços físicos inadequados?", nr: "NR-12 / NR-17", antigo: "O elevador de óxido de ferro tem proteção lateral, capacidade identificada, sinalização de uso exclusivo para material e acesso restrito, e o abastecimento é feito sem esforço manual inadequado?" },
     { id: "n20", sec: "esp-pintura", texto: "O transportador aéreo (carrossel) e os ganchos utilizados para suspensão de peças apresentam condições seguras de operação, com sistemas de retenção e dispositivos que impeçam o desprendimento, o giro descontrolado ou a queda das peças?", nr: "NR-11 / NR-12", antigo: "O transportador aéreo (carrossel) e os ganchos de pendurar peças estão em bom estado, com trava que impede o giro ou a queda das peças?" },
     { id: "n21", sec: "maq", texto: "As passarelas, inclusive a de envasamento, estão em boas condições de trânsito, com piso íntegro, sem buracos, chapas soltas, desníveis ou corrosão?", nr: "NR-12", antigo: "A passarela de envasamento está em boas condições de trânsito?" },
-    { id: "n22", sec: "esp-pintura", texto: "A cabine de pintura está limpa, sem acúmulo de borra ou escória de tinta nas paredes, no piso, nas grelhas e nos filtros, e a limpeza é feita na frequência definida?", nr: "NR-20 / NR-23", antigo: "" }
+    { id: "n22", sec: "esp-pintura", texto: "A cabine de pintura está limpa, sem acúmulo de borra ou escória de tinta nas paredes, no piso, nas grelhas e nos filtros, e a limpeza é feita na frequência definida?", nr: "NR-20 / NR-23", antigo: "" },
+    { id: "n23", sec: "esp-rebarbacao", texto: "Durante a rebarbação, as peças ficam apoiadas em dispositivo ou suporte adequado, sem calços improvisados (madeira, pedras ou pedaços de metal) para sustentá-las?", nr: "NR-12", antigo: "" }
   ];
+  // setores incluídos em out/2026; entram também em configurações já salvas
+  const NOVOS_SETORES = ["almoxarifado", "sucata", "manutencao", "tratamento", "cq"];
   function migrarCfg(cfg) {
     const feitas = new Set(cfg.novasAplicadas || []);
     for (const g of NOVAS) {
@@ -608,6 +653,17 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
       feitas.add(g.id);
     }
     cfg.novasAplicadas = [...feitas];
+    const setFeitos = new Set(cfg.setoresAplicados || []);
+    for (const id of NOVOS_SETORES) {
+      if (setFeitos.has(id)) continue; setFeitos.add(id);
+      if ((cfg.setores || []).some(x => x.id === id)) continue;
+      const st = DEFAULT_SETORES.find(x => x.id === id), sec = DEFAULT_SECOES.find(x => x.id === "esp-" + id);
+      if (!st || !cfg.setores || !cfg.secoes) continue;
+      if (sec && !cfg.secoes.some(x => x.id === sec.id)) cfg.secoes.push(structuredClone(sec));
+      const pos = cfg.setores.findIndex(x => x.generico);
+      cfg.setores.splice(pos < 0 ? cfg.setores.length : pos, 0, structuredClone({ ...st, secoes: st.secoes.filter(x => cfg.secoes.some(y => y.id === x)) }));
+    }
+    cfg.setoresAplicados = [...setFeitos];
     delete cfg.sugDescartadas;
     return cfg;
   }
@@ -617,7 +673,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
     view: "painel", inspecoes: [], loaded: false, store: "db", canWrite: true, isAdmin: false,
     selected: null, confirmDelete: false, filtro: { q: "", setor: "" }, draft: null, ai: {},
     pf: { periodo: "12", setor: "", tst: "" },
-    config: { secoes: structuredClone(DEFAULT_SECOES), setores: structuredClone(DEFAULT_SETORES), novasAplicadas: NOVAS.map(g => g.id) },
+    config: { secoes: structuredClone(DEFAULT_SECOES), setores: structuredClone(DEFAULT_SETORES), novasAplicadas: NOVAS.map(g => g.id), setoresAplicados: [...NOVOS_SETORES] },
     equipe: { tsts: [], metaTst: 0 },
     cfgDraft: null, cfgSetor: "usinagem", cfgSecao: "epi", cfgDirty: false, cfgConfirmDel: false,
   };
@@ -1972,7 +2028,7 @@ ${i.observacoes ? `<p><b>Observações gerais:</b> ${esc(i.observacoes)}</p>` : 
       case "q-del": cfg.secoes.find(s => s.id === state.cfgSecao).perguntas.splice(+el.dataset.i, 1); cfgChanged(); break;
       case "q-add": { const inp = document.getElementById("q-nova"); const t = inp.value.trim(); if (!t) { inp.focus(); break; }
         cfg.secoes.find(s => s.id === state.cfgSecao).perguntas.push({ texto: t, ref: "" }); cfgChanged(); document.getElementById("q-nova")?.focus(); break; }
-      case "cfg-padrao": state.cfgDraft = { secoes: structuredClone(DEFAULT_SECOES), setores: structuredClone(DEFAULT_SETORES), novasAplicadas: NOVAS.map(g => g.id), tsts: structuredClone(cfg.tsts || []), metaTst: cfg.metaTst || 0 }; cfgChanged(); toast("Padrão carregado. Clique em Salvar alterações para aplicar."); break;
+      case "cfg-padrao": state.cfgDraft = { secoes: structuredClone(DEFAULT_SECOES), setores: structuredClone(DEFAULT_SETORES), novasAplicadas: NOVAS.map(g => g.id), setoresAplicados: [...NOVOS_SETORES], tsts: structuredClone(cfg.tsts || []), metaTst: cfg.metaTst || 0 }; cfgChanged(); toast("Padrão carregado. Clique em Salvar alterações para aplicar."); break;
       case "tst-add": (cfg.tsts ||= []).push({ nome: "", registro: "" }); cfgChanged(); document.getElementById(`tst-n-${cfg.tsts.length - 1}`)?.focus(); break;
       case "tst-del": cfg.tsts.splice(+el.dataset.i, 1); cfgChanged(); break;
       case "cfg-descartar": state.cfgDraft = null; state.cfgDirty = false; keepY(); break;
