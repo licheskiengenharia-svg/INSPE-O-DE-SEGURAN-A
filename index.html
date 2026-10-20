@@ -65,6 +65,7 @@ header.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; b
 nav.tabs { display: flex; gap: 4px; flex-wrap: wrap; }
 nav.tabs button { font: 600 14px var(--f-body); background: transparent; color: var(--bg); border: 1px solid transparent; padding: 7px 12px; border-radius: 6px; cursor: pointer; }
 nav.tabs button:hover { border-color: color-mix(in srgb, var(--bg) 35%, transparent); }
+nav.tabs button[hidden] { display: none; }
 nav.tabs button[aria-selected="true"] { background: var(--accent); color: var(--accent-ink); }
 
 main { padding-block: 24px 64px; }
@@ -294,7 +295,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
       <button role="tab" id="tab-painel" data-view="painel" aria-selected="true">Painel</button>
       <button role="tab" id="tab-nova" data-view="nova" aria-selected="false">Nova inspeção</button>
       <button role="tab" id="tab-historico" data-view="historico" aria-selected="false">Histórico</button>
-      <button role="tab" id="tab-setores" data-view="setores" aria-selected="false">Setores e perguntas</button>
+      <button role="tab" id="tab-setores" data-view="setores" aria-selected="false" hidden>Setores e perguntas</button>
     </nav>
   </div>
 </header>
@@ -589,7 +590,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
 
   // ---------- Estado ----------
   const state = {
-    view: "painel", inspecoes: [], loaded: false, store: "db", canWrite: true,
+    view: "painel", inspecoes: [], loaded: false, store: "db", canWrite: true, isAdmin: false,
     selected: null, confirmDelete: false, filtro: { q: "", setor: "" }, draft: null, ai: {},
     pf: { periodo: "12", setor: "", tst: "" },
     config: { secoes: structuredClone(DEFAULT_SECOES), setores: structuredClone(DEFAULT_SETORES), novasAplicadas: NOVAS.map(g => g.id) },
@@ -679,7 +680,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
   }
   function sortInsp() { state.inspecoes.sort((a, b) => (b.data || "").localeCompare(a.data || "") || (b.criadoEm || 0) - (a.criadoEm || 0)); }
   function useLocal() {
-    state.store = "local"; state.inspecoes = lsGet(LS_KEY, []);
+    state.store = "local"; state.isAdmin = true; state.inspecoes = lsGet(LS_KEY, []);
     const cfg = lsGet(LS_CFG, null); if (cfg?.setores && cfg?.secoes) state.config = migrarCfg(cfg);
     const eq = lsGet(LS_EQ, null); if (eq?.tsts) state.equipe = eq;
     sortInsp(); state.loaded = true; render();
@@ -690,6 +691,8 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
       db = await claude.use("db");
       const user = await claude.use("user");
       if (user && user.can) { const w = await user.can("data.write"); if (w === false) state.canWrite = false; }
+      // só o dono do sistema altera setores, perguntas, TSTs e metas e exclui inspeções
+      state.isAdmin = !!(user && await user.isOwner().catch(() => false));
     } catch { db = null; }
     try { downloads = await claude.use("downloads"); } catch { downloads = null; }
     try { sample = await claude.use("sample"); const lim = sample ? await sample.limits().catch(() => null) : null; sampleImages = !!lim?.images; } catch { sample = null; }
@@ -727,6 +730,8 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
     if (state.view === "nova") readHeader();
     const note = state.store === "local"
       ? `<div class="store-note">As inspeções e a configuração dos setores ficam salvas neste navegador. Use Exportar CSV para guardar uma cópia.</div>` : "";
+    const tabSet = document.getElementById("tab-setores"); if (tabSet) tabSet.hidden = !state.isAdmin;
+    if (state.view === "setores" && !state.isAdmin) state.view = "painel";
     const v = { painel: viewPainel, nova: viewNova, historico: viewHistorico, detalhe: viewDetalhe, setores: viewSetores }[state.view] || viewPainel;
     app.innerHTML = note + v();
     hydrateFotos();
@@ -1336,7 +1341,7 @@ Responda só com JSON neste formato:
         <button class="btn primary" data-act="relatorio">Baixar relatório (Excel)</button>
         <button class="btn" data-act="csv-one">Exportar CSV</button>
         ${i.setorId && state.config.setores.some(s => s.id === i.setorId) ? `<button class="btn" data-act="duplicar">Nova inspeção neste setor</button>` : ""}
-        ${state.canWrite ? (state.confirmDelete
+        ${state.isAdmin && state.canWrite ? (state.confirmDelete
           ? `<div class="confirm">Excluir esta inspeção definitivamente? <button class="btn small danger" data-act="excluir-sim">Excluir</button><button class="btn small" data-act="excluir-nao">Cancelar</button></div>`
           : `<button class="btn danger" data-act="excluir">Excluir</button>`) : ""}
       </div>
@@ -1749,9 +1754,9 @@ ${i.observacoes ? `<p><b>Observações gerais:</b> ${esc(i.observacoes)}</p>` : 
         try { await saveInsp(i); toast("Ação reaberta"); } catch { el.disabled = false; toast("Não foi possível atualizar. Tente novamente."); }
         break;
       }
-      case "excluir": state.confirmDelete = true; render(); break;
+      case "excluir": if (!state.isAdmin) break; state.confirmDelete = true; render(); break;
       case "excluir-nao": state.confirmDelete = false; render(); break;
-      case "excluir-sim": try { await deleteInsp(state.selected); toast("Inspeção excluída"); go("historico"); } catch { toast("Não foi possível excluir. Tente novamente."); } break;
+      case "excluir-sim": if (!state.isAdmin) break; try { await deleteInsp(state.selected); toast("Inspeção excluída"); go("historico"); } catch { toast("Não foi possível excluir. Tente novamente."); } break;
       case "duplicar": { const i = cur(); state.draft = newDraft(i.setorId); Object.assign(state.draft, { setorNome: i.setorNome, local: i.local, responsavel: i.responsavel, registroTst: i.registroTst || state.draft.registroTst, acompanhante: i.acompanhante, cargoLider: i.cargoLider || "" }); go("nova"); break; }
       case "relatorio": exportXlsx(cur(), el); break;
       case "csv-one": { const i = cur(); offer(`inspecao-${slug(setorLabel(i))}-${i.data}.csv`, toCSV([i])); break; }
