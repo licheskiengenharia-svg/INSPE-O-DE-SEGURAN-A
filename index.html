@@ -157,6 +157,18 @@ textarea { resize: vertical; min-height: 60px; }
 .chip.bad { background: var(--bad-bg); color: var(--bad); }
 .chip.na { background: var(--na-bg); color: var(--na); }
 .chip.warn { background: var(--warn-bg); color: var(--warn); }
+.chip.open { background: var(--surface-2); color: var(--fg); border: 1px solid var(--line); }
+.chip.rep { background: color-mix(in srgb, var(--s-reg) 16%, transparent); color: var(--s-reg); }
+.repro-h { font-size: 12px; color: var(--muted); }
+.mon-table td { vertical-align: top; }
+@media (max-width: 640px) {
+  .mon-table thead { display: none; }
+  .mon-table, .mon-table tbody, .mon-table tr, .mon-table td { display: block; width: 100%; }
+  .mon-table tr { border-top: 1px solid var(--line); padding: 10px 0; }
+  .mon-table td { border: 0; padding: 3px 0; }
+  .mon-table td[data-l] { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+  .mon-table td[data-l]::before { content: attr(data-l); font: 600 11px var(--f-body); text-transform: uppercase; letter-spacing: .05em; color: var(--muted); min-width: 130px; }
+} .mon-table .acts { white-space: nowrap; display: flex; gap: 6px; flex-wrap: wrap; }
 .chip.ex { background: var(--surface-2); color: var(--muted); font-family: var(--f-mono); font-weight: 500; text-transform: uppercase; letter-spacing: .06em; font-size: 10px; }
 
 /* Histórico */
@@ -728,7 +740,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
 
   // ---------- Navegação ----------
   function go(view, opts = {}) {
-    state.view = view; state.confirmDelete = false; state.closing = null;
+    state.view = view; state.confirmDelete = false; state.closing = null; if (!opts.keepForms) state.repro = null;
     if ("selected" in opts) state.selected = opts.selected;
     document.querySelectorAll("nav.tabs button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.view === (view === "detalhe" ? "historico" : view))));
     render(); window.scrollTo(0, 0);
@@ -770,12 +782,15 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
       if (tsI) ev.push({ ts: tsI, exato: insp.criadoEm > 1e12, insp, cor: nc ? "var(--s-reg)" : "var(--ok)",
         t: `Inspeção registrada · ${setorLabel(insp)}`,
         m: `${esc(insp.responsavel || "TST não informado")}${insp.horaInicio ? ` · ${esc(insp.horaInicio)}${insp.horaFim ? "–" + esc(insp.horaFim) : ""}` : ""} · ${nc ? `<span class="chip bad">${nc} NC</span>` : `<span class="chip ok">sem NC</span>`}` });
-      insp.itens.forEach(it => { if (it.status !== "NC") return;
+      insp.itens.forEach((it, idx) => { if (it.status !== "NC") return;
         acoesDe(it).forEach((a, k) => {
-          acoes.push({ insp, it, a, k, resp: (a.resp || "").trim() || "Sem responsável" });
+          acoes.push({ insp, it, idx, a, k, resp: (a.resp || "").trim() || "Sem responsável" });
+          (a.reprogramacoes || []).forEach(r => { if (r.ts) ev.push({ tipo: "rep", ts: r.ts, exato: true, insp, cor: "var(--s-reg)",
+            t: `Prazo reprogramado · Ação ${k + 1}: ${esc(a.texto || it.texto)}`,
+            m: `${esc(setorLabel(insp))} · de ${fmtDate(r.de)} para ${fmtDate(r.para)} · ${esc(r.por || "")} · ${esc(r.justificativa)}` }); });
           if (!a.corrigido) return;
           const ts = a.corrigidoTs || (a.corrigidoEm ? new Date(a.corrigidoEm + "T12:00").getTime() : 0);
-          if (ts) ev.push({ ts, exato: !!a.corrigidoTs, insp, cor: "var(--s-done)",
+          if (ts) ev.push({ tipo: "fin", ts, exato: !!a.corrigidoTs, insp, cor: "var(--s-done)",
             t: `Ação ${k + 1} concluída: ${esc(a.texto || it.texto)}`,
             m: `${esc(setorLabel(insp))}${it.localNC ? " · " + esc(it.localNC) : ""} · Executado por ${esc(a.corrigidoPor || a.resp || "—")}${a.prazo ? (a.corrigidoEm && a.corrigidoEm <= a.prazo ? ` · <span class="chip ok">no prazo</span>` : ` · <span class="chip bad">fora do prazo</span>`) : ""}${a.fotoConclusao ? " · com foto" : ""}` });
         }); });
@@ -784,8 +799,25 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
     const abertas = acoes.filter(x => !x.a.corrigido);
     const atras = abertas.filter(x => x.a.prazo && x.a.prazo < t), hoje = abertas.filter(x => x.a.prazo === t);
     const prox = abertas.filter(x => x.a.prazo > t && x.a.prazo <= em7);
+    const reprog = abertas.filter(x => (x.a.reprogramacoes || []).length && !(x.a.prazo < t));
+    const FILTROS = [["abertas", "Em aberto", x => !x.a.corrigido], ["atrasadas", "Atrasadas", x => statusAcao(x.a, t).k === "atrasada"], ["reprogramadas", "Reprogramadas", x => (x.a.reprogramacoes || []).length > 0], ["realizadas", "Realizadas", x => x.a.corrigido], ["todas", "Todas", () => true]];
+    const fAtual = FILTROS.find(f => f[0] === state.monF) || FILTROS[0];
+    const ordem = { atrasada: 0, "no-prazo": 1, reprogramada: 1, "sem-prazo": 2, "realizada-atraso": 3, realizada: 3 };
+    const linhas = acoes.filter(fAtual[2]).sort((x, y) => { const a = statusAcao(x.a, t), b = statusAcao(y.a, t); return ordem[a.k] - ordem[b.k] || (x.a.corrigido ? (y.a.corrigidoEm || "").localeCompare(x.a.corrigidoEm || "") : (x.a.prazo || "9999").localeCompare(y.a.prazo || "9999")); });
+    const tabela = `<section class="panel"><div class="panel-head"><h3>Status das ações</h3><span class="label">${linhas.length} ${linhas.length === 1 ? "ação" : "ações"}</span></div>
+      <p class="lead" style="margin:-6px 0 10px">O status muda sozinho: passa para Atrasada quando o prazo vence sem finalização e para Realizada quando a ação é finalizada.</p>
+      <div class="chips" style="margin-bottom:10px">${FILTROS.map(f => `<button type="button" class="pill" data-act="mon-f" data-f="${f[0]}" aria-pressed="${f === fAtual}">${f[1]} <span class="c">(${acoes.filter(f[2]).length})</span></button>`).join("")}</div>
+      ${linhas.length ? `<div class="table-wrap" style="border:0"><table class="mon-table"><thead><tr><th>Ação</th><th>Responsável</th><th>Data da inspeção</th><th>Prazo para finalizar</th><th>Status</th><th></th></tr></thead><tbody>
+      ${linhas.slice(0, 60).map(x => { const st = statusAcao(x.a, t), rep = (x.a.reprogramacoes || []).length; return `<tr>
+        <td><b>Ação ${x.k + 1}:</b> ${esc(x.a.texto || x.it.texto)}<div class="label" style="text-transform:none;letter-spacing:0">${esc(setorLabel(x.insp))}${x.it.localNC ? " · " + esc(x.it.localNC) : ""}</div></td>
+        <td data-l="Responsável">${esc(x.resp)}</td><td data-l="Data da inspeção">${fmtDate(x.insp.data)}</td>
+        <td data-l="Prazo para finalizar">${fmtDate(x.a.prazo)}${rep ? `<div class="label" style="text-transform:none;letter-spacing:0">original ${fmtDate(prazoOriginal(x.a))} · ${rep}x reprogramada</div>` : ""}</td>
+        <td data-l="Status"><span class="chip ${st.cls}">${st.label}</span>${x.a.corrigido ? `<div class="label" style="text-transform:none;letter-spacing:0">em ${fmtDate(x.a.corrigidoEm)}</div>` : ""}</td>
+        <td><div class="acts">${!x.a.corrigido && state.canWrite ? `<button class="btn small primary" data-act="mon-fin" data-id="${x.insp.id}" data-idx="${x.idx}" data-k="${x.k}">Finalizar</button><button class="btn small" data-act="mon-rep" data-id="${x.insp.id}" data-idx="${x.idx}" data-k="${x.k}">Reprogramar</button>` : `<button class="btn small" data-act="abrir" data-id="${x.insp.id}">Ver</button>`}</div></td></tr>`; }).join("")}
+      </tbody></table></div>${linhas.length > 60 ? `<p class="label" style="margin:8px 0 0">Mostrando 60 de ${linhas.length}. Use o Histórico para ver as demais.</p>` : ""}` : `<p class="lead" style="margin:0">Nenhuma ação neste filtro.</p>`}
+    </section>`;
     const evHoje = ev.filter(e => diaKey(e.ts) === hojeLocal);
-    const inspHoje = evHoje.filter(e => e.t.startsWith("Inspeção")).length, concHoje = evHoje.length - inspHoje;
+    const inspHoje = evHoje.filter(e => e.t.startsWith("Inspeção")).length, concHoje = evHoje.filter(e => e.tipo === "fin").length;
     const ncHoje = state.inspecoes.filter(i => !i.exemplo && i.criadoEm > 1e12 && diaKey(i.criadoEm) === hojeLocal).reduce((n, i) => n + i.itens.filter(x => x.status === "NC").length, 0);
     const live = state.store === "db"
       ? `<span class="live">Ao vivo</span> <span class="label" style="text-transform:none;letter-spacing:0">Aparece aqui assim que um TST salva uma inspeção ou finaliza uma ação${state.syncAt ? ` · última atualização às ${fmtHora(state.syncAt)}` : ""}</span>`
@@ -809,7 +841,9 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
         <div class="kpi ${atras.length ? "alert" : ""}"><span class="label">Atrasadas</span><span class="num" style="color:${atras.length ? "var(--bad)" : "inherit"}">${atras.length}</span><span class="sub">prazo vencido</span></div>
         <div class="kpi"><span class="label">Próximos 7 dias</span><span class="num">${prox.length}</span><span class="sub">ações a vencer</span></div>
         <div class="kpi"><span class="label">Em aberto</span><span class="num">${abertas.length}</span><span class="sub">de ${acoes.length} ações no plano</span></div>
+        <div class="kpi"><span class="label">Reprogramadas</span><span class="num">${reprog.length}</span><span class="sub">em aberto com prazo novo</span></div>
       </div>
+      ${tabela}
       <div class="grid2 even">
         <section class="panel"><div class="panel-head"><h3>Últimas atividades</h3><span class="label">${ev.length} registros</span></div>
           ${feed ? `<div class="nc-list feed">${feed}</div>` : `<p class="lead" style="margin:0">Nenhuma atividade ainda. Quando um TST salvar uma inspeção, ela aparece aqui.</p>`}</section>
@@ -1017,6 +1051,17 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
     if (!(it.acao || it.respAcao || it.prazo || it.corrigido)) return [];
     return [{ texto: it.acao || "", resp: it.respAcao || "", prazo: it.prazo || "", corrigido: !!it.corrigido, corrigidoEm: it.corrigidoEm || "", corrigidoPor: it.corrigidoPor || "", descricaoConclusao: it.descricaoConclusao || "", fotoConclusao: it.fotoConclusao || "" }];
   }
+  // status da ação: muda sozinho com a data de hoje, a finalização e a reprogramação do prazo
+  function statusAcao(a, t = today()) {
+    const rep = (a.reprogramacoes || []).length;
+    if (a.corrigido) return a.prazo && a.corrigidoEm > a.prazo ? { k: "realizada-atraso", label: "Realizada com atraso", cls: "warn" } : { k: "realizada", label: "Realizada", cls: "ok" };
+    if (!a.prazo) return { k: "sem-prazo", label: "Sem prazo", cls: "na" };
+    if (a.prazo < t) return { k: "atrasada", label: "Atrasada", cls: "bad" };
+    if (rep) return { k: "reprogramada", label: "Reprogramada", cls: "rep" };
+    return { k: "no-prazo", label: a.prazo === t ? "Vence hoje" : "No prazo", cls: a.prazo === t ? "warn" : "open" };
+  }
+  const prazoOriginal = a => (a.reprogramacoes || [])[0]?.de || a.prazo || "";
+  const textoRepro = a => (a.reprogramacoes || []).map((r, n) => `${n + 1}ª reprogramação: de ${fmtDate(r.de)} para ${fmtDate(r.para)}${r.por ? " por " + r.por : ""} (${fmtDate(r.em)}). Justificativa: ${r.justificativa}`).join("\n");
   // campos resumo da NC calculados a partir das ações
   function syncNC(it) {
     const A = it.acoes = structuredClone(acoesDe(it)).map(a => ({ ...novaAcao(), ...a }));
@@ -1398,9 +1443,12 @@ Responda só com JSON neste formato:
         ${it.status === "NC" ? `<div class="acoes-d">${acoesDe(it).map((a, k) => { const fechando = state.closing?.idx === idx && state.closing?.k === k; return `<div class="act ${a.corrigido ? "done" : ""}">
           <span><span class="label">Ação ${k + 1}</span> ${esc(a.texto || "não definida")}</span>
           ${a.resp ? `<span><span class="label">Responsável</span> ${esc(a.resp)}</span>` : ""}
-          <span><span class="label">Prazo</span> ${fmtDate(a.prazo)}</span>
-          ${a.corrigido ? `<span class="chip ok">Finalizada em ${fmtDate(a.corrigidoEm)}${a.prazo ? (a.corrigidoEm <= a.prazo ? " · no prazo" : " · fora do prazo") : ""}</span>`
-            : state.canWrite ? (fechando ? "" : `<button class="btn small" data-act="finalizar" data-idx="${idx}" data-k="${k}">Finalizar ação ${k + 1}</button>`) : `<span class="chip ${a.prazo && a.prazo < today() ? "bad" : "warn"}">Em aberto</span>`}
+          <span><span class="label">Data da inspeção</span> ${fmtDate(i.data)}</span>
+          <span><span class="label">Prazo para finalizar</span> ${fmtDate(a.prazo)}${(a.reprogramacoes || []).length ? ` <small class="label" style="text-transform:none;letter-spacing:0">(original ${fmtDate(prazoOriginal(a))})</small>` : ""}</span>
+          ${(() => { const st = statusAcao(a); return `<span class="chip ${st.cls}">${st.label}${a.corrigido ? " em " + fmtDate(a.corrigidoEm) : ""}</span>`; })()}
+          ${!a.corrigido && state.canWrite && !fechando && !(state.repro?.idx === idx && state.repro?.k === k) ? `<span class="acts" style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn small primary" data-act="finalizar" data-idx="${idx}" data-k="${k}">Finalizar ação ${k + 1}</button><button class="btn small" data-act="repro" data-idx="${idx}" data-k="${k}">Reprogramar prazo</button></span>` : ""}
+          ${(a.reprogramacoes || []).length ? `<div class="repro-h">${textoRepro(a).split("\n").map(esc).join("<br>")}</div>` : ""}
+          ${!a.corrigido && state.repro?.idx === idx && state.repro?.k === k ? reproForm(idx, k, a) : ""}
           ${a.corrigido ? `<div class="fin">
               <span class="label">Finalização da ação ${k + 1}</span>
               <div>${esc(a.descricaoConclusao || "Sem descrição")}</div>
@@ -1444,6 +1492,19 @@ Responda só com JSON neste formato:
     </div>`;
   }
 
+  function reproForm(idx, k, a) {
+    const r = state.repro;
+    return `<div class="fin fin-form">
+      <span class="label">Reprogramar o prazo da ação ${k + 1} · prazo atual ${fmtDate(a.prazo)}</span>
+      <div class="fields">
+        <label class="field"><span class="label">Nova data *</span><input id="rep-data" type="date" min="${today()}" value="${esc(r.data)}"></label>
+        <label class="field span2"><span class="label">Quem solicitou *</span><input id="rep-por" value="${esc(r.por)}" placeholder="Nome de quem pediu a reprogramação"></label>
+        <label class="field span3"><span class="label">Justificativa *</span><textarea id="rep-just" placeholder="Por que o prazo precisa mudar. Ex.: peça de reposição com entrega prevista para 05/11">${esc(r.just)}</textarea></label>
+      </div>
+      <div class="row-actions"><span class="label" id="rep-msg" style="align-self:center"></span>
+        <button class="btn small" data-act="repro-cancelar">Cancelar</button><button class="btn small primary" data-act="repro-salvar" data-idx="${idx}" data-k="${k}">Salvar novo prazo</button></div>
+    </div>`;
+  }
   function finForm(idx, k = 0) {
     const c = state.closing;
     return `<div class="fin fin-form">
@@ -1639,7 +1700,7 @@ Responda só com JSON neste formato:
     hNC.forEach((h, k) => Object.assign(ws.getCell(r, k + 1), { value: h, font: { bold: true, size: 9 }, fill: fill(GRAY), border, alignment: { vertical: "middle", wrapText: true } }));
     ws.getRow(r).height = 28; r++;
     if (!ncs.length) { merge(r, 1, 11, "Nenhuma não conformidade registrada nesta inspeção.", { font: { italic: true } }); r++; }
-    const sitAc = a => a.corrigido ? `Concluída em ${fmtDate(a.corrigidoEm)}${a.prazo ? (a.corrigidoEm <= a.prazo ? " (no prazo)" : " (fora do prazo)") : ""}` : a.prazo && a.prazo < t ? "Atrasada" : "Em aberto";
+    const sitAc = a => { const st = statusAcao(a, t).label; const rep = (a.reprogramacoes || []).length; return (a.corrigido ? `${st} em ${fmtDate(a.corrigidoEm)}` : st) + (rep ? `\nPrazo original ${fmtDate(prazoOriginal(a))}; reprogramado ${rep}x. ${a.reprogramacoes[rep - 1].justificativa}` : ""); };
     for (const { it, n } of ncs) {
       const late = !it.corrigido && it.prazo && it.prazo < t, A = acoesDe(it);
       const sit = it.corrigido ? `Concluída em ${fmtDate(it.corrigidoEm)}${it.corrigidoPor ? " por " + it.corrigidoPor : ""}${it.prazo ? (it.corrigidoEm <= it.prazo ? " (no prazo)" : " (fora do prazo)") : ""}${it.descricaoConclusao ? "\n" + it.descricaoConclusao : ""}` : late ? "Atrasada" : "Em aberto";
@@ -1717,11 +1778,11 @@ Responda só com JSON neste formato:
     wd.getRow(1).font = { bold: true }; wd.views = [{ state: "frozen", ySplit: 1 }]; wd.autoFilter = { from: "A1", to: "S1" };
 
     const wa = wb.addWorksheet("Ações por responsável");
-    wa.columns = ["Responsável", "Código", "Data", "Setor", "Local da NC", "Nº", "Item verificado", "Ação nº", "Ação", "Prazo", "Situação", "Concluída em", "Executado por", "O que foi feito"].map(h => ({ header: h, width: { "Ação": 50, "Item verificado": 40, "O que foi feito": 40, "Local da NC": 26, "Responsável": 22 }[h] || 14 }));
+    wa.columns = ["Responsável", "Código", "Data da inspeção", "Setor", "Local da NC", "Nº", "Item verificado", "Ação nº", "Ação", "Prazo original", "Prazo para finalizar", "Status", "Reprogramações", "Concluída em", "Executado por", "O que foi feito"].map(h => ({ header: h, width: { "Ação": 50, "Item verificado": 40, "O que foi feito": 40, "Local da NC": 26, "Responsável": 22, "Reprogramações": 50, "Status": 20 }[h] || 14 }));
     const linhasAc = [];
-    i.itens.forEach((it, n) => { if (it.status === "NC") acoesDe(it).forEach((a, k) => linhasAc.push([a.prazo || "9999", (a.resp || "").trim() || "Sem responsável", codigoInsp(i), fmtDate(i.data), setorLabel(i), it.localNC || "", n + 1, it.texto, k + 1, a.texto, a.prazo ? fmtDate(a.prazo) : "", a.corrigido ? "Concluída" : a.prazo && a.prazo < t ? "Atrasada" : "Em aberto", a.corrigido ? fmtDate(a.corrigidoEm) : "", a.corrigidoPor || "", a.descricaoConclusao || ""])); });
+    i.itens.forEach((it, n) => { if (it.status === "NC") acoesDe(it).forEach((a, k) => linhasAc.push([a.prazo || "9999", (a.resp || "").trim() || "Sem responsável", codigoInsp(i), fmtDate(i.data), setorLabel(i), it.localNC || "", n + 1, it.texto, k + 1, a.texto, prazoOriginal(a) ? fmtDate(prazoOriginal(a)) : "", a.prazo ? fmtDate(a.prazo) : "", statusAcao(a, t).label, textoRepro(a), a.corrigido ? fmtDate(a.corrigidoEm) : "", a.corrigidoPor || "", a.descricaoConclusao || ""])); });
     linhasAc.sort((x, y) => x[1].localeCompare(y[1], "pt-BR") || x[0].localeCompare(y[0])).forEach(l => wa.addRow(l.slice(1)));
-    wa.getRow(1).font = { bold: true }; wa.views = [{ state: "frozen", ySplit: 1 }]; wa.autoFilter = { from: "A1", to: "N1" };
+    wa.getRow(1).font = { bold: true }; wa.views = [{ state: "frozen", ySplit: 1 }]; wa.autoFilter = { from: "A1", to: "P1" };
     wa.eachRow((row, k) => { if (k > 1) row.alignment = { vertical: "top", wrapText: true }; });
 
     addDashboard(wb, i, wsDash);
@@ -1820,6 +1881,14 @@ ${i.observacoes ? `<p><b>Observações gerais:</b> ${esc(i.observacoes)}</p>` : 
       case "voltar": go("historico"); break;
       case "descartar": state.draft = null; state.ai = {}; render(); break;
       case "ai-run": readHeader(); runAI(+el.dataset.i); break;
+      case "mon-f": state.monF = el.dataset.f; keepY(); break;
+      case "mon-fin": case "mon-rep": {
+        const ins = state.inspecoes.find(x => x.id === el.dataset.id); if (!ins) break;
+        const idx = +el.dataset.idx, k = +el.dataset.k, it = ins.itens[idx];
+        go("detalhe", { selected: ins.id, keepForms: true });
+        if (act === "mon-fin") { state.repro = null; state.closing = { idx, k, data: today(), por: acoesDe(it)[k]?.resp || "", desc: "", foto: "" }; }
+        else { state.closing = null; state.repro = { idx, k, data: "", por: "", just: "" }; }
+        render(); document.getElementById(act === "mon-fin" ? "fin-desc" : "rep-data")?.scrollIntoView({ block: "center" }); break; }
       case "extra-add": { readHeader(); const d = state.draft;
         d.itens.push({ secaoId: "extra", secao: "Não conformidades fora do checklist", extra: true, nr: "", texto: "", ref: "", status: "NC", obs: "", nota: "", foto: "", analiseFoto: "", enquadramento: "", risco: "", acao: "", prazo: "", respAcao: "", localNC: "", acoes: [novaAcao()] });
         keepY(); document.getElementById("ex-txt-" + (d.itens.length - 1))?.focus(); break; }
@@ -1829,8 +1898,26 @@ ${i.observacoes ? `<p><b>Observações gerais:</b> ${esc(i.observacoes)}</p>` : 
       case "ac-del": readHeader(); state.draft.itens[+el.dataset.i].acoes.splice(+el.dataset.k, 1); keepY(); break;
       case "sig-clear": { state.draft.assinaturaLider = ""; const pad = document.getElementById("sig-pad"); pad.getContext("2d").clearRect(0, 0, pad.width, pad.height); break; }
       case "sec-c": readHeader(); state.draft.itens.forEach(i => { if (i.secaoId === el.dataset.sec && !i.status) i.status = "C"; }); keepY(); break;
-      case "finalizar": { const it = cur().itens[+el.dataset.idx], k = +el.dataset.k || 0; state.closing = { idx: +el.dataset.idx, k, data: today(), por: acoesDe(it)[k]?.resp || "", desc: "", foto: "" }; keepY(); document.getElementById("fin-desc")?.focus({ preventScroll: true }); break; }
+      case "finalizar": { state.repro = null; const it = cur().itens[+el.dataset.idx], k = +el.dataset.k || 0; state.closing = { idx: +el.dataset.idx, k, data: today(), por: acoesDe(it)[k]?.resp || "", desc: "", foto: "" }; keepY(); document.getElementById("fin-desc")?.focus({ preventScroll: true }); break; }
       case "fin-cancelar": state.closing = null; keepY(); break;
+      case "repro": { state.closing = null; state.repro = { idx: +el.dataset.idx, k: +el.dataset.k || 0, data: "", por: "", just: "" }; keepY(); document.getElementById("rep-data")?.focus({ preventScroll: true }); break; }
+      case "repro-cancelar": state.repro = null; keepY(); break;
+      case "repro-salvar": {
+        const r = state.repro, msg = document.getElementById("rep-msg");
+        const bad = (t, id) => { msg.textContent = t; msg.style.color = "var(--bad)"; document.getElementById(id)?.focus(); };
+        const i = structuredClone(cur()); const it = i.itens[r.idx]; it.acoes = structuredClone(acoesDe(it)); const a = it.acoes[r.k];
+        if (!r.data) return bad("Informe a nova data.", "rep-data");
+        if (r.data < today()) return bad("A nova data não pode ser anterior a hoje.", "rep-data");
+        if (r.data === a.prazo) return bad("A nova data é igual ao prazo atual.", "rep-data");
+        if (!r.por.trim()) return bad("Informe quem solicitou a reprogramação.", "rep-por");
+        if (!r.just.trim()) return bad("Escreva a justificativa.", "rep-just");
+        el.disabled = true;
+        (a.reprogramacoes ||= []).push({ de: a.prazo || "", para: r.data, justificativa: r.just.trim(), por: r.por.trim(), em: today(), ts: Date.now() });
+        a.prazo = r.data; syncNC(it);
+        try { await saveInsp(i); state.repro = null; toast("Prazo reprogramado"); keepY(); }
+        catch { el.disabled = false; bad("Não foi possível salvar. Tente novamente."); }
+        break;
+      }
       case "fin-salvar": {
         const c = state.closing, msg = document.getElementById("fin-msg");
         const bad = (t, id) => { msg.textContent = t; msg.style.color = "var(--bad)"; document.getElementById(id)?.focus(); };
@@ -1924,6 +2011,9 @@ ${i.observacoes ? `<p><b>Observações gerais:</b> ${esc(i.observacoes)}</p>` : 
     if (state.closing && t.id === "fin-data") { state.closing.data = t.value; return; }
     if (state.closing && t.id === "fin-por") { state.closing.por = t.value; return; }
     if (state.closing && t.id === "fin-desc") { state.closing.desc = t.value; return; }
+    if (state.repro && t.id === "rep-data") { state.repro.data = t.value; return; }
+    if (state.repro && t.id === "rep-por") { state.repro.por = t.value; return; }
+    if (state.repro && t.id === "rep-just") { state.repro.just = t.value; return; }
     if (t.id === "pf-periodo" || t.id === "pf-setor" || t.id === "pf-tst") {
       state.pf = { periodo: document.getElementById("pf-periodo").value, setor: document.getElementById("pf-setor").value, tst: document.getElementById("pf-tst").value };
       const y = window.scrollY; render(); window.scrollTo(0, y); return;
