@@ -529,6 +529,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
     selected: null, confirmDelete: false, filtro: { q: "", setor: "" }, draft: null, ai: {},
     pf: { periodo: "12", setor: "", tst: "" },
     config: { secoes: structuredClone(DEFAULT_SECOES), setores: structuredClone(DEFAULT_SETORES) },
+    equipe: { tsts: [], metaTst: 0 },
     cfgDraft: null, cfgSetor: "usinagem", cfgSecao: "epi", cfgDirty: false, cfgConfirmDel: false,
   };
   let db = null, downloads = null, sample = null, sampleImages = false;
@@ -579,7 +580,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
   const pctChip = p => p == null ? `<span class="chip na">—</span>` : `<span class="chip ${p >= 90 ? "ok" : p >= 70 ? "warn" : "bad"}">${p}%</span>`;
 
   // ---------- Armazenamento ----------
-  const LS_KEY = "inspecoes-seguranca-v1", LS_CFG = "inspecoes-seguranca-config-v2", LS_TST = "inspecoes-seguranca-tst-v1";
+  const LS_KEY = "inspecoes-seguranca-v1", LS_CFG = "inspecoes-seguranca-config-v2", LS_TST = "inspecoes-seguranca-tst-v1", LS_EQ = "inspecoes-seguranca-equipe-v1";
   const lsGet = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
   const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
 
@@ -601,6 +602,11 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
     }
     else { state.inspecoes = state.inspecoes.filter(x => x.id !== id); lsSet(LS_KEY, state.inspecoes); render(); }
   }
+  async function saveEquipe(eq) {
+    state.equipe = structuredClone(eq);
+    if (state.store === "db") await db.doc("config/equipe").set(eq);
+    else lsSet(LS_EQ, eq);
+  }
   async function saveConfig(cfg) {
     if (state.store === "db") await db.doc("config/setup").set(cfg);
     else { state.config = structuredClone(cfg); lsSet(LS_CFG, cfg); render(); }
@@ -609,6 +615,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
   function useLocal() {
     state.store = "local"; state.inspecoes = lsGet(LS_KEY, []);
     const cfg = lsGet(LS_CFG, null); if (cfg?.setores && cfg?.secoes) state.config = cfg;
+    const eq = lsGet(LS_EQ, null); if (eq?.tsts) state.equipe = eq;
     sortInsp(); state.loaded = true; render();
   }
 
@@ -621,6 +628,11 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
     try { downloads = await claude.use("downloads"); } catch { downloads = null; }
     try { sample = await claude.use("sample"); const lim = sample ? await sample.limits().catch(() => null) : null; sampleImages = !!lim?.images; } catch { sample = null; }
     if (!db) return useLocal();
+    db.doc("config/equipe").onSnapshot(snap => {
+      const d = snap.exists ? snap.data() : null;
+      if (d?.tsts) state.equipe = structuredClone(d);
+      if (state.loaded && !state.cfgDirty) { state.cfgDraft = null; if (state.view !== "nova") render(); }
+    }, () => {});
     db.doc("config/setup").onSnapshot(snap => {
       const d = snap.exists ? snap.data() : null;
       if (d?.setores && d?.secoes) state.config = structuredClone(d);
@@ -766,9 +778,9 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
     const porNorma = Object.values(acoes.reduce((m, a) => { const r = (m[a.norma] ||= { nome: a.norma, n: 0, c: 0 }); r.n++; if (a.done) r.c++; return m; }, {})).sort((a, b) => b.n - a.n);
     const maxN = Math.max(1, ...porNorma.map(r => r.n));
     const porTst = Object.values(L.reduce((m, i) => { const k = (i.responsavel || "—").trim(); const r = (m[k] ||= { nome: k, n: 0, ult: "", reg: i.registroTst || "", nc: 0, ps: [] }); r.n++; if ((i.data || "") > r.ult) { r.ult = i.data; r.reg = i.registroTst || r.reg; } const s = score(i); if (s.pct != null) r.ps.push(s.pct); r.nc += s.nc; if ((i.data || "").startsWith(t.slice(0, 7))) r.mes = (r.mes || 0) + 1; return m; }, {}));
-    if (!pf.tst && !pf.setor) for (const c of state.config.tsts || []) if (c.nome?.trim() && !porTst.some(r => r.nome.toLowerCase() === c.nome.trim().toLowerCase())) porTst.push({ nome: c.nome.trim(), n: 0, ult: "", reg: c.registro || "", nc: 0, ps: [] });
+    if (!pf.tst && !pf.setor) for (const c of state.equipe.tsts || []) if (c.nome?.trim() && !porTst.some(r => r.nome.toLowerCase() === c.nome.trim().toLowerCase())) porTst.push({ nome: c.nome.trim(), n: 0, ult: "", reg: c.registro || "", nc: 0, ps: [] });
     porTst.sort((a, b) => b.n - a.n || a.nome.localeCompare(b.nome, "pt-BR"));
-    const meta = +state.config.metaTst || 0;
+    const meta = +state.equipe.metaTst || 0;
 
     const C_REG = "var(--s-reg)", C_DONE = "var(--s-done)", C_OPEN = "var(--s-open)", C_LATE = "var(--s-late)";
     const pend = abertas.sort((a, b) => (a.prazo || "9999").localeCompare(b.prazo || "9999"));
@@ -837,9 +849,18 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
   const locaisNC = i => [...new Set(i.itens.filter(it => it.status === "NC" && it.localNC?.trim()).map(it => it.localNC.trim()))].join("; ") || i.local || "";
 
   // ---------- TSTs ----------
+  async function registrarTst(nome, registro) {
+    nome = (nome || "").trim(); registro = (registro || "").trim(); if (!nome) return;
+    const eq = structuredClone(state.equipe); eq.tsts ||= [];
+    const ex = eq.tsts.find(t => (t.nome || "").trim().toLowerCase() === nome.toLowerCase());
+    if (ex && (ex.registro || !registro)) return;
+    if (ex) ex.registro = registro; else eq.tsts.push({ nome, registro });
+    eq.tsts.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+    try { await saveEquipe(eq); if (state.cfgDraft && !state.cfgDirty) state.cfgDraft = null; } catch {}
+  }
   function tstList() {
     const m = new Map();
-    for (const t of state.config.tsts || []) { const n = (t.nome || "").trim(); if (n) m.set(n.toLowerCase(), { nome: n, registro: (t.registro || "").trim() }); }
+    for (const t of state.equipe.tsts || []) { const n = (t.nome || "").trim(); if (n) m.set(n.toLowerCase(), { nome: n, registro: (t.registro || "").trim() }); }
     for (const i of [...state.inspecoes].reverse()) { const n = (i.responsavel || "").trim(); if (!n) continue; const k = n.toLowerCase();
       if (!m.has(k)) m.set(k, { nome: n, registro: (i.registroTst || "").trim() }); else if (!m.get(k).registro && i.registroTst) m.get(k).registro = i.registroTst.trim(); }
     return [...m.values()].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
@@ -974,9 +995,9 @@ Tarefas:
 1. Descreva objetivamente o que a foto mostra em relação a essa pergunta. Se a foto não mostrar a não conformidade, diga isso claramente.
 2. Escreva a descrição técnica da não conformidade como se fosse o próprio TST registrando o que constatou em campo: linguagem técnica e impessoal de relatório de SST (ex.: "Constatada ausência de...", "Verificado que..."), citando a NR e o item aplicável (NRs do MTE vigentes). NÃO mencione foto, imagem, registro fotográfico, análise ou inteligência artificial nesse texto.
 3. Classifique o risco: Alto, Médio ou Baixo.
-4. Monte o plano de ação: medidas objetivas, na ordem de execução (imediata e definitiva), seguindo a hierarquia de controles.
+4. Monte o plano de ação a partir da descrição técnica da não conformidade, da sua análise da foto e das respostas do TST: medidas objetivas, na ordem de execução (imediata e definitiva), seguindo a hierarquia de controles.
 5. Sugira o prazo em dias corridos: Alto até 7, Médio até 15, Baixo até 30.
-6. Se faltar informação para um plano de ação preciso (por exemplo: se o equipamento está em operação, dimensões, quantidade de trabalhadores expostos, frequência da atividade, se já existe proteção), faça até 3 perguntas curtas e objetivas ao TST. Não repita perguntas já respondidas. Se não faltar nada, devolva a lista vazia.
+${(it.perguntasIA || []).some(x => x.r?.trim()) ? "6. Se ainda faltar informação para um plano de ação preciso, faça até 2 perguntas curtas sobre o que aparece na foto. Não repita perguntas já respondidas. Se não faltar nada, devolva a lista vazia." : "6. Faça de 2 a 3 perguntas curtas e objetivas ao TST sobre o que aparece nesta foto, para completar a análise (por exemplo: se o equipamento estava em operação, quantos trabalhadores ficam expostos, com que frequência a atividade é feita, se já existe alguma proteção ou se a condição é recente). As perguntas devem ser específicas desta foto e desta pergunta do checklist."}
 
 Responda só com JSON neste formato:
 {"analiseFoto": "...", "fotoMostraNC": true, "descricaoTecnica": "...", "enquadramento": "NR-xx, item x.x.x", "risco": "Alto", "planoAcao": "1. ... 2. ...", "prazoDias": 7, "perguntas": ["..."]}`;
@@ -1055,6 +1076,7 @@ Responda só com JSON neste formato:
       delete insp.generico; delete insp.tstOutro;
       const btn = f.querySelector("button[type=submit]"); btn.disabled = true; btn.textContent = "Salvando…";
       lsSet(LS_TST, { nome: insp.responsavel.trim(), registro: (insp.registroTst || "").trim() });
+      registrarTst(insp.responsavel, insp.registroTst);
       try {
         btn.textContent = "Enviando fotos…";
         for (const it of insp.itens) if (it.foto) it.foto = await persistFoto(it.foto);
@@ -1072,7 +1094,7 @@ Responda só com JSON neste formato:
 
   // ---------- Setores e perguntas ----------
   function viewSetores() {
-    if (!state.cfgDraft) state.cfgDraft = structuredClone(state.config);
+    if (!state.cfgDraft) state.cfgDraft = { ...structuredClone(state.config), tsts: structuredClone(state.equipe.tsts || []), metaTst: state.equipe.metaTst || 0 };
     const cfg = state.cfgDraft;
     if (!cfg.setores.find(s => s.id === state.cfgSetor)) state.cfgSetor = cfg.setores[0]?.id;
     if (!cfg.secoes.find(s => s.id === state.cfgSecao)) state.cfgSecao = cfg.secoes[0]?.id;
@@ -1617,7 +1639,9 @@ ${i.observacoes ? `<p><b>Observações gerais:</b> ${esc(i.observacoes)}</p>` : 
         cfg.secoes.forEach(s => s.perguntas = s.perguntas.filter(p => p.texto.trim()));
         cfg.tsts = (cfg.tsts || []).map(t => ({ nome: (t.nome || "").trim(), registro: (t.registro || "").trim() })).filter(t => t.nome);
         el.disabled = true;
-        try { await saveConfig(structuredClone(cfg)); state.config = structuredClone(cfg); state.cfgDirty = false; state.cfgDraft = null; toast("Setores e perguntas salvos"); keepY(); }
+        const { tsts, metaTst, ...base } = cfg;
+        try { if (JSON.stringify(base) !== JSON.stringify(state.config)) { await saveConfig(structuredClone(base)); state.config = structuredClone(base); }
+          await saveEquipe({ tsts, metaTst: metaTst || 0 }); state.cfgDirty = false; state.cfgDraft = null; toast("Setores e perguntas salvos"); keepY(); }
         catch (err) { el.disabled = false; toast(err?.code === "invalid_argument" ? "Seu acesso não permite alterar os setores." : "Não foi possível salvar. Tente novamente."); }
         void usados; break;
       }
