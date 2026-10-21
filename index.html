@@ -1283,6 +1283,40 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
   }
 
   // Garante o texto na voz do TST: remove frases que citam a foto/imagem.
+  // ---------- Revisão de ortografia ----------
+  // todo texto livre que vai para o relatório passa pelo Claude antes de salvar
+  async function corrigirTextos(alvos) {
+    const itens = alvos.filter(a => /[a-zà-ú]{2}/i.test(a.get() || ""));
+    if (!itens.length) return { ok: true, n: 0 };
+    if (!sample) return { ok: false, n: 0 };
+    const textos = Object.fromEntries(itens.map((a, k) => ["t" + k, a.get()]));
+    const prompt = `Revise os textos abaixo, escritos por técnicos de segurança do trabalho numa fundição, para um relatório de inspeção.
+Corrija ortografia, acentuação, concordância, pontuação e letras maiúsculas, em português do Brasil, com linguagem técnica e clara.
+Regras: mantenha o sentido e todas as informações; não acrescente fatos; não traduza; mantenha nomes de pessoas, códigos de máquinas, números, datas, NR e itens de norma como estão; não use aspas nem markdown.
+Responda só com JSON com as mesmas chaves e os textos corrigidos.
+${JSON.stringify(textos)}`;
+    for (let tent = 0; tent < 2; tent++) {
+      try {
+        const r = await Promise.race([sample.json(prompt), new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 60000))]);
+        let n = 0;
+        itens.forEach((a, k) => { const v = r?.["t" + k]; if (typeof v === "string" && v.trim() && v.trim() !== a.get().trim()) { a.set(v.trim()); n++; } });
+        return { ok: true, n };
+      } catch (err) { if (err?.code === "not_granted") break; }
+    }
+    return { ok: false, n: 0 };
+  }
+  function alvosInsp(insp) {
+    const campo = (o, k) => ({ get: () => o[k] || "", set: v => { o[k] = v; } });
+    const L = [campo(insp, "observacoes"), campo(insp, "cargoLider")];
+    for (const it of insp.itens) {
+      if (it.status === "NC") {
+        L.push(campo(it, "localNC"), campo(it, "obs"));
+        if (it.extra) L.push(campo(it, "texto"));
+        for (const a of it.acoes || []) L.push(campo(a, "texto"), campo(a, "descricaoConclusao"), ...(a.reprogramacoes || []).map(r => campo(r, "justificativa")));
+      } else if ((it.obs || "").trim().length > 3) L.push(campo(it, "obs"));
+    }
+    return L;
+  }
   function semFoto(t) {
     const frases = t.split(/(?<=[.;!?])\s+/);
     const ok = frases.filter(f => !/\b(foto|fotografia|fotográfic\w*|imagem|imagens|registro fotográfico)\b/i.test(f));
@@ -1393,6 +1427,11 @@ Responda só com JSON neste formato:
       lsSet(LS_TST, { nome: insp.responsavel.trim(), registro: (insp.registroTst || "").trim() });
       registrarTst(insp.responsavel, insp.registroTst);
       try {
+        btn.textContent = "Revisando ortografia…";
+        const rev = await corrigirTextos(alvosInsp(insp));
+        insp.ortografiaRevisada = rev.ok;
+        if (insp.itens.some(x => x.status === "NC")) insp.itens.forEach(x => { if (x.status === "NC") syncNC(x); });
+        if (!rev.ok && sample) toast("Não foi possível revisar a ortografia agora. A inspeção será salva assim; use Revisar ortografia no histórico depois.");
         btn.textContent = "Enviando fotos…";
         for (const it of insp.itens) if (it.foto) it.foto = await persistFoto(it.foto);
         insp.assinaturaLider = await persistFoto(insp.assinaturaLider);
@@ -1553,6 +1592,7 @@ Responda só com JSON neste formato:
         ${imgTag(i.assinaturaLider, "sig-img", "Assinatura de " + i.acompanhante)}<div class="sig-line"><span>${esc(i.acompanhante)}${i.cargoLider ? " · " + esc(i.cargoLider) : ""}</span></div></section>` : ""}
       <div class="row-actions">
         <button class="btn primary" data-act="relatorio">Baixar relatório (Excel)</button>
+        ${state.canWrite && sample ? `<button class="btn" data-act="revisar-orto">${i.ortografiaRevisada ? "Revisar ortografia de novo" : "Revisar ortografia"}</button>` : ""}
         <button class="btn" data-act="csv-one">Exportar CSV</button>
         ${i.setorId && state.config.setores.some(s => s.id === i.setorId) ? `<button class="btn" data-act="duplicar">Nova inspeção neste setor</button>` : ""}
         ${state.isAdmin && state.canWrite ? (state.confirmDelete
@@ -1973,6 +2013,15 @@ ${i.observacoes ? `<p><b>Observações gerais:</b> ${esc(i.observacoes)}</p>` : 
       case "fin-cancelar": state.closing = null; keepY(); break;
       case "repro": { state.closing = null; state.repro = { idx: +el.dataset.idx, k: +el.dataset.k || 0, data: "", por: "", just: "" }; keepY(); document.getElementById("rep-data")?.focus({ preventScroll: true }); break; }
       case "repro-cancelar": state.repro = null; keepY(); break;
+      case "revisar-orto": {
+        const i = structuredClone(cur()); el.disabled = true; el.textContent = "Revisando…";
+        const rev = await corrigirTextos(alvosInsp(i));
+        if (!rev.ok) { el.disabled = false; el.textContent = "Revisar ortografia"; toast("O Claude não respondeu agora. Tente de novo em instantes."); break; }
+        i.itens.forEach(x => { if (x.status === "NC") syncNC(x); }); i.ortografiaRevisada = true;
+        try { await saveInsp(i); toast(rev.n ? `Ortografia revisada: ${rev.n} ${rev.n === 1 ? "texto corrigido" : "textos corrigidos"}.` : "Nenhum erro de ortografia encontrado."); keepY(); }
+        catch { el.disabled = false; el.textContent = "Revisar ortografia"; toast("Não foi possível salvar. Tente novamente."); }
+        break;
+      }
       case "os-editar": { const a = acoesDe(cur().itens[+el.dataset.idx])[+el.dataset.k]; state.osEdit = { idx: +el.dataset.idx, k: +el.dataset.k, val: a?.os || "" }; keepY(); document.getElementById("os-in")?.focus({ preventScroll: true }); break; }
       case "os-cancelar": state.osEdit = null; keepY(); break;
       case "os-salvar": { const o = state.osEdit; const i = structuredClone(cur()); const it = i.itens[o.idx]; it.acoes = structuredClone(acoesDe(it)); it.acoes[o.k].os = o.val.trim(); syncNC(it);
@@ -1987,7 +2036,8 @@ ${i.observacoes ? `<p><b>Observações gerais:</b> ${esc(i.observacoes)}</p>` : 
         if (!r.por.trim()) return bad("Informe quem solicitou a reprogramação.", "rep-por");
         if (!r.just.trim()) return bad("Escreva a justificativa.", "rep-just");
         el.disabled = true;
-        (a.reprogramacoes ||= []).push({ de: a.prazo || "", para: r.data, justificativa: r.just.trim(), por: r.por.trim(), em: today(), ts: Date.now() });
+        const jt = { v: r.just.trim() }; el.textContent = "Revisando ortografia…"; await corrigirTextos([{ get: () => jt.v, set: v => { jt.v = v; } }]);
+        (a.reprogramacoes ||= []).push({ de: a.prazo || "", para: r.data, justificativa: jt.v, por: r.por.trim(), em: today(), ts: Date.now() });
         a.prazo = r.data; syncNC(it);
         try { await saveInsp(i); state.repro = null; toast("Prazo reprogramado"); keepY(); }
         catch { el.disabled = false; bad("Não foi possível salvar. Tente novamente."); }
@@ -2004,7 +2054,8 @@ ${i.observacoes ? `<p><b>Observações gerais:</b> ${esc(i.observacoes)}</p>` : 
         el.disabled = true;
         try {
         it.acoes = structuredClone(acoesDe(it));
-        Object.assign(it.acoes[c.k || 0], { corrigido: true, corrigidoEm: c.data, corrigidoTs: Date.now(), corrigidoPor: c.por.trim(), descricaoConclusao: c.desc.trim(), fotoConclusao: await persistFoto(c.foto) }); syncNC(it); await saveInsp(i); state.closing = null; toast("Ação finalizada"); keepY(); }
+        const dc = { v: c.desc.trim() }; el.textContent = "Revisando ortografia…"; await corrigirTextos([{ get: () => dc.v, set: v => { dc.v = v; } }]);
+        Object.assign(it.acoes[c.k || 0], { corrigido: true, corrigidoEm: c.data, corrigidoTs: Date.now(), corrigidoPor: c.por.trim(), descricaoConclusao: dc.v, fotoConclusao: await persistFoto(c.foto) }); syncNC(it); await saveInsp(i); state.closing = null; toast("Ação finalizada"); keepY(); }
         catch (err) { el.disabled = false; bad(err?.code === "invalid_argument" ? "Não foi possível salvar. Se anexou foto, tente uma imagem menor." : "Não foi possível salvar. Tente novamente."); }
         break;
       }
