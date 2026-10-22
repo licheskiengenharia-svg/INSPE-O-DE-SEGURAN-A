@@ -1,0 +1,26 @@
+# Dispara o backup diário do ISE às 23h (America/Sao_Paulo = 02h UTC).
+# No Render gratuito o servidor dorme quando ninguém usa; esta chamada o acorda.
+# Precisa de dois segredos do repositório (Settings → Secrets and variables → Actions):
+#   ISE_URL           endereço do site, ex.: https://inspecao-seguranca.onrender.com
+#   ISE_BACKUP_TOKEN  o mesmo valor da variável ISE_BACKUP_TOKEN do Render
+name: Backup diário do ISE
+on:
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch: {}
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Chamar o backup do servidor
+        env:
+          ISE_URL: ${{ secrets.ISE_URL }}
+          ISE_BACKUP_TOKEN: ${{ secrets.ISE_BACKUP_TOKEN }}
+        run: |
+          if [ -z "$ISE_URL" ] || [ -z "$ISE_BACKUP_TOKEN" ]; then
+            echo "::error::Faltam os segredos ISE_URL e ISE_BACKUP_TOKEN no repositório."; exit 1
+          fi
+          # acorda o servidor (o Render gratuito leva até um minuto para subir)
+          curl -sS -o /dev/null --retry 6 --retry-delay 20 --retry-all-errors --max-time 120 "$ISE_URL/entrar" || true
+          curl -sS --fail-with-body --max-time 900 -X POST -H "X-ISE-Token: $ISE_BACKUP_TOKEN" "$ISE_URL/api/backup/agendado"

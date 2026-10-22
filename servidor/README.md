@@ -4,7 +4,7 @@ Este servidor roda o mesmo site do repositório (`index.html`) fora do Claude. E
 
 | Recurso | Dentro do Claude | Neste servidor |
 |---|---|---|
-| Banco compartilhado | banco da plataforma | SQLite (`ISE_BANCO`), com sincronização a cada 4 segundos entre os aparelhos |
+| Banco compartilhado | banco da plataforma | PostgreSQL (`DATABASE_URL`, ex.: Neon gratuito) ou SQLite, com sincronização a cada 4 segundos entre os aparelhos |
 | Contas | conta do Claude | login com e-mail e senha. Um único administrador; ele cadastra, desativa e redefine a senha dos TSTs em **Usuários e backup** |
 | Permissões | regras da plataforma | aplicadas no servidor: só o administrador grava `config` e `aprovacoes` e exclui registros |
 | Análise do Claude | recurso da plataforma | API do Claude, com a chave guardada só no servidor (`ANTHROPIC_API_KEY`) |
@@ -22,39 +22,52 @@ python -m venv .venv
 source .venv/bin/activate          # no Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 export ISE_SECRET_KEY="uma-frase-longa-e-secreta"   # Windows: set ISE_SECRET_KEY=...
-flask --app app criar-admin        # pede e-mail, nome e senha do administrador
+flask --app app criar-admin        # pede e-mail, nome e senha do administrador (ou use ISE_ADMIN_*)
 flask --app app run                # abra http://127.0.0.1:5000
 ```
 
-## 2. Publicar a partir do GitHub (Render)
+## 2. Publicar sem custo a partir do GitHub (Render gratuito + Neon gratuito)
 
-1. Crie uma conta em https://render.com e conecte o GitHub.
-2. Escolha **New → Blueprint** e selecione o repositório `INSPE-O-DE-SEGURAN-A`. O arquivo `render.yaml` cria o serviço com:
-   - disco persistente para o banco;
-   - chave de sessão gerada automaticamente.
-3. Preencha as variáveis que o Render pedir (veja a seção 4). Dá para deixar a do Claude e as do Drive para depois.
-4. Quando o serviço estiver no ar, abra a aba **Shell** do serviço e rode `flask --app app criar-admin`.
-5. Cada `git push` na branch principal publica a nova versão sozinho.
+O plano gratuito do Render não guarda arquivos: os dados ficam num PostgreSQL gratuito do **Neon**, que não expira. O servidor gratuito dorme depois de 15 minutos sem uso e leva cerca de um minuto para acordar no primeiro acesso.
 
-O plano gratuito do Render não tem disco persistente. Sem disco, o banco se perde a cada publicação, por isso o `render.yaml` usa o plano *starter*.
+**a) Banco gratuito (Neon)**
+1. Crie uma conta em https://neon.tech (pode entrar com a conta do GitHub) e clique em **Create project**. Nome: `inspecao-seguranca`; região: **AWS US East (N. Virginia)**, a mesma região do site no Render (o Render não tem servidores na América do Sul).
+2. No painel do projeto, clique em **Connect** e copie a *connection string* (começa com `postgresql://` e termina com `sslmode=require`). Ela é a `DATABASE_URL`.
 
-Qualquer servidor com Docker também serve:
+**b) Site no Render**
+1. Em https://dashboard.render.com, escolha **New → Blueprint** e selecione o repositório `INSPE-O-DE-SEGURAN-A`. O `render.yaml` já escolhe o plano **Free**.
+2. Preencha as variáveis pedidas:
+   - `DATABASE_URL`: a connection string do Neon;
+   - `ISE_ADMIN_EMAIL`, `ISE_ADMIN_NOME`, `ISE_ADMIN_SENHA`: a sua conta de administrador (senha com pelo menos 8 caracteres), criada sozinha na primeira vez que o site sobe;
+   - `ANTHROPIC_API_KEY`, `ISE_DRIVE_CREDENCIAL`, `ISE_DRIVE_PASTA`: podem ficar em branco agora.
+3. Clique em **Apply**. Quando o serviço ficar *Live*, abra o endereço `https://….onrender.com`, entre com a conta de administrador e troque a senha em **Senha**.
+4. Cada `git push` na branch principal publica a nova versão sozinho.
+
+**c) Backup diário mesmo com o servidor dormindo**
+O GitHub Actions (gratuito) chama o servidor todo dia às 23h e dispara o backup (`.github/workflows/backup-diario.yml`).
+1. No Render, abra o serviço → **Environment** e copie o valor de `ISE_BACKUP_TOKEN` (gerado sozinho).
+2. No GitHub, abra o repositório → **Settings → Secrets and variables → Actions → New repository secret** e crie:
+   - `ISE_URL`: o endereço do site, por exemplo `https://inspecao-seguranca.onrender.com`;
+   - `ISE_BACKUP_TOKEN`: o valor copiado do Render.
+3. Em **Actions → Backup diário do ISE → Run workflow** dá para testar na hora.
+
+O GitHub desliga agendamentos de repositórios sem nenhuma alteração por 60 dias e avisa por e-mail; basta reativar em **Actions**. O backup só envia arquivos depois de configurado o Google Drive (seção 5).
+
+**Limites do gratuito:** o Neon oferece 0,5 GB de banco (milhares de inspeções com fotos comprimidas) e uma cota mensal de horas de processamento, gasta só enquanto o site está em uso; o Render oferece 750 horas por mês, suficiente para um serviço no ar o mês todo. O site só consulta o servidor com a aba visível, para que uma aba esquecida aberta não gaste essas cotas. A análise do Claude é paga à parte pela API e é opcional: sem `ANTHROPIC_API_KEY`, o site funciona normalmente, só sem a análise.
+
+**Outra opção:** qualquer servidor com Docker:
 
 ```bash
 docker build -t ise .
-docker run -d -p 8000:8000 -v ise-dados:/dados -e ISE_SECRET_KEY=... -e ISE_HTTPS=1 ise
+docker run -d -p 8000:8000 -e DATABASE_URL=... -e ISE_SECRET_KEY=... -e ISE_HTTPS=1 ise
 ```
 
-Coloque o site atrás de HTTPS.
+Sem `DATABASE_URL`, o servidor usa SQLite em `/dados`; nesse caso monte um volume (`-v ise-dados:/dados`) e use `ISE_BACKUP_AUTOMATICO=1`, pois o servidor não dorme.
 
 ## 3. Trazer os dados que estão no Claude
 
 1. No site atual, dentro do Claude, entre como administrador e abra **Setores e perguntas → Baixar backup completo**.
-2. Envie o arquivo `ISE_BACKUP_….json` para o servidor e rode:
-
-```bash
-python importar_backup.py ISE_BACKUP_2026-10-22_1353.json
-```
+2. No novo site, abra **Usuários e backup → Importar ou restaurar backup**, escolha o arquivo e clique em **Importar**. (No computador, o mesmo pode ser feito com `python importar_backup.py ISE_BACKUP_….json`.)
 
 - O script confere o SHA-256 de cada registro. Se algum não conferir, nada é gravado.
 - Registros que já existem são mantidos. Para restaurar um backup por cima dos dados, use `--substituir`. É uma decisão do administrador e fica na auditoria.
@@ -65,11 +78,14 @@ python importar_backup.py ISE_BACKUP_2026-10-22_1353.json
 | Variável | Para quê |
 |---|---|
 | `ISE_SECRET_KEY` | obrigatória; protege as sessões de login |
-| `ISE_BANCO` | caminho do banco (padrão `servidor/dados/ise.sqlite3`; no Docker, `/dados/ise.sqlite3`) |
+| `DATABASE_URL` | PostgreSQL (Neon gratuito). Sem ela, usa SQLite |
+| `ISE_BANCO` | caminho do SQLite (padrão `servidor/dados/ise.sqlite3`; no Docker, `/dados/ise.sqlite3`) |
+| `ISE_ADMIN_EMAIL` / `ISE_ADMIN_NOME` / `ISE_ADMIN_SENHA` | criam o administrador na primeira vez que o servidor sobe (depois disso não mudam nada) |
+| `ISE_BACKUP_TOKEN` | senha que o GitHub Actions usa para disparar o backup das 23h |
 | `ISE_HTTPS` | `1` quando o site estiver em HTTPS |
 | `ANTHROPIC_API_KEY` | chave da API do Claude (https://console.anthropic.com). Sem ela, o site funciona sem a análise do Claude |
 | `ISE_MODELO` | modelo do Claude; padrão `claude-opus-5-5` |
-| `ISE_BACKUP_AUTOMATICO` | `1` liga o backup diário às 23h |
+| `ISE_BACKUP_AUTOMATICO` | `1` faz o próprio servidor agendar o backup das 23h (só para servidor que não dorme) |
 | `ISE_DRIVE_CREDENCIAL` | conteúdo (ou caminho) do arquivo JSON da conta de serviço do Google |
 | `ISE_DRIVE_PASTA` | id da pasta "ISE — BACKUP SEGURANÇA DO TRABALHO" (o trecho final do link da pasta) |
 | `ISE_RETENCAO_DIARIA_DIAS` / `ISE_RETENCAO_MENSAL_MESES` | retenção; padrão 30 dias e 12 meses (diretriz 3.5, ainda a validar pela empresa) |
@@ -88,7 +104,7 @@ Nunca coloque chaves no código nem no GitHub.
 4. Preencha as variáveis:
    - `ISE_DRIVE_CREDENCIAL` com o conteúdo do JSON;
    - `ISE_DRIVE_PASTA` com o id da pasta;
-   - `ISE_BACKUP_AUTOMATICO=1`.
+   - no Render gratuito, os segredos do GitHub Actions da seção 2c; em servidor sempre ligado, `ISE_BACKUP_AUTOMATICO=1`.
 5. Em **Usuários e backup**, clique em **Executar backup agora** e confira o resultado na tabela.
 
 O que cada execução faz:
@@ -109,13 +125,13 @@ Em caso de falha:
 
 Backups antigos vão para a lixeira do Drive e não são apagados de vez. Fotos e assinaturas nunca são apagadas.
 
-Rode o servidor com **um único processo** (`gunicorn -w 1 --threads 8`), como no Dockerfile. O agendador fica dentro dele, e vários processos repetiriam o backup. Para usar o cron do sistema em vez do agendador interno, deixe `ISE_BACKUP_AUTOMATICO` vazio e agende `python backup_drive.py`.
+Rode o servidor com **um único processo** (`gunicorn -w 1 --threads 8`), como no Dockerfile: o agendador opcional fica dentro dele, e vários processos repetiriam o backup. Também dá para usar o cron do sistema (`python backup_drive.py`).
 
 ## Arquivos
 
 - `app.py`: servidor, contas, permissões e API usada pelo site
 - `static/plataforma.js`: ponte no navegador. Faz o site usar o servidor no lugar da plataforma do Claude, sem mudar o `index.html`
-- `banco.py`: banco SQLite
+- `banco.py`: banco (PostgreSQL ou SQLite)
 - `ia.py`: análise do Claude
 - `backup_drive.py`: backup no Google Drive
 - `importar_backup.py`: importação e restauração

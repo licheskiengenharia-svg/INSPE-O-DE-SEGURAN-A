@@ -1,22 +1,30 @@
-# Publicação pelo Render a partir deste repositório do GitHub (Blueprint).
-# O disco persistente guarda o banco; sem ele os dados se perdem a cada nova publicação.
+# Publicação gratuita pelo Render a partir deste repositório do GitHub (Blueprint).
+# O plano gratuito não tem disco: os dados ficam num PostgreSQL gratuito externo (Neon),
+# informado em DATABASE_URL. O servidor dorme sem uso e leva cerca de um minuto para acordar.
 services:
   - type: web
     name: inspecao-seguranca
     runtime: docker
-    plan: starter
+    plan: free
+    region: virginia  # perto do banco do Neon em AWS US East (N. Virginia)
     autoDeploy: true
-    disk:
-      name: dados
-      mountPath: /dados
-      sizeGB: 1
+    healthCheckPath: /entrar
     envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: ISE_ADMIN_EMAIL
+        sync: false
+      - key: ISE_ADMIN_NOME
+        sync: false
+      - key: ISE_ADMIN_SENHA
+        sync: false
       - key: ISE_SECRET_KEY
+        generateValue: true
+      - key: ISE_BACKUP_TOKEN
         generateValue: true
       - key: ISE_HTTPS
         value: "1"
-      - key: ISE_BACKUP_AUTOMATICO
-        value: "1"
+      # opcionais (deixe em branco se não for usar agora)
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: ISE_DRIVE_CREDENCIAL

@@ -1,7 +1,10 @@
 """Backup diário do ISE no Google Drive (diretriz 3).
 
-Executa sozinho às 23h (America/Sao_Paulo) quando ISE_BACKUP_AUTOMATICO=1, ou à mão:
-    python backup_drive.py
+Roda todo dia às 23h (America/Sao_Paulo) de um destes jeitos:
+  - no Render gratuito, que dorme sem uso: o GitHub Actions chama /api/backup/agendado
+    (.github/workflows/backup-diario.yml), o que acorda o servidor;
+  - num servidor sempre ligado: ISE_BACKUP_AUTOMATICO=1 agenda dentro do próprio servidor.
+Também roda à mão (python backup_drive.py) ou pelo botão "Executar backup agora".
 
 O que faz, nesta ordem:
  1. Lê todos os registros do banco e monta ISE_BACKUP_AAAA-MM-DD_HHMM.json, completo e
@@ -26,6 +29,7 @@ import json
 import os
 import re
 import sys
+import tempfile
 import time
 import traceback
 from zoneinfo import ZoneInfo
@@ -40,7 +44,7 @@ RETENCAO_MENSAL = int(os.environ.get("ISE_RETENCAO_MENSAL_MESES", "12"))
 TENTATIVAS = 3
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from banco import BANCO, conectar, gravar_doc  # noqa: E402
+from banco import BANCO, POSTGRES, conectar, gravar_doc  # noqa: E402
 
 
 def compacto(obj):
@@ -151,8 +155,7 @@ def tipo_imagem(fid, inspecoes_txt):
 
 def executar(banco=None, drive=None, agora=None):
     """Roda um backup completo. Devolve o dicionário de status gravado no site."""
-    banco = banco or BANCO
-    trava = open(banco + ".backup.lock", "w")
+    trava = open(os.path.join(tempfile.gettempdir(), "ise-backup.lock") if POSTGRES and not banco else (banco or BANCO) + ".backup.lock", "w")
     try:
         fcntl.flock(trava, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except BlockingIOError:
@@ -160,7 +163,7 @@ def executar(banco=None, drive=None, agora=None):
     con = conectar(banco)
     agora = agora or datetime.datetime.now(FUSO)
     inicio = time.time()
-    bid = con.execute("INSERT INTO backups (inicio, ok) VALUES (?, 0)", (inicio,)).lastrowid
+    bid = con.execute("INSERT INTO backups (inicio, ok) VALUES (?, 0) RETURNING id", (inicio,)).fetchone()[0]
     log, enviados, erros = [f"Backup iniciado: {agora:%d/%m/%Y %H:%M:%S} (America/Sao_Paulo)", f"Versão: {VERSAO}"], 0, []
     status = {"ok": False}
     pacote = None
@@ -192,7 +195,9 @@ def executar(banco=None, drive=None, agora=None):
             ext = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}.get(m.group(1), "img")
             nome = f"{'ASSINATURA' if pasta == '07' else 'FOTO'}_{fid_foto}.{ext}"
             did, _ = drive.enviar(drive.pasta(pasta), nome, bruto, m.group(1))
-            con.execute("INSERT OR REPLACE INTO drive_arquivos VALUES (?, ?, ?, ?)", (sha, did, nome, time.time()))
+            con.execute("""INSERT INTO drive_arquivos (sha256, drive_id, nome, enviado_em) VALUES (?, ?, ?, ?)
+                           ON CONFLICT(sha256) DO UPDATE SET drive_id = excluded.drive_id, nome = excluded.nome,
+                             enviado_em = excluded.enviado_em""", (sha, did, nome, time.time()))
             enviados += 1
         log.append(f"Fotos e assinaturas novas enviadas e conferidas: {enviados - 1}.")
 

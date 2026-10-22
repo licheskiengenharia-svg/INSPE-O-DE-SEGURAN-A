@@ -27,8 +27,13 @@
       if (mudou) ouvintes.forEach(f => { try { f(); } catch (e) { console.error(e); } });
     } catch (e) { if (e.message !== "sessao") console.warn("sincronização falhou", e); }
   }
+  // só sincroniza com a aba visível: uma aba esquecida aberta não mantém o servidor e o banco acordados
   function iniciar() {
-    if (!pronto) { pronto = sincronizar(); setInterval(sincronizar, INTERVALO); }
+    if (!pronto) {
+      pronto = sincronizar();
+      setInterval(() => { if (!document.hidden) sincronizar(); }, INTERVALO);
+      document.addEventListener("visibilitychange", () => { if (!document.hidden) sincronizar(); });
+    }
     return pronto;
   }
 

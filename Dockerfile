@@ -6,7 +6,6 @@ COPY index.html index.html
 COPY servidor servidor
 WORKDIR /app/servidor
 ENV ISE_BANCO=/dados/ise.sqlite3
-VOLUME /dados
 EXPOSE 8000
-# um único processo: o agendador do backup das 23h roda dentro dele
-CMD ["gunicorn", "-w", "1", "--threads", "8", "-b", "0.0.0.0:8000", "app:app"]
+# um único processo (o agendador opcional do backup roda dentro dele); o Render informa a porta em PORT
+CMD ["sh", "-c", "exec gunicorn -w 1 --threads 8 --timeout 900 -b 0.0.0.0:${PORT:-8000} app:app"]

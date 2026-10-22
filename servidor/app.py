@@ -3,16 +3,21 @@
 Serve o mesmo site do repositório (index.html) e substitui os recursos que,
 dentro do Claude, vinham da plataforma: banco compartilhado, contas, análise
 do Claude e downloads. O arquivo static/plataforma.js faz essa ponte no
-navegador; este servidor guarda os dados em SQLite e aplica as permissões.
+navegador; este servidor guarda os dados (PostgreSQL ou SQLite) e aplica as permissões.
 
 Variáveis de ambiente (veja README.md):
   ISE_SECRET_KEY         obrigatória: chave das sessões de login
+  DATABASE_URL           banco PostgreSQL (ex.: Neon gratuito); sem ela, usa SQLite
   ISE_BANCO              caminho do SQLite (padrão: dados/ise.sqlite3)
+  ISE_ADMIN_EMAIL / ISE_ADMIN_NOME / ISE_ADMIN_SENHA
+                         criam o administrador na primeira vez que o servidor sobe
+  ISE_BACKUP_TOKEN       senha da chamada diária que dispara o backup (GitHub Actions)
   ANTHROPIC_API_KEY      chave da API do Claude (sem ela, a análise fica desligada)
   ISE_MODELO             modelo do Claude (padrão: claude-opus-5-5)
   ISE_DRIVE_CREDENCIAL   credencial da conta de serviço do Google (arquivo ou JSON)
   ISE_DRIVE_PASTA        id da pasta "ISE — BACKUP SEGURANÇA DO TRABALHO"
-  ISE_BACKUP_AUTOMATICO  1 para agendar o backup diário às 23h (America/Sao_Paulo)
+  ISE_BACKUP_AUTOMATICO  1 para o próprio servidor agendar o backup das 23h
+                         (só em servidor que não dorme; no Render gratuito use o GitHub Actions)
   ISE_HTTPS              1 quando o site estiver atrás de HTTPS (cookie seguro)
 """
 import datetime
@@ -21,7 +26,6 @@ import json
 import os
 import re
 import secrets
-import sqlite3
 import threading
 import time
 from pathlib import Path
@@ -30,7 +34,7 @@ from zoneinfo import ZoneInfo
 from flask import Flask, Response, abort, g, jsonify, redirect, render_template_string, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from banco import BANCO, conectar, gravar_doc
+from banco import POSTGRES, ErroIntegridade, conectar, gravar_doc
 
 RAIZ = Path(__file__).resolve().parent
 SITE = RAIZ.parent / "index.html"
@@ -39,7 +43,7 @@ FUSO = ZoneInfo("America/Sao_Paulo")
 app = Flask(__name__, static_folder=str(RAIZ / "static"), static_url_path="/static")
 app.config.update(
     SECRET_KEY=os.environ.get("ISE_SECRET_KEY") or "",
-    MAX_CONTENT_LENGTH=12 * 1024 * 1024,
+    MAX_CONTENT_LENGTH=32 * 1024 * 1024,
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",
     SESSION_COOKIE_SECURE=os.environ.get("ISE_HTTPS") == "1",
@@ -201,10 +205,22 @@ def usuarios():
                 msg = "Senha redefinida."
             elif acao == "backup":
                 import backup_drive
-                threading.Thread(target=backup_drive.executar, kwargs={"banco": BANCO}, daemon=True).start()
+                threading.Thread(target=backup_drive.executar, daemon=True).start()
                 auditar("backup-manual-iniciado")
                 msg = "Backup iniciado. Atualize a página em alguns instantes para ver o resultado."
-        except sqlite3.IntegrityError:
+            elif acao == "importar":
+                import importar_backup
+                arq = request.files.get("arquivo")
+                if not arq or not arq.filename:
+                    raise ValueError("Escolha o arquivo ISE_BACKUP_….json.")
+                try:
+                    pacote = json.load(arq.stream)
+                except (ValueError, UnicodeDecodeError):
+                    raise ValueError("O arquivo não é um backup do ISE.")
+                gravados, pulados = importar_backup.importar(con, pacote, substituir=request.form.get("substituir") == "1",
+                                                             usuario=g.usuario["id"])
+                msg = f"{pacote.get('nome', 'Backup')}: {gravados} registro(s) importado(s), {pulados} já existiam e foram mantidos."
+        except ErroIntegridade:
             msg = "Já existe uma conta com esse e-mail."
         except (ValueError, KeyError) as e:
             msg = str(e) or "Dados incompletos."
@@ -212,7 +228,8 @@ def usuarios():
     bks = con.execute("SELECT * FROM backups ORDER BY id DESC LIMIT 10").fetchall()
     return pagina("Usuários e backup", PAINEL_ADMIN, erro=msg, csrf=token_csrf(),
                                   lista=lista, bks=bks, fmt=lambda t: datetime.datetime.fromtimestamp(t, FUSO).strftime("%d/%m/%Y %H:%M") if t else "",
-                                  drive=bool(os.environ.get("ISE_DRIVE_CREDENCIAL") and os.environ.get("ISE_DRIVE_PASTA")))
+                                  drive=bool(os.environ.get("ISE_DRIVE_CREDENCIAL") and os.environ.get("ISE_DRIVE_PASTA")),
+                                  temporario=bool(os.environ.get("RENDER")) and not POSTGRES)
 
 
 # ---------------- site ----------------
@@ -371,7 +388,13 @@ PAINEL_ADMIN = """<p><a href="/">Voltar ao sistema</a> · <a href="/senha">Troca
 <label for="n">Nome</label><input id="n" name="nome" required><label for="e">E-mail</label><input id="e" name="email" type="email" required>
 <label for="s">Senha inicial (mínimo 8 caracteres)</label><input id="s" name="senha" type="password" minlength="8" required>
 <button name="acao" value="criar">Cadastrar</button></form>
+<form class="caixa" method="post" enctype="multipart/form-data"><h2 style="margin-top:0">Importar ou restaurar backup</h2>
+<p style="margin:0">Aceita o arquivo baixado pelo botão "Baixar backup completo" do site no Claude e os backups automáticos do Drive. Cada registro é conferido antes de gravar; se algum não conferir, nada é gravado.</p>
+<input type="hidden" name="csrf" value="{{ csrf }}"><label for="arq">Arquivo ISE_BACKUP_….json</label><input id="arq" name="arquivo" type="file" accept=".json,application/json" required>
+<label style="font-weight:400"><input type="checkbox" name="substituir" value="1" style="width:auto"> Restaurar por cima dos registros que já existem</label>
+<button name="acao" value="importar">Importar</button></form>
 <section><h2>Backup no Google Drive</h2>
+{% if temporario %}<p class="bad"><b>Atenção:</b> o banco deste servidor é temporário (sem DATABASE_URL). Os dados se perdem quando o servidor reinicia. Configure o PostgreSQL gratuito (veja o README).</p>{% endif %}
 {% if not drive %}<p class="bad">O backup automático não está configurado. Falta a credencial do Google Drive (ISE_DRIVE_CREDENCIAL) ou o id da pasta (ISE_DRIVE_PASTA).</p>{% endif %}
 <form method="post"><input type="hidden" name="csrf" value="{{ csrf }}"><button name="acao" value="backup"{% if not drive %} disabled{% endif %}>Executar backup agora</button></form>
 <table style="margin-top:12px"><tr><th>Início</th><th>Arquivo</th><th>Resultado</th></tr>
@@ -385,8 +408,7 @@ def agendar_backup():
     from apscheduler.triggers.cron import CronTrigger
     import backup_drive
     s = BackgroundScheduler(timezone="America/Sao_Paulo")
-    s.add_job(backup_drive.executar, CronTrigger(hour=23, minute=0, timezone="America/Sao_Paulo"),
-              kwargs={"banco": BANCO}, id="backup-diario", max_instances=1, coalesce=True, misfire_grace_time=3600)
+    s.add_job(backup_drive.executar, CronTrigger(hour=23, minute=0, timezone="America/Sao_Paulo"), id="backup-diario", max_instances=1, coalesce=True, misfire_grace_time=3600)
     s.start()
 
 
@@ -404,8 +426,41 @@ def cli_criar_admin():
     print("Administrador criado.")
 
 
+@app.post("/api/backup/agendado")
+def api_backup_agendado():
+    """Chamado todo dia às 23h pelo GitHub Actions (.github/workflows/backup-diario.yml).
+
+    No Render gratuito o servidor dorme quando ninguém usa; a chamada o acorda e roda o backup.
+    """
+    token = os.environ.get("ISE_BACKUP_TOKEN", "")
+    if not token or not secrets.compare_digest(request.headers.get("X-ISE-Token", ""), token):
+        abort(403)
+    import backup_drive
+    status = backup_drive.executar()
+    return jsonify(status), (200 if status.get("ok") else 500)
+
+
+def criar_admin_inicial():
+    """Cria o administrador a partir das variáveis de ambiente, se ainda não existir nenhum."""
+    email, senha = os.environ.get("ISE_ADMIN_EMAIL", "").strip(), os.environ.get("ISE_ADMIN_SENHA", "")
+    if not email or not senha:
+        return
+    con = conectar()
+    try:
+        if not con.execute("SELECT 1 FROM usuarios WHERE papel = 'admin'").fetchone():
+            criar_usuario(con, email, os.environ.get("ISE_ADMIN_NOME", "Administrador"), senha, "admin")
+            print("Administrador inicial criado:", email)
+    except ErroIntegridade:
+        pass  # outro processo criou ao mesmo tempo
+    finally:
+        con.close()
+
+
 if not app.config["SECRET_KEY"]:
     raise SystemExit("Defina a variável ISE_SECRET_KEY antes de iniciar o servidor (veja README.md).")
+if os.environ.get("RENDER") and not POSTGRES:
+    print("ATENÇÃO: sem DATABASE_URL, o banco é temporário e os dados se perdem a cada reinício.", flush=True)
+criar_admin_inicial()
 agendar_backup()
 
 if __name__ == "__main__":

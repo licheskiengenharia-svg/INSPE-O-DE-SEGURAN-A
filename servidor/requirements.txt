@@ -4,4 +4,6 @@ apscheduler==3.11.3
 anthropic==2.1.0
 google-api-python-client==2.201.0
 google-auth==2.62.0
+psycopg[binary]==3.2.13
+psycopg-pool==3.2.7
 tzdata
