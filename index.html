@@ -1007,7 +1007,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
     if (atras.length) L.push(["bad", `${atras.length} ${atras.length === 1 ? "ação atrasada" : "ações atrasadas"}`, ""]);
     if (hoje.length) L.push(["warn", `${hoje.length} ${hoje.length === 1 ? "ação vence hoje" : "ações vencem hoje"}`, ""]);
     if (aguard.length) L.push(["warn", `${aguard.length} ${aguard.length === 1 ? "ação aguardando" : "ações aguardando"} verificação de eficácia`, ""]);
-    if (state.isAdmin) { const b = state.backupStatus; L.push(b?.ok ? ["ok", `Último backup íntegro no Google Drive: ${esc(b.quando || "")}`, ""] : ["bad", `Backup automático no Google Drive ainda não está ativo.${b?.manual ? ` Última cópia baixada manualmente: ${esc(b.quando || "")}.` : " Baixe uma cópia completa em Setores e perguntas."}`, ""]); }
+    if (state.isAdmin) { const b = state.backupStatus; L.push(b?.ok ? ["ok", `Último backup íntegro no Google Drive: ${esc(b.quando || "")}`, ""] : b?.automatico ? ["bad", `Falha no backup automático do Google Drive (${esc(b.falhaEm || "")}): ${esc(b.erro || "")}.${b.quando ? ` Último backup íntegro: ${esc(b.quando)}.` : ""}`, ""] : ["bad", `Backup automático no Google Drive ainda não está ativo.${b?.manual ? ` Última cópia baixada manualmente: ${esc(b.quando || "")}.` : " Baixe uma cópia completa em Setores e perguntas."}`, ""]); }
     if (!L.length) return "";
     return `<section class="panel"><div class="panel-head"><h3>Alertas</h3><span class="label">${L.length}</span></div><div class="nc-list">${L.map(([c, t, id]) => `<div class="nc-row"><div class="bar" style="background:var(--${c === "ok" ? "ok" : c === "warn" ? "warn" : "bad"})"></div><div style="min-width:0"><div class="t">${t}</div></div>${id ? `<button class="btn small" data-act="abrir" data-id="${id}">Ver</button>` : "<span></span>"}</div>`).join("")}</div></section>`;
   }
@@ -1687,8 +1687,10 @@ Responda só com JSON neste formato:
   function painelBackup() {
     const b = state.backupStatus;
     return `<section class="panel stack" style="gap:10px;margin-bottom:16px"><div class="panel-head"><h3>Backup</h3></div>
-      <p style="margin:0">O backup automático diário no Google Drive ainda não está ativo. Enquanto isso, baixe aqui uma cópia completa (inspeções, fotos, assinaturas, aprovações e configurações) e guarde na pasta “ISE — BACKUP SEGURANÇA DO TRABALHO / 01 — Backup Diário”.</p>
-      <p class="label" style="margin:0">${b?.quando ? `Última cópia baixada: ${esc(b.quando)} · ${b.registros ?? "?"} registros · ${b.arquivos ?? "?"} fotos e assinaturas` : "Nenhuma cópia baixada ainda."}</p>
+      ${b?.automatico
+        ? `<p style="margin:0">Backup automático diário no Google Drive às 23h. ${b.ok ? `Último backup íntegro: ${esc(b.quando)} · ${b.registros ?? "?"} inspeções · ${b.arquivos ?? "?"} fotos e assinaturas.` : `<b>A última execução falhou</b> (${esc(b.falhaEm || "")}): ${esc(b.erro || "")}.${b.quando ? ` Último backup íntegro: ${esc(b.quando)}.` : ""}`}</p><p style="margin:0">Você também pode baixar uma cópia completa agora.</p>`
+        : `<p style="margin:0">O backup automático diário no Google Drive ainda não está ativo. Enquanto isso, baixe aqui uma cópia completa (inspeções, fotos, assinaturas, aprovações e configurações) e guarde na pasta “ISE — BACKUP SEGURANÇA DO TRABALHO / 01 — Backup Diário”.</p>
+      <p class="label" style="margin:0">${b?.quando ? `Última cópia baixada: ${esc(b.quando)} · ${b.registros ?? "?"} registros · ${b.arquivos ?? "?"} fotos e assinaturas` : "Nenhuma cópia baixada ainda."}</p>`}
       <div><button type="button" class="btn" data-act="backup-baixar">Baixar backup completo</button></div></section>`;
   }
   async function sha256(txt) {
@@ -1721,7 +1723,7 @@ Responda só com JSON neste formato:
       await offer(nome + ".json", data);
       const st = { ok: false, manual: true, quando: agora.toLocaleString("pt-BR"), ts: agora.getTime(), nome,
         registros: contagem.inspecoes, arquivos: contagem.fotos, bytes: data.length, ausentes: faltam.length };
-      try { await db.doc("config/backup").set(st); } catch {}
+      if (!state.backupStatus?.automatico) { try { await db.doc("config/backup").set(st); } catch {} }
       if (faltam.length) toast(`Backup gerado, mas ${faltam.length} foto(s) referenciada(s) não existem no banco.`);
     } catch (e) { toast("Falha ao gerar o backup. Nada foi salvo."); }
     finally { if (el) { el.disabled = false; el.textContent = "Baixar backup completo"; } }

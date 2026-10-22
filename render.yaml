@@ -1,0 +1,25 @@
+# Publicação pelo Render a partir deste repositório do GitHub (Blueprint).
+# O disco persistente guarda o banco; sem ele os dados se perdem a cada nova publicação.
+services:
+  - type: web
+    name: inspecao-seguranca
+    runtime: docker
+    plan: starter
+    autoDeploy: true
+    disk:
+      name: dados
+      mountPath: /dados
+      sizeGB: 1
+    envVars:
+      - key: ISE_SECRET_KEY
+        generateValue: true
+      - key: ISE_HTTPS
+        value: "1"
+      - key: ISE_BACKUP_AUTOMATICO
+        value: "1"
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ISE_DRIVE_CREDENCIAL
+        sync: false
+      - key: ISE_DRIVE_PASTA
+        sync: false

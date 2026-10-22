@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+servidor/dados/
+*.sqlite3*
+.env
+credencial*.json
