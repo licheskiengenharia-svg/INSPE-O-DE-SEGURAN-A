@@ -850,6 +850,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
       if (d?.setores && d?.secoes) state.config = migrarCfg(structuredClone(d));
       if (state.loaded && !state.cfgDirty) { state.cfgDraft = null; render(); }
     }, () => {});
+    db.doc("config/backup").onSnapshot(snap => { state.backupStatus = snap.exists ? snap.data() : null; if (state.loaded && state.view !== "nova") render(); }, () => {});
     db.collection("inspecoes").onSnapshot(snap => {
       state.inspecoes = snap.docs.map(d => ({ id: d.id, ...structuredClone(d.data()) }));
       state.syncAt = Date.now(); sortInsp(); state.loaded = true; render(); carregarNomes();
@@ -1006,7 +1007,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
     if (atras.length) L.push(["bad", `${atras.length} ${atras.length === 1 ? "ação atrasada" : "ações atrasadas"}`, ""]);
     if (hoje.length) L.push(["warn", `${hoje.length} ${hoje.length === 1 ? "ação vence hoje" : "ações vencem hoje"}`, ""]);
     if (aguard.length) L.push(["warn", `${aguard.length} ${aguard.length === 1 ? "ação aguardando" : "ações aguardando"} verificação de eficácia`, ""]);
-    if (state.isAdmin) { const b = state.backupStatus; L.push(b?.ok ? ["ok", `Último backup íntegro no Google Drive: ${esc(b.quando || "")}`, ""] : ["bad", "Backup diário no Google Drive ainda não está ativo ou falhou. Os dados estão só na plataforma.", ""]); }
+    if (state.isAdmin) { const b = state.backupStatus; L.push(b?.ok ? ["ok", `Último backup íntegro no Google Drive: ${esc(b.quando || "")}`, ""] : ["bad", `Backup automático no Google Drive ainda não está ativo.${b?.manual ? ` Última cópia baixada manualmente: ${esc(b.quando || "")}.` : " Baixe uma cópia completa em Setores e perguntas."}`, ""]); }
     if (!L.length) return "";
     return `<section class="panel"><div class="panel-head"><h3>Alertas</h3><span class="label">${L.length}</span></div><div class="nc-list">${L.map(([c, t, id]) => `<div class="nc-row"><div class="bar" style="background:var(--${c === "ok" ? "ok" : c === "warn" ? "warn" : "bad"})"></div><div style="min-width:0"><div class="t">${t}</div></div>${id ? `<button class="btn small" data-act="abrir" data-id="${id}">Ver</button>` : "<span></span>"}</div>`).join("")}</div></section>`;
   }
@@ -1682,6 +1683,50 @@ Responda só com JSON neste formato:
     });
   }
 
+  // ---------- Backup completo (diretriz 3) ----------
+  function painelBackup() {
+    const b = state.backupStatus;
+    return `<section class="panel stack" style="gap:10px;margin-bottom:16px"><div class="panel-head"><h3>Backup</h3></div>
+      <p style="margin:0">O backup automático diário no Google Drive ainda não está ativo. Enquanto isso, baixe aqui uma cópia completa (inspeções, fotos, assinaturas, aprovações e configurações) e guarde na pasta “ISE — BACKUP SEGURANÇA DO TRABALHO / 01 — Backup Diário”.</p>
+      <p class="label" style="margin:0">${b?.quando ? `Última cópia baixada: ${esc(b.quando)} · ${b.registros ?? "?"} registros · ${b.arquivos ?? "?"} fotos e assinaturas` : "Nenhuma cópia baixada ainda."}</p>
+      <div><button type="button" class="btn" data-act="backup-baixar">Baixar backup completo</button></div></section>`;
+  }
+  async function sha256(txt) {
+    const h = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(txt));
+    return [...new Uint8Array(h)].map(x => x.toString(16).padStart(2, "0")).join("");
+  }
+  async function backupCompleto(el) {
+    if (!state.isAdmin || !db) return;
+    if (el) { el.disabled = true; el.textContent = "Preparando…"; }
+    try {
+      // parte do retrato que a página já recebe do banco; as fotos e assinaturas são lidas uma a uma
+      const inspecoes = Object.fromEntries(state.inspecoes.map(({ id, ...d }) => [id, structuredClone(d)]));
+      const config = {};
+      for (const k of ["equipe", "setup"]) { const d = await db.doc("config/" + k).get(); if (d.exists) config[k] = d.data(); }
+      const refs = [...new Set(JSON.stringify(inspecoes).match(/db:[a-z0-9]+/gi) || [])].map(r => r.slice(3));
+      const fotos = {}, faltam = [];
+      for (const id of refs) { const d = await db.collection("fotos").doc(id).get(); if (d.exists) fotos[id] = d.data(); else faltam.push(id); }
+      const colecoes = { inspecoes, fotos, aprovacoes: structuredClone(state.aprovacoes || {}), config };
+      const integridade = {};
+      for (const [col, docs] of Object.entries(colecoes)) for (const [id, d] of Object.entries(docs)) integridade[col + "/" + id] = await sha256(JSON.stringify(d));
+      const agora = new Date(), p2 = n => String(n).padStart(2, "0");
+      const nome = `ISE_BACKUP_${agora.getFullYear()}-${p2(agora.getMonth() + 1)}-${p2(agora.getDate())}_${p2(agora.getHours())}${p2(agora.getMinutes())}`;
+      const contagem = Object.fromEntries(Object.entries(colecoes).map(([c, d]) => [c, Object.keys(d).length]));
+      const pacote = { nome, geradoEm: agora.toISOString(), fuso: "America/Sao_Paulo", versaoSistema: "v25", tipo: "completo-manual",
+        contagem, fotosReferenciadasAusentes: faltam, integridade: { algoritmo: "SHA-256 do JSON de cada registro", registros: integridade }, colecoes };
+      const data = JSON.stringify(pacote);
+      // confere a cópia antes de entregar: relê o texto gerado e compara os resumos
+      const volta = JSON.parse(data);
+      for (const [k, h] of Object.entries(integridade)) { const [c, id] = k.split("/"); if (await sha256(JSON.stringify(volta.colecoes[c][id])) !== h) throw new Error("integridade"); }
+      await offer(nome + ".json", data);
+      const st = { ok: false, manual: true, quando: agora.toLocaleString("pt-BR"), ts: agora.getTime(), nome,
+        registros: contagem.inspecoes, arquivos: contagem.fotos, bytes: data.length, ausentes: faltam.length };
+      try { await db.doc("config/backup").set(st); } catch {}
+      if (faltam.length) toast(`Backup gerado, mas ${faltam.length} foto(s) referenciada(s) não existem no banco.`);
+    } catch (e) { toast("Falha ao gerar o backup. Nada foi salvo."); }
+    finally { if (el) { el.disabled = false; el.textContent = "Baixar backup completo"; } }
+  }
+
   // ---------- Setores e perguntas ----------
   function viewSetores() {
     if (!state.cfgDraft) state.cfgDraft = { ...structuredClone(state.config), tsts: structuredClone(state.equipe.tsts || []), metaTst: state.equipe.metaTst || 0 };
@@ -1692,6 +1737,7 @@ Responda só com JSON neste formato:
     const sec = cfg.secoes.find(s => s.id === state.cfgSecao);
     const ro = !state.canWrite;
     return `<h2>Setores e perguntas</h2><p class="lead">Cada setor recebe só as seções que se aplicam a ele. As mudanças valem para as próximas inspeções; as já registradas mantêm suas perguntas.</p>
+    ${state.isAdmin && state.store === "db" ? painelBackup() : ""}
     <div class="stack">
       <div class="chips">${cfg.setores.map(s => `<button type="button" class="pill" data-act="cfg-setor" data-id="${esc(s.id)}" aria-pressed="${s.id === state.cfgSetor}">${esc(s.nome)} <span class="c">(${countQ(cfg, s)})</span></button>`).join("")}
         ${ro ? "" : `<button type="button" class="pill" data-act="cfg-novo-setor">+ Novo setor</button>`}</div>
@@ -2302,7 +2348,7 @@ ${i.observacoes ? `<p><b>Observações gerais:</b> ${esc(i.observacoes)}</p>` : 
       catch (e) { if (e?.code === "declined") return; }
     }
     if (!window.claude) {
-      const url = URL.createObjectURL(new Blob([data], { type: filename.endsWith(".csv") ? "text/csv;charset=utf-8" : filename.endsWith(".xlsx") ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" : "text/html;charset=utf-8" }));
+      const url = URL.createObjectURL(new Blob([data], { type: filename.endsWith(".csv") ? "text/csv;charset=utf-8" : filename.endsWith(".json") ? "application/json" : filename.endsWith(".xlsx") ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" : "text/html;charset=utf-8" }));
       const a = document.createElement("a"); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 2000); toast("Arquivo baixado"); return;
     }
@@ -2505,6 +2551,7 @@ ${i.observacoes ? `<p><b>Observações gerais:</b> ${esc(i.observacoes)}</p>` : 
       case "excluir-sim": if (!state.isAdmin) break; try { await deleteInsp(state.selected); toast("Inspeção excluída"); go("historico"); } catch { toast("Não foi possível excluir. Tente novamente."); } break;
       case "duplicar": { const i = cur(); state.draft = newDraft(i.setorId); Object.assign(state.draft, { setorNome: i.setorNome, local: i.local, responsavel: i.responsavel, registroTst: i.registroTst || state.draft.registroTst, acompanhante: i.acompanhante, cargoLider: i.cargoLider || "" }); go("nova"); break; }
       case "relatorio": exportXlsx(cur(), el); break;
+      case "backup-baixar": backupCompleto(el); break;
       case "csv-one": { const i = cur(); offer(`inspecao-${slug(setorLabel(i))}-${i.data}.csv`, toCSV([i])); break; }
       case "csv": offer(`inspecoes-${today()}.csv`, toCSV(filtered())); break;
       case "copiar": {
