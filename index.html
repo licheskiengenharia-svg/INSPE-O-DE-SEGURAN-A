@@ -1395,7 +1395,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
   function itemRow(it, i, num, mixNr = false) {
     const seg = ["C", "NC", "NA"].map(v => `<button type="button" data-v="${v}" data-i="${i}" aria-pressed="${it.status === v}" aria-label="${{ C: "Conforme", NC: "Não conforme", NA: "Não aplicável" }[v]}">${v === "NA" ? "N/A" : v}</button>`).join("");
     const ai = state.ai[i];
-    const aiBox = !sample ? `<div class="ai-note">A análise automática pelo Claude funciona quando o sistema é aberto dentro do Claude. Aqui, preencha os campos manualmente.</div>`
+    const aiBox = !sample ? (window.claude ? `<div class="ai-note">A análise automática pelo Claude não está liberada para o seu acesso. Ela exige que o administrador compartilhe o sistema com você como colaborador (não só &quot;Pode visualizar&quot;) e que a análise esteja permitida. Enquanto isso, preencha os campos manualmente. <button type="button" class="btn small" data-act="ai-liberar">Liberar análise</button></div>` : `<div class="ai-note">A análise automática pelo Claude funciona quando o sistema é aberto dentro do Claude. Aqui, preencha os campos manualmente.</div>`)
       : ai?.status === "loading" ? `<div class="ai-note busy">Claude está analisando a foto e montando o plano de ação…</div>`
       : ai?.status === "erro" ? `<div class="ai-note err">${esc(ai.msg)} <button type="button" class="btn small" data-act="ai-run" data-i="${i}">Tentar de novo</button></div>`
       : it.foto ? `<div class="ai-note">${it.analiseFoto ? "Texto gerado pelo Claude. Revise antes de salvar." : "Anexe a foto e, se quiser, escreva o que viu. O Claude completa o resto."} <button type="button" class="btn small" data-act="ai-run" data-i="${i}">${it.analiseFoto ? "Gerar de novo" : "Analisar com Claude"}</button></div>` : "";
@@ -2591,6 +2591,12 @@ ${i.observacoes ? `<p><b>Observações gerais:</b> ${esc(i.observacoes)}</p>` : 
       case "backup-baixar": backupCompleto(el); break;
       case "csv-one": { const i = cur(); offer(`inspecao-${slug(setorLabel(i))}-${i.data}.csv`, toCSV([i])); break; }
       case "csv": offer(`inspecoes-${today()}.csv`, toCSV(filtered())); break;
+      case "ai-liberar": {
+        try { const pm = await claude.use("permissions"); if (pm) await pm.manage(); } catch { toast("Libere a análise no menu Permissões do sistema, no topo da página."); }
+        try { sample = await claude.use("sample"); const lim = sample ? await sample.limits().catch(() => null) : null; sampleImages = !!lim?.images; } catch { sample = null; }
+        if (sample) { toast("Análise liberada"); render(); } else toast("A análise continua indisponível. Peça ao administrador para mudar seu acesso para colaborador.");
+        break;
+      }
       case "copiar": {
         const ta = document.getElementById("copy-text");
         try { await navigator.clipboard.writeText(ta.value); toast("Copiado"); } catch { ta.select(); toast("Texto selecionado. Use Ctrl+C para copiar."); }
