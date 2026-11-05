@@ -331,6 +331,17 @@ def api_doc_delete():
     return jsonify(ok=True)
 
 
+@app.post("/api/ortografia")
+@exige_login
+def api_ortografia():
+    """Correção básica por dicionário, usada pelo site quando a API do Claude não está configurada."""
+    textos = (request.get_json(silent=True) or {}).get("textos", {})
+    if not isinstance(textos, dict) or len(textos) > 400:
+        abort(400)
+    import ortografia
+    return jsonify(ortografia.corrigir_textos({str(k): str(v)[:5000] for k, v in textos.items()}))
+
+
 @app.post("/api/ia")
 @exige_login
 def api_ia():

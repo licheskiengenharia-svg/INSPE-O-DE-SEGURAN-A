@@ -6,4 +6,5 @@ google-api-python-client==2.201.0
 google-auth==2.62.0
 psycopg[binary]==3.2.13
 psycopg-pool==3.2.7
+pyspellchecker==0.9.1
 tzdata

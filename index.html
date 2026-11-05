@@ -1465,11 +1465,16 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
   // Garante o texto na voz do TST: remove frases que citam a foto/imagem.
   // ---------- Revisão de ortografia ----------
   // todo texto livre que vai para o relatório passa pelo Claude antes de salvar
+  // sem o Claude (servidor próprio sem chave da API), usa a correção básica por dicionário do servidor
+  const corretorBasico = () => window.claude?.ortografia || null;
+  const podeCorrigir = () => !!(sample || corretorBasico());
   async function corrigirTextos(alvos) {
     const itens = alvos.filter(a => /[a-zà-ú]{2}/i.test(a.get() || ""));
-    if (!itens.length) return { ok: true, n: 0 };
-    if (!sample) return { ok: false, n: 0 };
+    if (!itens.length) return { ok: true, n: 0, metodo: sample ? "claude" : "basica" };
     const textos = Object.fromEntries(itens.map((a, k) => ["t" + k, a.get()]));
+    const aplicar = r => { let n = 0; itens.forEach((a, k) => { const v = r?.["t" + k]; if (typeof v === "string" && v.trim() && v.trim() !== a.get().trim()) { a.set(v.trim()); n++; } }); return n; };
+    const basica = async () => { try { return { ok: true, n: aplicar(await corretorBasico().corrigir(textos)), metodo: "basica" }; } catch { return { ok: false, n: 0 }; } };
+    if (!sample) return corretorBasico() ? basica() : { ok: false, n: 0 };
     const prompt = `Revise os textos abaixo, escritos por técnicos de segurança do trabalho numa fundição, para um relatório de inspeção.
 Corrija ortografia, acentuação, concordância, pontuação e letras maiúsculas, em português do Brasil, com linguagem técnica e clara.
 Regras: mantenha o sentido e todas as informações; não acrescente fatos; não traduza; mantenha nomes de pessoas, códigos de máquinas, números, datas, NR e itens de norma como estão; não use aspas nem markdown.
@@ -1478,22 +1483,21 @@ ${JSON.stringify(textos)}`;
     for (let tent = 0; tent < 2; tent++) {
       try {
         const r = await Promise.race([sample.json(prompt), new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 60000))]);
-        let n = 0;
-        itens.forEach((a, k) => { const v = r?.["t" + k]; if (typeof v === "string" && v.trim() && v.trim() !== a.get().trim()) { a.set(v.trim()); n++; } });
-        return { ok: true, n };
+        return { ok: true, n: aplicar(r), metodo: "claude" };
       } catch (err) { if (err?.code === "not_granted") break; }
     }
-    return { ok: false, n: 0 };
+    return corretorBasico() ? basica() : { ok: false, n: 0 };
   }
   function alvosInsp(insp) {
     const campo = (o, k) => ({ get: () => o[k] || "", set: v => { o[k] = v; } });
     const L = [campo(insp, "observacoes"), campo(insp, "cargoLider")];
     for (const it of insp.itens) {
       if (it.status === "NC") {
-        L.push(campo(it, "localNC"), campo(it, "obs"));
+        L.push(campo(it, "localNC"), campo(it, "obs"), campo(it, "equipamento"), campo(it, "riscoJust"), campo(it, "prazoJust"), campo(it, "critProvidencias"));
         if (it.extra) L.push(campo(it, "texto"));
-        for (const a of it.acoes || []) L.push(campo(a, "texto"), campo(a, "descricaoConclusao"), ...(a.reprogramacoes || []).map(r => campo(r, "justificativa")));
-      } else if ((it.obs || "").trim().length > 3) L.push(campo(it, "obs"));
+        for (const a of it.acoes || []) L.push(campo(a, "texto"), campo(a, "descricaoConclusao"), campo(a, "criterioConclusao"), campo(a, "criterioEficacia"), ...(a.reprogramacoes || []).map(r => campo(r, "justificativa")));
+      } else if (it.status === "NA") L.push(campo(it, "naJust"));
+      else if ((it.obs || "").trim().length > 3) L.push(campo(it, "obs"));
     }
     return L;
   }
@@ -1663,9 +1667,9 @@ Responda só com JSON neste formato:
       try {
         btn.textContent = "Revisando ortografia…";
         const rev = await corrigirTextos(alvosInsp(insp));
-        insp.ortografiaRevisada = rev.ok;
+        insp.ortografiaRevisada = rev.ok; if (rev.ok) insp.ortografiaMetodo = rev.metodo;
         if (insp.itens.some(x => x.status === "NC")) insp.itens.forEach(x => { if (x.status === "NC") syncNC(x); });
-        if (!rev.ok && sample) toast("Não foi possível revisar a ortografia agora. A inspeção será salva assim; use Revisar ortografia no histórico depois.");
+        if (!rev.ok && podeCorrigir()) toast("Não foi possível revisar a ortografia agora. A inspeção será salva assim; use Revisar ortografia no histórico depois.");
         btn.textContent = "Enviando fotos…";
         for (const it of insp.itens) if (it.foto) it.foto = await persistFoto(it.foto);
         for (const it of insp.itens) if ((it.fotosExtra || []).length) it.fotosExtra = await Promise.all(it.fotosExtra.map(persistFoto));
@@ -1880,7 +1884,7 @@ Responda só com JSON neste formato:
         ${[...i.historico].reverse().map(h => `<div><b>${new Date(h.ts).toLocaleString("pt-BR")}</b> · ${esc(h.op)}${h.alvo ? " · " + esc(h.alvo) : ""}<br><span class="label" style="text-transform:none;letter-spacing:0">${esc(h.papel || "")}${nomeConta(h.uid) ? " · conta " + esc(nomeConta(h.uid)) : h.uid ? " · conta " + esc(h.uid.slice(0, 8)) : ""}${h.nome ? " · " + esc(h.nome) : ""}</span>${h.antes ? `<br>Antes: ${esc(h.antes)}` : ""}${h.depois ? `<br>Depois: ${esc(h.depois)}` : ""}${h.just ? `<br>Justificativa: ${esc(h.just)}` : ""}</div>`).join("")}</div></details>` : ""}
       <div class="row-actions">
         <button class="btn primary" data-act="relatorio">Baixar relatório (Excel)</button>
-        ${state.canWrite && sample ? `<button class="btn" data-act="revisar-orto">${i.ortografiaRevisada ? "Revisar ortografia de novo" : "Revisar ortografia"}</button>` : ""}
+        ${state.canWrite && podeCorrigir() ? `<button class="btn" data-act="revisar-orto">${i.ortografiaRevisada ? "Revisar ortografia de novo" : "Revisar ortografia"}</button>` : ""}
         <button class="btn" data-act="csv-one">Exportar CSV</button>
         ${i.setorId && state.config.setores.some(s => s.id === i.setorId) ? `<button class="btn" data-act="duplicar">Nova inspeção neste setor</button>` : ""}
         ${state.isAdmin && state.canWrite && i.situacao !== "Cancelada" && !state.cancelInsp ? `<button class="btn danger" data-act="insp-cancelar">Cancelar inspeção</button>` : ""}
@@ -2306,9 +2310,24 @@ Responda só com JSON neste formato:
       ws.addImage(id, { tl: { col: col + 0.05, row: row + 0.05 }, ext: { width: w, height: h }, editAs: "oneCell" });
     }
   }
+  // antes de gerar o relatório, revisa a ortografia de inspeções que ainda não passaram pela revisão
+  // (gravadas antes da regra, salvas sem conexão com o Claude ou revisadas só pela correção básica)
+  async function revisarAntesDoRelatorio(i, btn) {
+    const precisa = !i.ortografiaRevisada || (i.ortografiaMetodo !== "claude" && sample);
+    if (!precisa || !state.canWrite || !podeCorrigir() || i.situacao === "Cancelada") return i;
+    if (btn) btn.textContent = "Revisando ortografia…";
+    const novo = structuredClone(i);
+    const rev = await corrigirTextos(alvosInsp(novo));
+    if (!rev.ok) { toast("Não foi possível revisar a ortografia agora; o relatório sai com o texto como foi escrito."); return i; }
+    novo.itens.forEach(x => { if (x.status === "NC") syncNC(x); });
+    novo.ortografiaRevisada = true; novo.ortografiaMetodo = rev.metodo;
+    audit(novo, "Ortografia revisada antes do relatório", { depois: `${rev.n} texto(s) corrigido(s)${rev.metodo === "basica" ? " (correção básica, sem o Claude)" : ""}` });
+    try { await saveInsp(novo); } catch { toast("A ortografia foi revisada no relatório, mas não foi possível salvar a revisão na inspeção."); }
+    return novo;
+  }
   async function exportXlsx(i, btn) {
     if (btn) { btn.disabled = true; btn.dataset.txt = btn.textContent; btn.textContent = "Gerando Excel…"; }
-    try { const blob = await buildXlsx(i); await offer(`Relatorio-Inspecao-${slug(setorLabel(i))}-${i.data}.xlsx`, blob); }
+    try { i = await revisarAntesDoRelatorio(i, btn); if (btn) btn.textContent = "Gerando Excel…"; const blob = await buildXlsx(i); await offer(`Relatorio-Inspecao-${slug(setorLabel(i))}-${i.data}.xlsx`, blob); }
     catch (e) { console.error(e); toast("Não foi possível gerar o Excel agora. Verifique a conexão e tente de novo."); }
     finally { if (btn) { btn.disabled = false; btn.textContent = btn.dataset.txt; } }
   }
@@ -2428,8 +2447,9 @@ ${i.observacoes ? `<p><b>Observações gerais:</b> ${esc(i.observacoes)}</p>` : 
       case "revisar-orto": {
         const i = structuredClone(cur()); el.disabled = true; el.textContent = "Revisando…";
         const rev = await corrigirTextos(alvosInsp(i));
-        if (!rev.ok) { el.disabled = false; el.textContent = "Revisar ortografia"; toast("O Claude não respondeu agora. Tente de novo em instantes."); break; }
-        i.itens.forEach(x => { if (x.status === "NC") syncNC(x); }); i.ortografiaRevisada = true;
+        if (!rev.ok) { el.disabled = false; el.textContent = "Revisar ortografia"; toast("A revisão não respondeu agora. Tente de novo em instantes."); break; }
+        i.itens.forEach(x => { if (x.status === "NC") syncNC(x); }); i.ortografiaRevisada = true; i.ortografiaMetodo = rev.metodo;
+        audit(i, "Ortografia revisada", { depois: `${rev.n} texto(s) corrigido(s)${rev.metodo === "basica" ? " (correção básica, sem o Claude)" : ""}` });
         try { await saveInsp(i); toast(rev.n ? `Ortografia revisada: ${rev.n} ${rev.n === 1 ? "texto corrigido" : "textos corrigidos"}.` : "Nenhum erro de ortografia encontrado."); keepY(); }
         catch { el.disabled = false; el.textContent = "Revisar ortografia"; toast("Não foi possível salvar. Tente novamente."); }
         break;

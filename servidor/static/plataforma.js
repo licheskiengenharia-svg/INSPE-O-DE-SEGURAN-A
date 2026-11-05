@@ -101,6 +101,8 @@
   };
 
   window.claude = {
+    // correção ortográfica básica do servidor (o site usa quando não há análise do Claude)
+    ortografia: { corrigir: textos => api("POST", "/api/ortografia", { textos }) },
     use: async nome => {
       if (nome === "db") return db;
       if (nome === "user") return user;
