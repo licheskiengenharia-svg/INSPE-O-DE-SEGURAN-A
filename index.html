@@ -928,7 +928,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
       insp.itens.forEach((it, idx) => { if (it.status !== "NC") return;
         if (it.risco === "Crítico" && !it.encerrada) criticos.push({ insp, it, idx });
         acoesDe(it).forEach((a, k) => {
-          acoes.push({ insp, it, idx, a, k, resp: (a.resp || "").trim() || "Sem responsável" });
+          acoes.push({ insp, it, idx, a, k, resp: respTxt(a) || "Sem responsável" });
           pedidosPend(a).forEach(x => pedidos.push({ insp, it, idx, a, k, x }));
           if (insp.historico) return;
           (a.reprogramacoes || []).forEach(r => { if (r.ts) ev.push({ tipo: "rep", ts: r.ts, exato: true, insp, cor: "var(--s-reg)",
@@ -1102,7 +1102,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
       const base = { insp, it, idx, setor: setorLabel(insp), norma: nrDe(it.enquadramento) || it.nr || insp.nr || "Sem norma", reg: insp.data || "" };
       ncsL.push({ ...base, done: !!it.corrigido });
       acoesDe(it).forEach((a, k) => { if (a.cancelada || !okAc(a)) return; const done = !!a.corrigido, late = !done && a.prazo && a.prazo < t;
-        acoes.push({ ...base, a, k, resp: (a.resp || "").trim() || "Sem responsável", done, doneAt: a.corrigidoEm || "", late, prazo: a.prazo, enc: !!a.validacao?.eficaz, encAt: a.validacao?.data || "", reab: (a.reaberturas || []).length }); }); });
+        acoes.push({ ...base, a, k, resp: respTxt(a) || "Sem responsável", done, doneAt: a.corrigidoEm || "", late, prazo: a.prazo, enc: !!a.validacao?.eficaz, encAt: a.validacao?.data || "", reab: (a.reaberturas || []).length }); }); });
     const avaliados = L.reduce((a, i) => a + i.itens.filter(x => x.status === "C" || x.status === "NC").length, 0);
     const conformes = L.reduce((a, i) => a + i.itens.filter(x => x.status === "C").length, 0);
     const indice = avaliados ? (conformes / avaliados * 100) : null;
@@ -1220,7 +1220,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
     return [...set.values()].sort((a, b) => a.localeCompare(b, "pt-BR"));
   }
 
-  const novaAcao = () => ({ id: uid(), texto: "", tipo: "", resp: "", osSit: "", os: "", prazo: "", prazoOrigem: "", criterioConclusao: "", criterioEficacia: "", situacao: "Aberta", corrigido: false, corrigidoEm: "", corrigidoPor: "", descricaoConclusao: "", fotoConclusao: "" });
+  const novaAcao = () => ({ id: uid(), texto: "", tipo: "", resp: "", respNome: "", osSit: "", os: "", prazo: "", prazoOrigem: "", criterioConclusao: "", criterioEficacia: "", situacao: "Aberta", corrigido: false, corrigidoEm: "", corrigidoPor: "", descricaoConclusao: "", fotoConclusao: "" });
   // ações de uma NC (inspeções antigas têm uma única ação nos campos acao/respAcao/prazo)
   function acoesDe(it) {
     if (Array.isArray(it.acoes) && it.acoes.length) return it.acoes;
@@ -1283,6 +1283,8 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
     (insp.historico ||= []).push({ ts: Date.now(), uid: state.uid || "", papel: state.isAdmin ? "Administrador" : "TST", op, ...d });
   }
   const nomeConta = u => (u && state.nomes?.[u]) || "";
+  const respTxt = a => [(a.resp || "").trim(), (a.respNome || "").trim()].filter(Boolean).join(" – ");
+  const nomesUsados = () => [...new Set(state.inspecoes.flatMap(i => i.itens.flatMap(it => acoesDe(it).map(a => (a.respNome || "").trim()))).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
   const respsUsados = () => [...new Set(state.inspecoes.flatMap(i => i.itens.flatMap(it => acoesDe(it).map(a => (a.resp || "").trim()))).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
   const locaisNC = i => [...new Set(i.itens.filter(it => it.status === "NC" && it.localNC?.trim()).map(it => it.localNC.trim()))].join("; ") || i.local || "";
 
@@ -1360,6 +1362,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
         </div>
       </section>` : ""}
       <datalist id="resp-dl">${respsUsados().map(l => `<option value="${esc(l)}">`).join("")}</datalist>
+      <datalist id="respnome-dl">${nomesUsados().map(l => `<option value="${esc(l)}">`).join("")}</datalist>
       <datalist id="locs-dl">${locaisSetor(d).map(l => `<option value="${esc(l)}">`).join("")}</datalist>
       <datalist id="eqs-dl">${locaisSetor(d, "equipamento").map(l => `<option value="${esc(l)}">`).join("")}</datalist>
       <section class="panel">
@@ -1443,10 +1446,11 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
         ${it.risco === "Insignificante" && it.monitoramento ? `<label class="field span3"><span class="label">Justificativa do monitoramento *</span><input id="nc-mj-${i}" data-k="monitoramentoJust" data-i="${i}" value="${esc(it.monitoramentoJust || "")}" placeholder="Por que não é necessária ação formal"></label>` : `<div class="field span3"><span class="label">Plano de ação * · de 1 a 5 ações, cada uma com seu responsável e prazo</span>
           <div class="acoes">${A.map((a, k) => `<div class="acao-row"><span class="acao-n">Ação ${k + 1}</span>
             <textarea id="ac-${i}-${k}-texto" data-ac="${i}:${k}:texto" rows="2" placeholder="O que deve ser feito (priorize eliminação e engenharia)">${esc(a.texto)}</textarea>
-            <input id="ac-${i}-${k}-resp" data-ac="${i}:${k}:resp" list="resp-dl" autocomplete="off" value="${esc(a.resp)}" placeholder="Responsável pela ação ${k + 1}">
+            <input id="ac-${i}-${k}-resp" data-ac="${i}:${k}:resp" list="resp-dl" autocomplete="off" value="${esc(a.resp)}" placeholder="Área responsável pela ação ${k + 1}" aria-label="Área ou setor responsável pela ação ${k + 1}">
             <input id="ac-${i}-${k}-prazo" type="date" data-ac="${i}:${k}:prazo" value="${esc(prazoFixo(it.risco) ? lim : a.prazo)}" min="${esc(base)}" ${prazoFixo(it.risco) ? "disabled" : ""} aria-label="Prazo da ação ${k + 1}" title="${prazoFixo(it.risco) ? "Prazo automático pela criticidade" : "Prazo definido pelo TST"}">
             ${A.length > 1 ? `<button type="button" class="btn small danger" data-act="ac-del" data-i="${i}" data-k="${k}" aria-label="Remover ação ${k + 1}">Remover</button>` : ""}
             <div class="acao-meta">
+              <input id="ac-${i}-${k}-respnome" data-ac="${i}:${k}:respNome" list="respnome-dl" autocomplete="off" value="${esc(a.respNome || "")}" placeholder="Nome de quem vai realizar *" aria-label="Nome do responsável por realizar a ação ${k + 1}">
               <select id="ac-${i}-${k}-tipo" data-ac="${i}:${k}:tipo" aria-label="Tipo da ação ${k + 1}"><option value="">Tipo *</option>${TIPOS_ACAO.map(o => `<option ${a.tipo === o ? "selected" : ""}>${o}</option>`).join("")}</select>
               <select id="ac-${i}-${k}-ossit" data-ac="${i}:${k}:osSit" aria-label="Ordem de serviço da ação ${k + 1}"><option value="">OS *</option>${Object.entries(OS_SIT).map(([v, n]) => `<option value="${v}" ${a.osSit === v ? "selected" : ""}>${n}</option>`).join("")}</select>
               <input id="ac-${i}-${k}-os" data-ac="${i}:${k}:os" value="${esc(a.os || "")}" placeholder="Nº da OS (se informada)" aria-label="Número da ordem de serviço da ação ${k + 1}">
@@ -1555,7 +1559,7 @@ Responda só com JSON neste formato:
       const tipoOk = t => TIPOS_ACAO.find(x => x.toLowerCase() === String(t || "").toLowerCase()) || "";
       const lista = (Array.isArray(r.acoes) ? r.acoes : []).map(x => ({ texto: semFoto(String(x?.texto ?? x ?? "")).replace(/^\s*\d+\s*[.)-]\s*/, "").trim(), tipo: tipoOk(x?.tipo), cc: String(x?.criterioConclusao || "").trim(), ce: String(x?.criterioEficacia || "").trim() })).filter(x => x.texto).slice(0, 5);
       if (lista.length) { const old = cur.acoes || [];
-        cur.acoes = lista.map((x, k) => ({ ...novaAcao(), texto: x.texto, tipo: x.tipo, criterioConclusao: x.cc, criterioEficacia: x.ce, resp: old[k]?.resp || "", osSit: old[k]?.osSit || "", os: old[k]?.os || "", prazo: old[k]?.prazoOrigem === "tst" ? old[k].prazo : "", prazoOrigem: old[k]?.prazoOrigem === "tst" ? "tst" : "" })); cur.monitoramento = false; }
+        cur.acoes = lista.map((x, k) => ({ ...novaAcao(), texto: x.texto, tipo: x.tipo, criterioConclusao: x.cc, criterioEficacia: x.ce, resp: old[k]?.resp || "", respNome: old[k]?.respNome || "", osSit: old[k]?.osSit || "", os: old[k]?.os || "", prazo: old[k]?.prazoOrigem === "tst" ? old[k].prazo : "", prazoOrigem: old[k]?.prazoOrigem === "tst" ? "tst" : "" })); cur.monitoramento = false; }
       if (RISCOS.includes(r.risco)) { cur.risco = r.risco; cur.riscoSugeridoIA = r.risco; }
       if (r.riscoJustificativa) cur.riscoJust = String(r.riscoJustificativa);
       aplicarPrazos(cur, d.data || today());
@@ -1647,7 +1651,8 @@ Responda só com JSON neste formato:
         for (const [k, a] of A.entries()) {
           if (!a.texto.trim()) return [`o texto da ação ${k + 1}`, null];
           if (!a.tipo) return [`o tipo da ação ${k + 1} (imediata, provisória ou definitiva)`, null];
-          if (!a.resp.trim()) return [`o responsável pela ação ${k + 1}`, null];
+          if (!a.resp.trim()) return [`a área responsável pela ação ${k + 1}`, null];
+          if (!(a.respNome || "").trim()) return [`o nome do responsável por realizar a ação ${k + 1}`, null];
           if (!a.osSit) return [`a situação da OS da ação ${k + 1}`, null];
           if (a.osSit === "informada" && !a.os?.trim()) return [`o número da OS da ação ${k + 1}`, null];
           if (!a.prazo) return [`o prazo da ação ${k + 1}`, null];
@@ -1913,6 +1918,7 @@ Responda só com JSON neste formato:
       <span><span class="label">Ação ${k + 1}</span> ${esc(a.texto || "não definida")}</span>
       ${a.tipo ? `<span><span class="label">Tipo</span> ${esc(a.tipo)}</span>` : ""}
       ${a.resp ? `<span><span class="label">Responsável</span> ${esc(a.resp)}</span>` : ""}
+      ${a.respNome ? `<span><span class="label">Quem vai realizar</span> ${esc(a.respNome)}</span>` : ""}
       <span><span class="label">Ordem de serviço</span> ${state.osEdit?.idx === idx && state.osEdit?.k === k
         ? `<select id="os-sit">${Object.entries(OS_SIT).map(([v, n]) => `<option value="${v}" ${(state.osEdit.sit || "") === v ? "selected" : ""}>${n}</option>`).join("")}</select> <input id="os-in" value="${esc(state.osEdit.val)}" placeholder="Nº da OS" style="width:120px"> <button class="btn small primary" data-act="os-salvar" data-idx="${idx}" data-k="${k}">Salvar</button> <button class="btn small" data-act="os-cancelar">Cancelar</button>`
         : `${a.os ? "nº " + esc(a.os) : a.osSit ? esc(OS_SIT[a.osSit]) : "—"}${podeAgir && !acaoFechada(a) ? ` <button class="btn small" data-act="os-editar" data-idx="${idx}" data-k="${k}">${a.os ? "Alterar" : "Informar OS"}</button>` : ""}`}</span>
@@ -2212,7 +2218,7 @@ Responda só com JSON neste formato:
       const sit = it.monitoramento ? "Somente monitoramento" : A.length > 1 ? A.map((a, k) => `${k + 1}. ${sitAc(a)}`).join("\n") : A.length ? sitAc(A[0]) : "—";
       const norma = (it.enquadramento || [it.nr, it.ref].filter(Boolean).join(", ")) + (it.normaSit === "pendente" ? "\n(pendente de confirmação)" : "");
       const risco = (it.risco || "") + (it.riscoJust ? "\n" + it.riscoJust : "") + (it.risco === "Crítico" && it.critProvidencias ? `\nProvidências imediatas: ${it.critMedida || ""}. ${it.critProvidencias}` : "");
-      const vals = [n, [it.localNC, it.equipamento, it.secao].filter(Boolean).join("\n"), it.texto + (it.ocorrencia > 1 ? ` (${it.ocorrencia}ª ocorrência)` : ""), it.obs || "", norma, risco, it.monitoramento ? "Manter monitoramento: " + (it.monitoramentoJust || "") : A.map((a, k) => `${k + 1}. ${a.tipo ? "[" + a.tipo + "] " : ""}${a.texto}${osTxt(a) ? " · " + osTxt(a) : ""}`).join("\n"), A.map((a, k) => `${k + 1}. ${a.resp}`).join("\n"), A.map((a, k) => `${k + 1}. ${a.prazo ? fmtDate(a.prazo) : "—"}${origem(a) ? " (" + origem(a) + ")" : ""}`).join("\n") + (it.prazoJust ? "\nJustificativa: " + it.prazoJust : ""), sit, it.foto ? "" : "Sem foto"];
+      const vals = [n, [it.localNC, it.equipamento, it.secao].filter(Boolean).join("\n"), it.texto + (it.ocorrencia > 1 ? ` (${it.ocorrencia}ª ocorrência)` : ""), it.obs || "", norma, risco, it.monitoramento ? "Manter monitoramento: " + (it.monitoramentoJust || "") : A.map((a, k) => `${k + 1}. ${a.tipo ? "[" + a.tipo + "] " : ""}${a.texto}${osTxt(a) ? " · " + osTxt(a) : ""}`).join("\n"), A.map((a, k) => `${k + 1}. ${respTxt(a)}`).join("\n"), A.map((a, k) => `${k + 1}. ${a.prazo ? fmtDate(a.prazo) : "—"}${origem(a) ? " (" + origem(a) + ")" : ""}`).join("\n") + (it.prazoJust ? "\nJustificativa: " + it.prazoJust : ""), sit, it.foto ? "" : "Sem foto"];
       vals.forEach((v, k) => Object.assign(ws.getCell(r, k + 1), { value: v, border, font: { size: 10, color: k === 9 ? { argb: it.encerrada ? "FF1F7A3D" : late ? "FFC0281E" : "FF9A6A00" } : k === 5 && (it.risco === "Crítico" || it.risco === "Alto") ? { argb: "FFC0281E" } : undefined, bold: k === 9 || k === 5 }, alignment: { vertical: "top", wrapText: true, horizontal: k === 0 ? "center" : "left" } }));
       const lines = Math.max(3, ...vals.map((v, k) => String(v).split("\n").reduce((acc, ln) => acc + Math.max(1, Math.ceil(ln.length / Math.max(8, (ws.getColumn(k + 1).width || 10) * 1.1))), 0)));
       ws.getRow(r).height = Math.max(it.foto ? 120 : 0, it.fotoConclusao ? 120 : 0, lines * 14);
@@ -2294,14 +2300,14 @@ Responda só com JSON neste formato:
 
     // Plano de ação: uma linha por ação, com os campos do modelo padrão (diretriz 20)
     wpl.columns = ["Código da inspeção", "Código da NC", "Filial", "Setor", "Local", "Equipamento", "Pergunta", "Risco", "Ação nº", "Tipo", "Descrição", "Responsável", "Prazo", "Origem do prazo", "OS", "Status", "Critério de conclusão", "Critério de eficácia", "Executor", "Data da execução", "Descrição da execução", "Validador", "Data da validação", "Resultado da verificação"].map(h => ({ header: h, width: { "Descrição": 50, "Pergunta": 40, "Descrição da execução": 40, "Critério de conclusão": 30, "Critério de eficácia": 30, "Status": 26 }[h] || 15 }));
-    i.itens.forEach((it, n) => { if (it.status === "NC") acoesDe(it).forEach((a, k) => wpl.addRow([codigoInsp(i), `${codigoInsp(i)}-NC${String(n + 1).padStart(3, "0")}`, i.filial || "", setorLabel(i), it.localNC || "", it.equipamento || "", it.texto, it.risco || "", k + 1, a.tipo || "", a.texto, a.resp || "", a.prazo ? fmtDate(a.prazo) : "", origem(a), osTxt(a), statusAcao(a, t).label, a.criterioConclusao || "", a.criterioEficacia || "", a.corrigidoPor || "", a.corrigidoEm ? fmtDate(a.corrigidoEm) : "", a.descricaoConclusao || "", a.validacao?.por || "", a.validacao?.data ? fmtDate(a.validacao.data) : "", a.validacao ? (a.validacao.eficaz ? "Eficaz" : "Não eficaz") : ""])); });
+    i.itens.forEach((it, n) => { if (it.status === "NC") acoesDe(it).forEach((a, k) => wpl.addRow([codigoInsp(i), `${codigoInsp(i)}-NC${String(n + 1).padStart(3, "0")}`, i.filial || "", setorLabel(i), it.localNC || "", it.equipamento || "", it.texto, it.risco || "", k + 1, a.tipo || "", a.texto, respTxt(a), a.prazo ? fmtDate(a.prazo) : "", origem(a), osTxt(a), statusAcao(a, t).label, a.criterioConclusao || "", a.criterioEficacia || "", a.corrigidoPor || "", a.corrigidoEm ? fmtDate(a.corrigidoEm) : "", a.descricaoConclusao || "", a.validacao?.por || "", a.validacao?.data ? fmtDate(a.validacao.data) : "", a.validacao ? (a.validacao.eficaz ? "Eficaz" : "Não eficaz") : ""])); });
     wpl.getRow(1).font = { bold: true }; wpl.views = [{ state: "frozen", ySplit: 1 }]; wpl.autoFilter = { from: "A1", to: "X1" };
     wpl.eachRow((row, k) => { if (k > 1) row.alignment = { vertical: "top", wrapText: true }; });
 
     const wa = waR;
     wa.columns = ["Responsável", "Código", "Data da inspeção", "Setor", "Local da NC", "Nº", "Item verificado", "Ação nº", "Ação", "OS", "Prazo original", "Prazo", "Status", "Alterações de prazo", "Executada em", "Executado por", "O que foi feito"].map(h => ({ header: h, width: { "Ação": 50, "Item verificado": 40, "O que foi feito": 40, "Local da NC": 26, "Responsável": 22, "Reprogramações": 50, "Status": 20 }[h] || 14 }));
     const linhasAc = [];
-    i.itens.forEach((it, n) => { if (it.status === "NC") acoesDe(it).forEach((a, k) => linhasAc.push([a.prazo || "9999", (a.resp || "").trim() || "Sem responsável", codigoInsp(i), fmtDate(i.data), setorLabel(i), it.localNC || "", n + 1, it.texto, k + 1, a.texto, osTxt(a), prazoOriginal(a) ? fmtDate(prazoOriginal(a)) : "", a.prazo ? fmtDate(a.prazo) : "", statusAcao(a, t).label, textoRepro(a), a.corrigido ? fmtDate(a.corrigidoEm) : "", a.corrigidoPor || "", a.descricaoConclusao || ""])); });
+    i.itens.forEach((it, n) => { if (it.status === "NC") acoesDe(it).forEach((a, k) => linhasAc.push([a.prazo || "9999", respTxt(a) || "Sem responsável", codigoInsp(i), fmtDate(i.data), setorLabel(i), it.localNC || "", n + 1, it.texto, k + 1, a.texto, osTxt(a), prazoOriginal(a) ? fmtDate(prazoOriginal(a)) : "", a.prazo ? fmtDate(a.prazo) : "", statusAcao(a, t).label, textoRepro(a), a.corrigido ? fmtDate(a.corrigidoEm) : "", a.corrigidoPor || "", a.descricaoConclusao || ""])); });
     linhasAc.sort((x, y) => x[1].localeCompare(y[1], "pt-BR") || x[0].localeCompare(y[0])).forEach(l => wa.addRow(l.slice(1)));
     wa.getRow(1).font = { bold: true }; wa.views = [{ state: "frozen", ySplit: 1 }]; wa.autoFilter = { from: "A1", to: "Q1" };
     wa.eachRow((row, k) => { if (k > 1) row.alignment = { vertical: "top", wrapText: true }; });
