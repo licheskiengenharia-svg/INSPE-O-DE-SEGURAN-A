@@ -839,7 +839,8 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
     } catch { db = null; }
     try { downloads = await claude.use("downloads"); } catch { downloads = null; }
     try { sample = await claude.use("sample"); const lim = sample ? await sample.limits().catch(() => null) : null; sampleImages = !!lim?.images; } catch { sample = null; }
-    if (!db) return useLocal();
+    // dentro do Claude sem login: não cai no modo local (os dados ficariam só no navegador e sem administrador)
+    if (!db) { if (window.claude) { state.store = "semlogin"; state.isAdmin = false; state.canWrite = false; state.loaded = true; render(); return; } return useLocal(); }
     db.doc("config/equipe").onSnapshot(snap => {
       const d = snap.exists ? snap.data() : null;
       if (d?.tsts) state.equipe = structuredClone(d);
@@ -884,6 +885,11 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
   // ---------- Render ----------
   function render() {
     if (!state.loaded) return;
+    if (state.store === "semlogin") {
+      document.querySelectorAll("#tab-setores").forEach(t => t.hidden = true);
+      app.innerHTML = `<div class="panel empty" style="max-width:640px;margin:32px auto"><h3>Entre na sua conta do Claude para usar o sistema</h3><p>Você abriu o sistema sem estar conectado ao Claude. Assim ele não carrega as inspeções da empresa, não salva o que você preencher e não faz a análise automática.</p><p>Clique em <b>Entrar</b> (no aviso do Claude ou no canto da página), entre com o e-mail que o administrador liberou e abra o link de novo.</p></div>`;
+      return;
+    }
     if (state.view === "nova") readHeader();
     const note = state.store === "local"
       ? `<div class="store-note">Esta cópia não é o sistema oficial: as inspeções ficam só neste navegador, sem a base central, a auditoria e o backup. Use o link oficial do Claude para inspeções da empresa.</div>` : "";
