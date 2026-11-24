@@ -287,6 +287,9 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
 @media (max-width: 760px) { .acao-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .acao-row textarea, .acao-n { grid-column: 1 / -1; } .acao-n { padding-top: 0; } }
 .perguntas { background: var(--warn-bg); border-radius: 6px; padding: 10px 12px; gap: 8px; }
 .perguntas .field > span { font-size: 14px; }
+.perguntas .hint { font-size: 13px; color: var(--muted, #555); }
+.perguntas .field.falta input { outline: 3px solid var(--bad, #c62828); background: #fff4f4; }
+.perguntas .field.falta > span { color: var(--bad, #c62828); font-weight: 600; }
 
 /* Assinatura */
 .sig-pad { display: block; width: 100%; max-width: 100%; aspect-ratio: 900 / 240; background: #fff; border: 1px dashed var(--muted); border-radius: 6px; touch-action: none; cursor: crosshair; }
@@ -1427,7 +1430,8 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-s
         ${it.fotoMostraNC === false ? `<label class="check-line span3"><input type="checkbox" data-kc="fotoConfirmada" data-i="${i}" ${it.fotoConfirmada ? "checked" : ""}><span><b>Confirmo que a foto corresponde a esta não conformidade.</b> O Claude não identificou a irregularidade na imagem; troque a foto ou confirme.</span></label>` : ""}
         ${(it.pendencias || []).length ? `<div class="pend-box span3"><b>Pendências técnicas:</b> ${it.pendencias.map(esc).join("; ")}</div>` : ""}
         ${(it.perguntasIA || []).length ? `<div class="field span3 perguntas"><span class="label">Perguntas do Claude para completar o plano</span>
-          ${it.perguntasIA.map((x, k) => `<label class="field"><span>${esc(x.q)}</span><input id="pq-${i}-${k}" data-pq="${i}:${k}" value="${esc(x.r)}" placeholder="Sua resposta"></label>`).join("")}
+          <span class="hint">Se não souber ou a pergunta não se aplicar, escreva "não se aplica" ou "não sei". As perguntas são para melhorar o plano; dá para salvar sem elas.</span>
+          ${it.perguntasIA.map((x, k) => `<label class="field ${state.pqFalta === i + ":" + k ? "falta" : ""}"><span>${esc(x.q)}</span><input id="pq-${i}-${k}" data-pq="${i}:${k}" value="${esc(x.r)}" placeholder="Sua resposta"></label>`).join("")}
           ${sample ? `<div><button type="button" class="btn small primary" data-act="ai-run" data-i="${i}">Responder e atualizar plano</button></div>` : ""}</div>` : ""}
         <label class="field span3"><span class="label">Descrição técnica da não conformidade *</span><textarea id="nc-obs-${i}" data-k="obs" data-i="${i}" placeholder="Constatado que… (local, equipamento, irregularidade, condição de risco e consequência potencial)">${esc(it.obs)}</textarea></label>
         <label class="check-line span3"><input type="checkbox" id="nc-val-${i}" data-kc="descValidada" data-i="${i}" ${it.descValidada ? "checked" : ""}><span>Revisei e valido a descrição técnica *</span></label>
@@ -1543,7 +1547,7 @@ Tarefas:
 3. enquadramento: NR e item (ex.: "NR-12, item 12.5.1"); normaConfirmada true só se tiver certeza do item.
 4. risco: classifique em um destes cinco níveis: "Crítico" (risco grave e iminente, exige intervenção imediata), "Alto", "Médio", "Baixo" ou "Insignificante", considerando severidade potencial, probabilidade, frequência de exposição, número de pessoas expostas, condição de operação, controles existentes e possibilidade de agravamento. riscoJustificativa: uma frase com esses fatores.
 5. acoes: de 1 a 5 ações objetivas e executáveis, na ordem de execução, cada uma com tipo ("Imediata", "Provisória" ou "Definitiva"), criterioConclusao (como saber que foi executada) e criterioEficacia (como verificar que o risco foi controlado). Não numere o texto.
-6. ${(it.perguntasIA || []).some(x => x.r?.trim()) ? "perguntas: se ainda faltar informação essencial, faça até 2 perguntas curtas. Não repita perguntas já respondidas. Se não faltar nada, devolva lista vazia." : "perguntas: faça de 2 a 3 perguntas curtas e objetivas ao TST, específicas desta foto e desta irregularidade, para completar a análise (ex.: se o equipamento está em uso, se existe outro dispositivo de proteção, se continua liberado para operação, quantos trabalhadores ficam expostos)."}
+6. ${(it.rodadasIA || 0) >= 2 ? "perguntas: devolva lista vazia; o TST já respondeu duas rodadas de perguntas. Complete a análise com o que foi informado e registre o que faltar em pendencias." : (it.perguntasIA || []).some(x => x.r?.trim()) ? "perguntas: se ainda faltar informação essencial, faça até 2 perguntas curtas. Não repita perguntas já respondidas. Se não faltar nada, devolva lista vazia." : "perguntas: faça de 2 a 3 perguntas curtas e objetivas ao TST, específicas desta foto e desta irregularidade, para completar a análise (ex.: se o equipamento está em uso, se existe outro dispositivo de proteção, se continua liberado para operação, quantos trabalhadores ficam expostos)."}
 7. pendencias: liste informações técnicas essenciais que continuam faltando (lista vazia se nada faltar).
 
 Responda só com JSON neste formato:
@@ -1565,7 +1569,8 @@ Responda só com JSON neste formato:
       aplicarPrazos(cur, d.data || today());
       cur.pendencias = Array.isArray(r.pendencias) ? r.pendencias.map(String).filter(x => x.trim()).slice(0, 5) : [];
       const respondidas = (cur.perguntasIA || []).filter(x => x.r?.trim());
-      const novas = Array.isArray(r.perguntas) ? r.perguntas.map(String).filter(q => q.trim() && !respondidas.some(x => x.q === q)).slice(0, respondidas.length ? 2 : 3) : [];
+      if (respondidas.length) cur.rodadasIA = (cur.rodadasIA || 0) + 1;
+      const novas = (cur.rodadasIA || 0) >= 2 ? [] : Array.isArray(r.perguntas) ? r.perguntas.map(String).filter(q => q.trim() && !respondidas.some(x => x.q === q)).slice(0, respondidas.length ? 2 : 3) : [];
       cur.perguntasIA = [...respondidas, ...novas.map(q => ({ q, r: "" }))];
       state.ai[i] = { status: "ok" }; salvarRascunho();
     } catch (e) {
@@ -1625,7 +1630,18 @@ Responda só com JSON neste formato:
       const exSem = d.itens.findIndex(i => i.extra && !i.texto?.trim());
       if (exSem >= 0) { fail("Escreva qual é a não conformidade apontada fora do checklist, ou remova o apontamento."); document.getElementById("ex-txt-" + exSem)?.focus(); return; }
       const semResp = d.itens.findIndex(i => i.status === "NC" && (i.perguntasIA || []).some(x => !x.r?.trim()));
-      if (semResp >= 0) { fail("Responda as perguntas do Claude e clique em Responder e atualizar plano."); document.getElementById("item-" + semResp).scrollIntoView({ block: "center" }); return; }
+      if (semResp >= 0) {
+        const k = d.itens[semResp].perguntasIA.findIndex(x => !x.r?.trim()), chave = semResp + ":" + k;
+        if (state.pqAvisada !== chave) {
+          state.pqAvisada = chave; state.pqFalta = chave; render();
+          const alvo = document.getElementById(`pq-${semResp}-${k}`); alvo?.scrollIntoView({ block: "center" }); alvo?.focus();
+          document.getElementById("f-msg").textContent = "Há uma pergunta do Claude sem resposta (destacada em vermelho). Responda e clique em Responder e atualizar plano, ou clique em Salvar inspeção de novo para salvar sem ela.";
+          document.getElementById("f-msg").style.color = "var(--bad)";
+          return;
+        }
+        d.itens.forEach(i => { if (i.status === "NC") (i.perguntasIA || []).forEach(x => { if (!x.r?.trim()) x.r = "Não respondida pelo TST"; }); });
+      }
+      state.pqFalta = null;
       if (!(d.filial || "").trim()) return fail("Informe a filial.", "f-filial");
       const naSem = d.itens.findIndex(i => i.status === "NA" && !(i.naJust || "").trim());
       if (naSem >= 0) { fail(`Justifique o N/A da pergunta "${d.itens[naSem].texto.slice(0, 50)}…".`, "it-na-" + naSem); document.getElementById("item-" + naSem)?.scrollIntoView({ block: "center" }); return; }
